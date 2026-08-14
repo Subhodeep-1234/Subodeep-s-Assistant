@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subhodeep's Inbox</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="device">
+    <header>
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/></svg>
+        </div>
+        <div>
+          <h1>Subhodeep's Inbox</h1>
+          <div class="subtitle" id="subtitle">Loading…</div>
+        </div>
+      </div>
+      <button class="refresh" id="refreshBtn">↻ Refresh</button>
+    </header>
+
+    <div class="tabbar" role="tablist" id="tabs">
+      <button class="tab-pill" data-category="recent" role="tab" aria-pressed="false">
+        Recent <span class="count" id="count-recent">–</span>
+      </button>
+      <button class="tab-pill" data-category="unread" role="tab" aria-pressed="false">
+        Unread <span class="count" id="count-unread">–</span>
+      </button>
+      <button class="tab-pill" data-category="important" role="tab" aria-pressed="false">
+        Important <span class="count" id="count-important">–</span>
+      </button>
+      <button class="tab-pill" data-category="candidates" role="tab" aria-pressed="false">
+        Job Applications <span class="count" id="count-candidates">–</span>
+      </button>
+    </div>
+
+    <div class="section-head" id="sectionHead">
+      <span class="dot"></span>
+      <h2 id="sectionTitle">Recent mail</h2>
+    </div>
+
+    <div class="scope-row" id="scopeRow" hidden>
+      <button class="scope-btn" data-scope="default" aria-pressed="true">Last 50</button>
+      <button class="scope-btn" data-scope="all" aria-pressed="false">All mail</button>
+    </div>
+
+    <div class="search-row">
+      <input type="search" id="searchInput" placeholder="Search your mails…" autocomplete="off" />
+    </div>
+
+    <div id="list"><div class="loading">Loading…</div></div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
