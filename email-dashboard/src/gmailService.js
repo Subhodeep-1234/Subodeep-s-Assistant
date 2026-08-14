@@ -211,7 +211,9 @@ async function getMessagesByCategory(category, { scope = 'default', search = '' 
 
 async function getUpcomingJoinings() {
   const client = gmail();
-  const query = `in:sent subject:"Alcove Confirmation" newer_than:${JOININGS_WINDOW_DAYS}d`;
+  // Not scoped to in:sent — most originals are sent by HR colleagues
+  // (e.g. Ayan Das) and only reach this mailbox as a CC'd copy in Inbox.
+  const query = `subject:"Alcove Confirmation" newer_than:${JOININGS_WINDOW_DAYS}d`;
   const ids = await listMessageIds(query, JOININGS_SEARCH_CAP);
 
   const messages = await mapWithConcurrency(ids, DETAIL_CONCURRENCY, async (m) => {
