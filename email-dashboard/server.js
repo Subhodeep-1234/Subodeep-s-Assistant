@@ -22,7 +22,19 @@ app.get('/auth', (req, res) => {
 
 app.get('/oauth2callback', async (req, res) => {
   try {
-    await handleCallback(req.query.code);
+    const tokens = await handleCallback(req.query.code);
+    if (process.env.VERCEL) {
+      // Nothing written here survives past this request on Vercel, so hand
+      // the refresh token back once for the user to save as an env var.
+      return res.send(
+        '<pre style="white-space:pre-wrap;font-family:monospace;padding:20px;">' +
+          'Signed in. Copy the value below into this project\'s GOOGLE_REFRESH_TOKEN ' +
+          'environment variable on Vercel, then redeploy:\n\n' +
+          (tokens.refresh_token || '(no refresh_token returned — remove existing Vercel access via ' +
+            'https://myaccount.google.com/permissions and try again so Google issues a new one)') +
+          '</pre>'
+      );
+    }
     res.redirect('/');
   } catch (err) {
     res.status(500).send('Authentication failed: ' + err.message);
@@ -92,6 +104,10 @@ app.post('/api/reply', requireAuth, async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Email dashboard running at http://localhost:${PORT} (and on your LAN IP, port ${PORT})`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Email dashboard running at http://localhost:${PORT} (and on your LAN IP, port ${PORT})`);
+  });
+}
+
+module.exports = app;
