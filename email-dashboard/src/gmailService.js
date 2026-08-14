@@ -41,6 +41,60 @@ const CATEGORY_QUERIES = {
   candidates: (q) => `in:inbox ${q} ${CANDIDATE_KEYWORDS} ${CONSULTANT_EXCLUSIONS}`
 };
 
+const JOININGS_WINDOW_DAYS = 365;
+const JOININGS_SEARCH_CAP = 300;
+
+const MONTHS = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+};
+
+function parseDojString(raw) {
+  if (!raw) return null;
+  const cleaned = raw.trim();
+
+  const numeric = cleaned.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+  if (numeric) {
+    let [, d, m, y] = numeric;
+    if (y.length === 2) y = '20' + y;
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  const textual = cleaned.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([A-Za-z]+)\.?,?\s+(\d{4})$/);
+  if (textual) {
+    const [, d, monthName, y] = textual;
+    const monthIndex = MONTHS[monthName.slice(0, 3).toLowerCase()];
+    if (monthIndex === undefined) return null;
+    const date = new Date(Number(y), monthIndex, Number(d));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+}
+
+function parseConfirmationMail(bodyTextRaw) {
+  // Original offer template consistently bolds "Dear X,", the quoted
+  // designation, and the date — plain-text export renders that as *asterisks*.
+  const bodyText = bodyTextRaw.replace(/\*/g, '');
+
+  const nameMatch = bodyText.match(/Dear\s+([A-Za-z][A-Za-z.\s]*?)\s*,/i);
+  const name = nameMatch ? nameMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+  const designationMatch = bodyText.match(/offer you[^"]*"([^"]+)"/i);
+  const designation = designationMatch ? designationMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+  const companyMatch = bodyText.match(/\bat\s+([A-Z][\w&.,\s]*?)\s+on\b/);
+  const company = companyMatch ? companyMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+  const dojMatch = bodyText.match(
+    /\bon(?:\s+or\s+before)?\s+(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?[A-Za-z]+\.?,?\s+\d{4})/i
+  );
+  const dojDate = dojMatch ? parseDojString(dojMatch[1]) : null;
+
+  return { name, designation, company, dojDate };
+}
+
 function gmail() {
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
@@ -153,6 +207,60 @@ async function getMessagesByCategory(category, { scope = 'default', search = '' 
   items.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return { category, scope, total, truncated, items };
+}
+
+async function getUpcomingJoinings() {
+  const client = gmail();
+  const query = `in:sent subject:"Alcove Confirmation" newer_than:${JOININGS_WINDOW_DAYS}d`;
+  const ids = await listMessageIds(query, JOININGS_SEARCH_CAP);
+
+  const messages = await mapWithConcurrency(ids, DETAIL_CONCURRENCY, async (m) => {
+    const res = await client.users.messages.get({ userId: 'me', id: m.id, format: 'full' });
+    return res.data;
+  });
+
+  // A thread accumulates Re:/Fwd: replies over time (cancellations, resignation
+  // asks, etc.) — only the first message reliably carries the clean offer
+  // template, so that's the one we parse.
+  const earliestByThread = new Map();
+  for (const msg of messages) {
+    const internalDate = Number(msg.internalDate);
+    const existing = earliestByThread.get(msg.threadId);
+    if (!existing || internalDate < existing.internalDate) {
+      earliestByThread.set(msg.threadId, { msg, internalDate });
+    }
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const rows = [];
+  for (const { msg } of earliestByThread.values()) {
+    const headers = msg.payload.headers || [];
+    const plainData = findBodyPart(msg.payload, 'text/plain');
+    const htmlData = findBodyPart(msg.payload, 'text/html');
+    let bodyText;
+    if (plainData) bodyText = decodeBase64Url(plainData);
+    else if (htmlData) bodyText = stripHtml(decodeBase64Url(htmlData));
+    else bodyText = decodeHtmlEntities(msg.snippet || '');
+
+    const parsed = parseConfirmationMail(bodyText);
+    if (!parsed.name || !parsed.dojDate || parsed.dojDate < today) continue;
+
+    rows.push({
+      id: msg.id,
+      threadId: msg.threadId,
+      name: parsed.name,
+      designation: parsed.designation,
+      company: parsed.company,
+      doj: parsed.dojDate.toISOString(),
+      subject: headerValue(headers, 'Subject') || '',
+      to: headerValue(headers, 'To') || ''
+    });
+  }
+
+  rows.sort((a, b) => new Date(a.doj) - new Date(b.doj));
+  return { total: rows.length, items: rows };
 }
 
 function decodeBase64Url(data) {
@@ -276,4 +384,4 @@ async function trashMessage(id) {
   await client.users.messages.trash({ userId: 'me', id });
 }
 
-module.exports = { getCounts, getMessagesByCategory, getFullMessage, sendReply, trashMessage };
+module.exports = { getCounts, getMessagesByCategory, getFullMessage, sendReply, trashMessage, getUpcomingJoinings };

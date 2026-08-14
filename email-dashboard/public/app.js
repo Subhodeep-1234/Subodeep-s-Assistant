@@ -4,13 +4,15 @@ const tabs = document.getElementById('tabs');
 const sectionHead = document.getElementById('sectionHead');
 const sectionTitle = document.getElementById('sectionTitle');
 const scopeRow = document.getElementById('scopeRow');
+const searchRow = document.getElementById('searchRow');
 const searchInput = document.getElementById('searchInput');
 
 const CATEGORY_LABEL = {
   recent: 'Recent mail',
   unread: 'Unread',
   important: 'Important & unread',
-  candidates: 'Job Applications'
+  candidates: 'Job Applications',
+  joinings: 'Upcoming Joinings'
 };
 const bodyCache = {};
 let activeCategory = 'recent';
@@ -59,6 +61,7 @@ function setActiveTab(category) {
   scopeRow.querySelectorAll('[data-scope]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.scope === 'default'));
   });
+  searchRow.hidden = category === 'joinings';
   sectionHead.className = 'section-head ' + category;
   sectionTitle.textContent = CATEGORY_LABEL[category];
   loadCategory(category);
@@ -81,6 +84,9 @@ async function loadCounts() {
 
 async function loadCategory(category) {
   list.innerHTML = '<div class="loading">Loading…</div>';
+  if (category === 'joinings') {
+    return loadJoinings();
+  }
   const params = new URLSearchParams();
   if (activeScope === 'all') params.set('scope', 'all');
   if (activeSearch) params.set('q', activeSearch);
@@ -106,6 +112,50 @@ function render(data, category) {
     html += '<div class="empty">Showing latest ' + data.items.length + ' of ' + data.total + '</div>';
   }
   list.innerHTML = html;
+}
+
+async function loadJoinings() {
+  try {
+    const res = await fetch('/api/joinings');
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
+    const data = await res.json();
+    document.getElementById('count-joinings').textContent = data.total;
+    renderJoiningsTable(data);
+  } catch (err) {
+    list.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderJoiningsTable(data) {
+  if (!data.items.length) {
+    list.innerHTML = '<div class="empty">No upcoming joinings found in the last year’s offer mails</div>';
+    return;
+  }
+  const rows = data.items
+    .map(
+      (item) =>
+        '<tr>' +
+          '<td>' + escapeHtml(item.name) + '</td>' +
+          '<td>' + escapeHtml(item.designation || '—') + '</td>' +
+          '<td>' + escapeHtml(item.company || '—') + '</td>' +
+          '<td>' + escapeHtml(formatJoiningDate(item.doj)) + '</td>' +
+        '</tr>'
+    )
+    .join('');
+
+  list.innerHTML =
+    '<div class="table-wrap">' +
+      '<table class="joinings-table">' +
+        '<thead><tr><th>Candidate</th><th>Designation</th><th>Company</th><th>DOJ</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+}
+
+function formatJoiningDate(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function extractFirstName(fromHeader) {

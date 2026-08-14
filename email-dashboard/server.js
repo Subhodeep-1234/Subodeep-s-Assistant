@@ -83,6 +83,15 @@ app.get('/api/counts', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/joinings', requireAuth, async (req, res) => {
+  try {
+    const data = await gmailService.getUpcomingJoinings();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/messages/:category', requireAuth, async (req, res) => {
   const { category } = req.params;
   if (!VALID_CATEGORIES.includes(category)) {

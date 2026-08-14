@@ -172,6 +172,7 @@ h1 {
 .tab-pill[data-category="important"][aria-pressed="true"] { background: var(--important); border-color: var(--important); color: var(--accent-ink); }
 .tab-pill[data-category="recent"][aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .tab-pill[data-category="candidates"][aria-pressed="true"] { background: var(--candidate); border-color: var(--candidate); color: var(--accent-ink); }
+.tab-pill[data-category="joinings"][aria-pressed="true"] { background: var(--resolved); border-color: var(--resolved); color: var(--accent-ink); }
 
 .section-head {
   display: flex;
@@ -190,6 +191,7 @@ h1 {
 .section-head.unread .dot { background: var(--accent); }
 .section-head.recent .dot { background: var(--muted); }
 .section-head.candidates .dot { background: var(--candidate); }
+.section-head.joinings .dot { background: var(--resolved); }
 
 .section-head h2 {
   font-size: 0.78rem;
@@ -446,4 +448,45 @@ h1 {
   padding: 10px 12px;
   font-size: 0.82rem;
   margin-bottom: 14px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px var(--shadow);
+}
+
+.joinings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.joinings-table th,
+.joinings-table td {
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.joinings-table thead th {
+  background: var(--other-bg);
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.joinings-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--line);
+}
+
+.joinings-table td:last-child {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--resolved);
+  font-weight: 700;
 }
