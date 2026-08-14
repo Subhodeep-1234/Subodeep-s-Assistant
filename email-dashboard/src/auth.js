@@ -37,7 +37,14 @@ function loadClientCredentials() {
   };
 }
 
-const { clientId, clientSecret, redirectUri } = loadClientCredentials();
+function trim(value) {
+  return (value || '').trim();
+}
+
+const rawCredentials = loadClientCredentials();
+const clientId = trim(rawCredentials.clientId);
+const clientSecret = trim(rawCredentials.clientSecret);
+const redirectUri = trim(rawCredentials.redirectUri) || undefined;
 
 const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
@@ -85,4 +92,12 @@ function isAuthenticated() {
   return Boolean(process.env.GOOGLE_REFRESH_TOKEN) || fs.existsSync(TOKEN_PATH);
 }
 
-module.exports = { oauth2Client, getAuthUrl, handleCallback, isAuthenticated };
+function getConfigStatus() {
+  const missing = [];
+  if (!clientId) missing.push('GOOGLE_CLIENT_ID');
+  if (!clientSecret) missing.push('GOOGLE_CLIENT_SECRET');
+  if (IS_SERVERLESS && !isAuthenticated()) missing.push('GOOGLE_REFRESH_TOKEN');
+  return { ok: missing.length === 0, missing };
+}
+
+module.exports = { oauth2Client, getAuthUrl, handleCallback, isAuthenticated, getConfigStatus };

@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const { getAuthUrl, handleCallback, isAuthenticated } = require('./src/auth');
+const { getAuthUrl, handleCallback, isAuthenticated, getConfigStatus } = require('./src/auth');
 const gmailService = require('./src/gmailService');
 
 const app = express();
@@ -9,7 +9,28 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+app.get('/api/status', (req, res) => {
+  const status = getConfigStatus();
+  res.json({
+    ok: status.ok,
+    missing: status.missing,
+    runningOnVercel: Boolean(process.env.VERCEL)
+  });
+});
+
+function configErrorMessage(missing) {
+  return (
+    'Missing configuration: ' + missing.join(', ') + '.\n\n' +
+    'Set these in your environment (Vercel: Project Settings → Environment Variables ' +
+    '→ make sure they are enabled for Production → redeploy), then try again.'
+  );
+}
+
 function requireAuth(req, res, next) {
+  const status = getConfigStatus();
+  if (!status.ok) {
+    return res.status(500).send(configErrorMessage(status.missing));
+  }
   if (!isAuthenticated()) {
     return res.redirect('/auth');
   }
@@ -17,6 +38,10 @@ function requireAuth(req, res, next) {
 }
 
 app.get('/auth', (req, res) => {
+  const status = getConfigStatus();
+  if (!status.ok) {
+    return res.status(500).send(configErrorMessage(status.missing));
+  }
   res.redirect(getAuthUrl());
 });
 
