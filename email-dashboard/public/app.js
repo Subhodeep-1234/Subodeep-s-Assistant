@@ -112,6 +112,30 @@ function render(data, category) {
     html += '<div class="empty">Showing latest ' + data.items.length + ' of ' + data.total + '</div>';
   }
   list.innerHTML = html;
+  prefetchBodies(data.items);
+}
+
+const PREFETCH_CONCURRENCY = 6;
+
+function prefetchBodies(items) {
+  const toFetch = items.filter((item) => !bodyCache[item.id]);
+  let index = 0;
+  async function worker() {
+    while (index < toFetch.length) {
+      const item = toFetch[index++];
+      try {
+        const res = await fetch('/api/message/' + item.id);
+        if (res.ok) {
+          const data = await res.json();
+          bodyCache[item.id] = data.bodyText;
+        }
+      } catch {
+        // Silent — falls back to the on-demand fetch in toggleBody if this
+        // one didn't make it into the cache in time.
+      }
+    }
+  }
+  Array.from({ length: Math.min(PREFETCH_CONCURRENCY, toFetch.length) }, worker);
 }
 
 async function loadJoinings() {
@@ -311,12 +335,12 @@ async function toggleBody(id) {
   if (!isOpen || box.dataset.loaded) return;
 
   const messageId = id.slice(2);
-  box.innerHTML = '<div class="loading">Loading…</div>';
   if (bodyCache[messageId]) {
     box.innerHTML = '<div class="body-text">' + escapeHtml(bodyCache[messageId]) + '</div>';
     box.dataset.loaded = '1';
     return;
   }
+  box.innerHTML = '<div class="loading">Loading…</div>';
   try {
     const res = await fetch('/api/message/' + messageId);
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load message');
