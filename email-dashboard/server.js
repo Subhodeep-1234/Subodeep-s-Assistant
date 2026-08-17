@@ -97,10 +97,9 @@ app.get('/api/messages/:category', requireAuth, async (req, res) => {
   if (!VALID_CATEGORIES.includes(category)) {
     return res.status(400).json({ error: 'Invalid category' });
   }
-  const scope = req.query.scope === 'all' ? 'all' : 'default';
   const search = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
   try {
-    const data = await gmailService.getMessagesByCategory(category, { scope, search });
+    const data = await gmailService.getMessagesByCategory(category, { search });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

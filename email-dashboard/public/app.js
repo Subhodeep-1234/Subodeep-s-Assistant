@@ -3,7 +3,6 @@ const subtitle = document.getElementById('subtitle');
 const tabs = document.getElementById('tabs');
 const sectionHead = document.getElementById('sectionHead');
 const sectionTitle = document.getElementById('sectionTitle');
-const scopeRow = document.getElementById('scopeRow');
 const searchRow = document.getElementById('searchRow');
 const searchInput = document.getElementById('searchInput');
 
@@ -16,7 +15,6 @@ const CATEGORY_LABEL = {
 };
 const bodyCache = {};
 let activeCategory = 'recent';
-let activeScope = 'default';
 let activeSearch = '';
 let searchDebounce;
 
@@ -31,16 +29,6 @@ tabs.addEventListener('click', (e) => {
   setActiveTab(btn.dataset.category);
 });
 
-scopeRow.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-scope]');
-  if (!btn) return;
-  activeScope = btn.dataset.scope;
-  scopeRow.querySelectorAll('[data-scope]').forEach((b) => {
-    b.setAttribute('aria-pressed', String(b === btn));
-  });
-  loadCategory(activeCategory);
-});
-
 searchInput.addEventListener('input', () => {
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(() => {
@@ -51,15 +39,10 @@ searchInput.addEventListener('input', () => {
 
 function setActiveTab(category) {
   activeCategory = category;
-  activeScope = 'default';
   activeSearch = '';
   searchInput.value = '';
   tabs.querySelectorAll('[data-category]').forEach((btn) => {
     btn.setAttribute('aria-pressed', String(btn.dataset.category === category));
-  });
-  scopeRow.hidden = category !== 'recent';
-  scopeRow.querySelectorAll('[data-scope]').forEach((b) => {
-    b.setAttribute('aria-pressed', String(b.dataset.scope === 'default'));
   });
   searchRow.hidden = category === 'joinings';
   sectionHead.className = 'section-head ' + category;
@@ -72,7 +55,7 @@ async function loadCounts() {
     const res = await fetch('/api/counts');
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load counts');
     const data = await res.json();
-    subtitle.textContent = 'Last ' + data.windowDays + ' days · ' + data.emailAddress;
+    subtitle.textContent = data.emailAddress;
     document.getElementById('count-unread').textContent = data.counts.unread;
     document.getElementById('count-important').textContent = data.counts.important;
     document.getElementById('count-recent').textContent = data.counts.recent;
@@ -88,7 +71,6 @@ async function loadCategory(category) {
     return loadJoinings();
   }
   const params = new URLSearchParams();
-  if (activeScope === 'all') params.set('scope', 'all');
   if (activeSearch) params.set('q', activeSearch);
   const qs = params.toString();
   try {

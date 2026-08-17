@@ -4,10 +4,8 @@ const { oauth2Client } = require('./auth');
 
 https.globalAgent.keepAlive = true;
 
-const WINDOW_DAYS = 30;
 const MAX_RESULTS = 500;
-const LIST_LIMIT = 50;
-const ALL_LIST_LIMIT = 200;
+const DISPLAY_LIMIT = 200;
 const DETAIL_CONCURRENCY = 20;
 
 async function mapWithConcurrency(items, limit, fn) {
@@ -34,11 +32,11 @@ const CONSULTANT_EXCLUSIONS =
   '-from:caliberassociates -from:omplacement -from:jhr -from:ongrid -from:alcoverealty.in';
 
 const CATEGORY_QUERIES = {
-  unread: (q) => `in:inbox is:unread ${q}`,
-  important: (q) => `in:inbox is:unread is:important ${q}`,
-  read: (q) => `in:inbox -is:unread ${q}`,
-  recent: (q) => `in:inbox ${q}`,
-  candidates: (q) => `in:inbox ${q} ${CANDIDATE_KEYWORDS} ${CONSULTANT_EXCLUSIONS}`
+  unread: 'in:inbox is:unread',
+  important: 'in:inbox is:unread is:important',
+  read: 'in:inbox -is:unread',
+  recent: 'in:inbox',
+  candidates: `in:inbox ${CANDIDATE_KEYWORDS} ${CONSULTANT_EXCLUSIONS}`
 };
 
 const JOININGS_WINDOW_DAYS = 365;
@@ -167,46 +165,47 @@ async function getSignedInAddress() {
   return res.data.emailAddress;
 }
 
+function formatCount(ids) {
+  // MAX_RESULTS is a pagination cap, not necessarily the true total — be
+  // honest that there may be more instead of implying an exact count.
+  return ids.length >= MAX_RESULTS ? MAX_RESULTS + '+' : ids.length;
+}
+
 async function getCounts() {
-  const q = `newer_than:${WINDOW_DAYS}d`;
   const [emailAddress, unreadIds, importantIds, recentIds, candidateIds] = await Promise.all([
     getSignedInAddress(),
-    listMessageIds(CATEGORY_QUERIES.unread(q)),
-    listMessageIds(CATEGORY_QUERIES.important(q)),
-    listMessageIds(CATEGORY_QUERIES.recent(q)),
-    listMessageIds(CATEGORY_QUERIES.candidates(q))
+    listMessageIds(CATEGORY_QUERIES.unread),
+    listMessageIds(CATEGORY_QUERIES.important),
+    listMessageIds(CATEGORY_QUERIES.recent),
+    listMessageIds(CATEGORY_QUERIES.candidates)
   ]);
 
   return {
     emailAddress,
-    windowDays: WINDOW_DAYS,
     counts: {
-      unread: unreadIds.length,
-      important: importantIds.length,
-      recent: recentIds.length,
-      candidates: candidateIds.length
+      unread: formatCount(unreadIds),
+      important: formatCount(importantIds),
+      recent: formatCount(recentIds),
+      candidates: formatCount(candidateIds)
     }
   };
 }
 
-async function getMessagesByCategory(category, { scope = 'default', search = '' } = {}) {
-  const buildQuery = CATEGORY_QUERIES[category];
-  if (!buildQuery) {
+async function getMessagesByCategory(category, { search = '' } = {}) {
+  const baseQuery = CATEGORY_QUERIES[category];
+  if (!baseQuery) {
     throw new Error(`Unknown category: ${category}`);
   }
-  const q = scope === 'all' ? '' : `newer_than:${WINDOW_DAYS}d`;
-  let query = buildQuery(q).trim();
-  if (search) query += ' ' + search;
+  const query = search ? `${baseQuery} ${search}` : baseQuery;
 
-  const limit = scope === 'all' ? ALL_LIST_LIMIT : LIST_LIMIT;
   const allIds = await listMessageIds(query);
   const total = allIds.length;
-  const truncated = total > limit;
-  const ids = allIds.slice(0, limit);
+  const truncated = total > DISPLAY_LIMIT;
+  const ids = allIds.slice(0, DISPLAY_LIMIT);
   const items = await mapWithConcurrency(ids, DETAIL_CONCURRENCY, (m) => getMessageSummary(m.id));
   items.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  return { category, scope, total, truncated, items };
+  return { category, total, truncated, items };
 }
 
 async function getUpcomingJoinings() {
