@@ -55,8 +55,7 @@ router.get('/overview', async (req, res) => {
       inactive,
       probation,
       confirmed,
-      joinedThisMonth,
-      exitedThisMonth: null // explicitly "unknown", not zero — no exit-date field exists
+      joinedThisMonth
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

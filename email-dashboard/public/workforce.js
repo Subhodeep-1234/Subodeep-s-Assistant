@@ -92,13 +92,7 @@ async function loadOverview() {
       kpiCard({ key: 'inactive', label: 'Inactive', value: data.inactive, tone: 'inactive' }) +
       kpiCard({ key: 'probation', label: 'Probation', value: data.probation, tone: 'probation' }) +
       kpiCard({ key: 'confirmed', label: 'Confirmed', value: data.confirmed, tone: 'confirmed' }) +
-      kpiCard({ key: 'joined', label: 'Joined This Month', value: data.joinedThisMonth, tone: 'active' }) +
-      kpiCard({
-        key: 'exited',
-        label: 'Exited This Month',
-        value: data.exitedThisMonth,
-        title: 'Data not available — source sheet has no exit date field'
-      });
+      kpiCard({ key: 'joined', label: 'Joined This Month', value: data.joinedThisMonth, tone: 'active' });
   } catch (err) {
     kpiGrid.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }

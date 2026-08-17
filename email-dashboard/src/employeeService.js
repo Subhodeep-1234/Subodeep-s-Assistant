@@ -8,9 +8,7 @@ const CACHE_TTL_MS = 2 * 60 * 1000;
 // Fields confirmed unavailable in the source sheet as of setup — surfaced via
 // getDataGaps() so the UI shows "Data not available" instead of guessing.
 const DATA_GAPS = {
-  gender: 'No Gender column in Employee_Master.',
-  exitDate: 'No Exit Date / Resignation Date / Last Working Date column in Employee_Master — ' +
-    'STATUS=INACTIVE marks that someone left, but not when.'
+  gender: 'No Gender column in Employee_Master.'
 };
 
 // 0-based column indexes within Employee_Master, from the real header row (row 4).
