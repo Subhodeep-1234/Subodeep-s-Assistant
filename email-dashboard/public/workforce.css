@@ -28,8 +28,6 @@ body {
   color: var(--header-ink);
 }
 
-.wf-header .subtitle { color: var(--header-ink-dim); }
-
 .wf-tabs {
   display: flex;
   gap: 8px;

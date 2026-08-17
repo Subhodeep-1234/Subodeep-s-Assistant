@@ -1,4 +1,3 @@
-const subtitle = document.getElementById('subtitle');
 const kpiGrid = document.getElementById('kpiGrid');
 const wfTabs = document.getElementById('wfTabs');
 const overviewView = document.getElementById('overviewView');
@@ -18,7 +17,6 @@ let searchDebounce;
 let currentRequestId = 0;
 
 document.getElementById('refreshBtn').addEventListener('click', () => {
-  loadStatus(true);
   loadOverview(true);
   if (!directoryView.hidden) loadEmployees(true);
 });
@@ -45,17 +43,6 @@ function escapeHtml(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-async function loadStatus(forceRefresh) {
-  try {
-    const res = await fetch('/api/workforce/status' + (forceRefresh ? '?refresh=1' : ''));
-    if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
-    const data = await res.json();
-    subtitle.textContent = data.totalRecords + ' employee records · updated live from Google Sheets';
-  } catch (err) {
-    subtitle.textContent = 'Error loading status';
-  }
 }
 
 function kpiCard({ key, label, value, tone, clickable, title, live }) {
@@ -233,6 +220,5 @@ function renderEmployees(data) {
     .join('');
 }
 
-loadStatus();
 loadOverview();
 loadFilterOptions();
