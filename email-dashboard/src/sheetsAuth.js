@@ -23,6 +23,12 @@ function hasServiceAccount() {
   return Boolean(credentials);
 }
 
+// A single long-lived auth client + Sheets client, reused across every call.
+// GoogleAuth caches its access token internally and only re-mints it near
+// expiry — creating a fresh instance per request (the previous approach)
+// threw that caching away and paid for a full token exchange every time.
+let sheetsClient = null;
+
 function getSheetsClient() {
   if (!credentials) {
     throw new Error(
@@ -30,8 +36,11 @@ function getSheetsClient() {
       'or GOOGLE_SERVICE_ACCOUNT_JSON env var in production)'
     );
   }
-  const auth = new google.auth.GoogleAuth({ credentials, scopes: SCOPES });
-  return google.sheets({ version: 'v4', auth });
+  if (!sheetsClient) {
+    const auth = new google.auth.GoogleAuth({ credentials, scopes: SCOPES });
+    sheetsClient = google.sheets({ version: 'v4', auth });
+  }
+  return sheetsClient;
 }
 
 module.exports = { getSheetsClient, hasServiceAccount };

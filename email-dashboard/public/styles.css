@@ -13,6 +13,8 @@
   --other-bg: #eef0ed;
   --candidate: #a6702a;
   --candidate-bg: #f7ecdd;
+  --warning: #c9700a;
+  --warning-bg: #faedd9;
   --shadow: rgba(18, 40, 42, 0.08);
 
   /* Header brand band — stays constant across light/dark themes */
@@ -39,6 +41,8 @@
     --other-bg: #23282b;
     --candidate: #d9a35c;
     --candidate-bg: #2b2116;
+    --warning: #e0972f;
+    --warning-bg: #2b2013;
     --shadow: rgba(0, 0, 0, 0.35);
   }
 }

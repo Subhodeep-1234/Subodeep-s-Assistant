@@ -106,9 +106,11 @@ let inFlight = null;
 
 async function fetchRawRows() {
   const sheets = getSheetsClient();
+  // Only A:AM (through STATUS) is ever read — cuts payload size vs the full
+  // A:BC range, which included columns this app never uses.
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: `'${TAB_NAME}'!A${DATA_START_ROW}:BC`
+    range: `'${TAB_NAME}'!A${DATA_START_ROW}:AM`
   });
   return res.data.values || [];
 }

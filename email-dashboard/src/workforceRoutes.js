@@ -8,6 +8,10 @@ function configErrorMessage(missing) {
   return 'Missing configuration: ' + missing.join(', ') + '.';
 }
 
+function wantsForceRefresh(req) {
+  return req.query.refresh === '1' || req.query.refresh === 'true';
+}
+
 router.use((req, res, next) => {
   const status = employeeService.getConfigStatus();
   if (!status.ok) {
@@ -18,7 +22,9 @@ router.use((req, res, next) => {
 
 router.get('/status', async (req, res) => {
   try {
-    const { employees, fetchedAt } = await employeeService.getEmployeeData();
+    const { employees, fetchedAt } = await employeeService.getEmployeeData({
+      forceRefresh: wantsForceRefresh(req)
+    });
     res.json({
       ok: true,
       totalRecords: employees.length,
@@ -32,7 +38,9 @@ router.get('/status', async (req, res) => {
 
 router.get('/overview', async (req, res) => {
   try {
-    const { employees } = await employeeService.getEmployeeData();
+    const { employees } = await employeeService.getEmployeeData({
+      forceRefresh: wantsForceRefresh(req)
+    });
     const now = new Date();
     const currentYear = now.getUTCFullYear();
     const currentMonth = now.getUTCMonth();
@@ -100,7 +108,9 @@ function matchesFilters(emp, query, normalizeKey) {
 
 router.get('/employees', async (req, res) => {
   try {
-    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData({
+      forceRefresh: wantsForceRefresh(req)
+    });
     const filtered = employees.filter((e) => matchesFilters(e, req.query, employeeService.normalizeKey));
     const items = filtered.slice(0, EMPLOYEE_LIST_CAP).map((e) => ({
       employeeId: e.employeeId,

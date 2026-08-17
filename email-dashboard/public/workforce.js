@@ -18,9 +18,9 @@ let searchDebounce;
 let currentRequestId = 0;
 
 document.getElementById('refreshBtn').addEventListener('click', () => {
-  loadStatus();
-  loadOverview();
-  if (!directoryView.hidden) loadEmployees();
+  loadStatus(true);
+  loadOverview(true);
+  if (!directoryView.hidden) loadEmployees(true);
 });
 
 wfTabs.addEventListener('click', (e) => {
@@ -47,9 +47,9 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
-async function loadStatus() {
+async function loadStatus(forceRefresh) {
   try {
-    const res = await fetch('/api/workforce/status');
+    const res = await fetch('/api/workforce/status' + (forceRefresh ? '?refresh=1' : ''));
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
     const data = await res.json();
     subtitle.textContent = data.totalRecords + ' employee records · updated live from Google Sheets';
@@ -58,7 +58,7 @@ async function loadStatus() {
   }
 }
 
-function kpiCard({ key, label, value, tone, clickable, title }) {
+function kpiCard({ key, label, value, tone, clickable, title, live }) {
   const isNa = value === null || value === undefined;
   const displayValue = isNa ? 'N/A' : value;
   return (
@@ -67,20 +67,22 @@ function kpiCard({ key, label, value, tone, clickable, title }) {
       (title ? ' title="' + escapeHtml(title) + '"' : '') +
     '>' +
       '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue + '</span>' +
-      '<span class="kpi-label">' + escapeHtml(label) + '</span>' +
+      '<span class="kpi-label">' + escapeHtml(label) +
+        (live ? '<span class="live-dot" title="Live"></span>' : '') +
+      '</span>' +
     '</button>'
   );
 }
 
-async function loadOverview() {
+async function loadOverview(forceRefresh) {
   kpiGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const res = await fetch('/api/workforce/overview');
+    const res = await fetch('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : ''));
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
     const data = await res.json();
     kpiGrid.innerHTML =
       kpiCard({ key: 'total', label: 'Total Employees', value: data.total }) +
-      kpiCard({ key: 'active', label: 'Active', value: data.active, tone: 'active' }) +
+      kpiCard({ key: 'active', label: 'Active', value: data.active, tone: 'active', live: true }) +
       kpiCard({ key: 'notice', label: 'Notice Period', value: data.noticePeriod, tone: 'notice' }) +
       kpiCard({ key: 'inactive', label: 'Inactive', value: data.inactive, tone: 'inactive' }) +
       kpiCard({ key: 'probation', label: 'Probation', value: data.probation, tone: 'probation' }) +
@@ -168,7 +170,7 @@ clearFiltersBtn.addEventListener('click', () => {
   loadEmployees();
 });
 
-async function loadEmployees() {
+async function loadEmployees(forceRefresh) {
   const requestId = ++currentRequestId;
   employeeTableBody.innerHTML =
     '<tr><td colspan="9"><div class="loading"><div class="spinner"></div></div></td></tr>';
@@ -176,6 +178,7 @@ async function loadEmployees() {
   Object.entries(activeFilters).forEach(([k, v]) => {
     if (v) params.set(k, v);
   });
+  if (forceRefresh) params.set('refresh', '1');
   try {
     const res = await fetch('/api/workforce/employees?' + params.toString());
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
