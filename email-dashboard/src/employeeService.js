@@ -121,11 +121,7 @@ async function fetchRawRows() {
   return res.data.values || [];
 }
 
-async function getEmployeeData({ forceRefresh = false } = {}) {
-  const now = Date.now();
-  if (!forceRefresh && cache.employees && now - cache.fetchedAt < CACHE_TTL_MS) {
-    return cache;
-  }
+function refreshCache() {
   // Collapse concurrent callers into a single in-flight fetch instead of
   // hammering the Sheets API when several report requests land at once.
   if (inFlight) return inFlight;
@@ -142,12 +138,31 @@ async function getEmployeeData({ forceRefresh = false } = {}) {
     return cache;
   })();
 
-  try {
-    return await inFlight;
-  } finally {
+  return inFlight.finally(() => {
     inFlight = null;
-  }
+  });
 }
+
+async function getEmployeeData({ forceRefresh = false } = {}) {
+  const now = Date.now();
+  const isStale = !cache.employees || now - cache.fetchedAt >= CACHE_TTL_MS;
+
+  // Only block the caller when there's truly nothing to serve yet. Once a
+  // cache exists, every call returns instantly — a stale cache is refreshed
+  // quietly in the background so the *next* call is fresh, instead of
+  // making *this* call (e.g. a dashboard refresh) wait on a live fetch.
+  if (!cache.employees) {
+    return refreshCache();
+  }
+  if (forceRefresh || isStale) {
+    refreshCache().catch(() => {});
+  }
+  return cache;
+}
+
+// Warm the cache as soon as the server starts, so the first real request
+// doesn't have to pay for the initial Sheets fetch either.
+getEmployeeData().catch(() => {});
 
 function getConfigStatus() {
   return {
