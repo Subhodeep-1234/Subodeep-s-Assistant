@@ -234,6 +234,8 @@ async function getUpcomingJoinings() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const threeMonthsOut = new Date(today);
+  threeMonthsOut.setMonth(threeMonthsOut.getMonth() + 3);
 
   const rows = [];
   for (const { msg } of earliestByThread.values()) {
@@ -246,7 +248,8 @@ async function getUpcomingJoinings() {
     else bodyText = decodeHtmlEntities(msg.snippet || '');
 
     const parsed = parseConfirmationMail(bodyText);
-    if (!parsed.name || !parsed.dojDate || parsed.dojDate < today) continue;
+    if (!parsed.name || !parsed.dojDate) continue;
+    if (parsed.dojDate < today || parsed.dojDate > threeMonthsOut) continue;
 
     rows.push({
       id: msg.id,

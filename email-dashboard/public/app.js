@@ -141,7 +141,7 @@ async function loadJoinings(requestId) {
 
 function renderJoiningsTable(data) {
   if (!data.items.length) {
-    list.innerHTML = '<div class="empty">No upcoming joinings found in the last year’s offer mails</div>';
+    list.innerHTML = '<div class="empty">No joinings in the next 3 months</div>';
     return;
   }
 
