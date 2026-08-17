@@ -220,5 +220,9 @@ function renderEmployees(data) {
     .join('');
 }
 
-loadOverview();
+// Force-fresh on the initial page load (i.e. a real browser refresh) —
+// otherwise a reload right after editing the sheet could still show a
+// cached snapshot up to CACHE_TTL old. Once loaded, the server-side cache
+// is warm and fresh, so switching tabs within the page stays instant.
+loadOverview(true);
 loadFilterOptions();
