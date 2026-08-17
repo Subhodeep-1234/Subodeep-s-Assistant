@@ -75,7 +75,15 @@ app.get('/workforce.html', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'workforce.html'));
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// max-age: 0 forces the browser to revalidate (conditional GET) every time
+// instead of silently serving a stale cached copy of app.js/workforce.js —
+// we've hit that exact "my change isn't showing up" issue more than once.
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  lastModified: true,
+  cacheControl: true,
+  maxAge: 0
+}));
 
 app.use('/api/workforce', requireAuth, workforceRoutes);
 
