@@ -65,10 +65,13 @@ async function loadCounts() {
   }
 }
 
+let currentRequestId = 0;
+
 async function loadCategory(category) {
+  const requestId = ++currentRequestId;
   list.innerHTML = '<div class="loading">Loading…</div>';
   if (category === 'joinings') {
-    return loadJoinings();
+    return loadJoinings(requestId);
   }
   const params = new URLSearchParams();
   if (activeSearch) params.set('q', activeSearch);
@@ -77,8 +80,10 @@ async function loadCategory(category) {
     const res = await fetch('/api/messages/' + category + (qs ? '?' + qs : ''));
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
     const data = await res.json();
+    if (requestId !== currentRequestId) return; // a newer tab/search has since started
     render(data, category);
   } catch (err) {
+    if (requestId !== currentRequestId) return;
     list.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
@@ -120,14 +125,16 @@ function prefetchBodies(items) {
   Array.from({ length: Math.min(PREFETCH_CONCURRENCY, toFetch.length) }, worker);
 }
 
-async function loadJoinings() {
+async function loadJoinings(requestId) {
   try {
     const res = await fetch('/api/joinings');
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
     const data = await res.json();
+    if (requestId !== currentRequestId) return; // a newer tab/search has since started
     document.getElementById('count-joinings').textContent = data.total;
     renderJoiningsTable(data);
   } catch (err) {
+    if (requestId !== currentRequestId) return;
     list.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
