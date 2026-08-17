@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const { getAuthUrl, handleCallback, isAuthenticated, getConfigStatus } = require('./src/auth');
 const gmailService = require('./src/gmailService');
+const workforceRoutes = require('./src/workforceRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,7 +71,13 @@ app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('/workforce.html', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'workforce.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use('/api/workforce', requireAuth, workforceRoutes);
 
 const VALID_CATEGORIES = ['unread', 'important', 'read', 'recent', 'candidates'];
 

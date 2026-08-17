@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workforce Intelligence</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/workforce.css" />
+</head>
+<body>
+  <div class="wf-shell">
+    <header class="wf-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div>
+          <h1>Workforce Intelligence</h1>
+          <div class="subtitle" id="subtitle">Loading…</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="nav-link" href="/">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/></svg>
+          Mail
+        </a>
+        <button class="refresh" id="refreshBtn">↻ Refresh</button>
+      </div>
+    </header>
+
+    <div class="wf-databar" id="dataGapBar" hidden></div>
+
+    <nav class="wf-tabs" id="wfTabs">
+      <button class="wf-tab" data-view="overview" aria-pressed="true">Overview</button>
+      <button class="wf-tab" data-view="directory" aria-pressed="false">Employee Directory</button>
+    </nav>
+
+    <section id="overviewView" class="wf-view">
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </section>
+
+    <section id="directoryView" class="wf-view" hidden>
+      <div class="wf-filterbar">
+        <input type="search" id="wfSearch" placeholder="Search by name, ID, email, department…" autocomplete="off" />
+        <select id="filterStatus">
+          <option value="">All statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="NOTICE PERIOD">Notice Period</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
+        <select id="filterEmploymentType">
+          <option value="">All employment types</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Probation">Probation</option>
+        </select>
+        <select id="filterDepartment">
+          <option value="">All departments</option>
+        </select>
+        <select id="filterLocation">
+          <option value="">All locations</option>
+        </select>
+        <button class="wf-clear-btn" id="clearFilters">Clear filters</button>
+      </div>
+
+      <div class="wf-result-summary" id="resultSummary"></div>
+
+      <div class="table-wrap">
+        <table class="wf-table" id="employeeTable">
+          <thead>
+            <tr>
+              <th>Employee ID</th>
+              <th>Name</th>
+              <th>Department</th>
+              <th>Designation</th>
+              <th>Location</th>
+              <th>DOJ</th>
+              <th>Status</th>
+              <th>Type</th>
+              <th>Reporting Manager</th>
+            </tr>
+          </thead>
+          <tbody id="employeeTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="/workforce.js"></script>
+</body>
+</html>

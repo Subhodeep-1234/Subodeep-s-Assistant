@@ -127,6 +127,30 @@ h1 {
 .refresh:hover { background: rgba(255, 255, 255, 0.2); }
 .refresh:focus-visible { outline: 2px solid var(--header-ink); outline-offset: 2px; }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--header-ink);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--header-ring);
+  padding: 7px 12px;
+  border-radius: 999px;
+  margin-top: 2px;
+  transition: background 0.15s ease;
+}
+.nav-link:hover { background: rgba(255, 255, 255, 0.2); }
+.nav-link:focus-visible { outline: 2px solid var(--header-ink); outline-offset: 2px; }
+
 .tabbar {
   display: flex;
   gap: 8px;

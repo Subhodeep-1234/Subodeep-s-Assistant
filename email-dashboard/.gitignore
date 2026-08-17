@@ -3,3 +3,4 @@ node_modules/
 token.json
 credentials.json
 *.log
+service-account.json
