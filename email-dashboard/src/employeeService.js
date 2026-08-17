@@ -5,12 +5,6 @@ const TAB_NAME = 'Employee_Master';
 const DATA_START_ROW = 5; // row 1: title, row 2: blank, row 3: column numbers, row 4: headers
 const CACHE_TTL_MS = 2 * 60 * 1000;
 
-// Fields confirmed unavailable in the source sheet as of setup — surfaced via
-// getDataGaps() so the UI shows "Data not available" instead of guessing.
-const DATA_GAPS = {
-  gender: 'No Gender column in Employee_Master.'
-};
-
 // 0-based column indexes within Employee_Master, from the real header row (row 4).
 const COLS = {
   employeeId: 1,       // New Emp. No.
@@ -169,14 +163,9 @@ function getConfigStatus() {
   };
 }
 
-function getDataGaps() {
-  return DATA_GAPS;
-}
-
 module.exports = {
   getEmployeeData,
   getConfigStatus,
-  getDataGaps,
   normalizeKey,
   CACHE_TTL_MS
 };

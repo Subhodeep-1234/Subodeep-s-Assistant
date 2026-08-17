@@ -30,16 +30,6 @@ body {
 
 .wf-header .subtitle { color: var(--header-ink-dim); }
 
-.wf-databar {
-  background: var(--candidate-bg);
-  color: var(--candidate);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 0.78rem;
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-
 .wf-tabs {
   display: flex;
   gap: 8px;

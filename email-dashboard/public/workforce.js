@@ -1,5 +1,4 @@
 const subtitle = document.getElementById('subtitle');
-const dataGapBar = document.getElementById('dataGapBar');
 const kpiGrid = document.getElementById('kpiGrid');
 const wfTabs = document.getElementById('wfTabs');
 const overviewView = document.getElementById('overviewView');
@@ -54,12 +53,6 @@ async function loadStatus() {
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
     const data = await res.json();
     subtitle.textContent = data.totalRecords + ' employee records · updated live from Google Sheets';
-    const gaps = Object.values(data.dataGaps || {});
-    if (gaps.length) {
-      dataGapBar.innerHTML =
-        '<strong>Data not available:</strong> ' + gaps.map(escapeHtml).join(' &nbsp;·&nbsp; ');
-      dataGapBar.hidden = false;
-    }
   } catch (err) {
     subtitle.textContent = 'Error loading status';
   }

@@ -23,8 +23,7 @@ router.get('/status', async (req, res) => {
       ok: true,
       totalRecords: employees.length,
       lastFetched: new Date(fetchedAt).toISOString(),
-      cacheTtlSeconds: employeeService.CACHE_TTL_MS / 1000,
-      dataGaps: employeeService.getDataGaps()
+      cacheTtlSeconds: employeeService.CACHE_TTL_MS / 1000
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
