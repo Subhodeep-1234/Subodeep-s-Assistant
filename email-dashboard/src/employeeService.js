@@ -137,26 +137,32 @@ function refreshCache() {
   });
 }
 
+// A floor under forceRefresh itself — if a fetch just happened moments ago
+// (e.g. a rapid double-click, or another instance's request), that result
+// is already fresh enough; re-hitting the Sheets API again immediately
+// only burns quota for no real benefit.
+const MIN_FORCED_REFRESH_INTERVAL_MS = 3000;
+
 async function getEmployeeData({ forceRefresh = false } = {}) {
   const now = Date.now();
-  const isStale = !cache.employees || now - cache.fetchedAt >= CACHE_TTL_MS;
+  const hasCache = Boolean(cache.employees);
+  const isStale = !hasCache || now - cache.fetchedAt >= CACHE_TTL_MS;
+  const justFetched = hasCache && now - cache.fetchedAt < MIN_FORCED_REFRESH_INTERVAL_MS;
 
-  // Only block the caller when there's truly nothing to serve yet. Once a
-  // cache exists, every call returns instantly — a stale cache is refreshed
-  // quietly in the background so the *next* call is fresh, instead of
-  // making *this* call (e.g. a dashboard refresh) wait on a live fetch.
-  if (!cache.employees) {
+  if (!hasCache) {
     return refreshCache();
   }
-  if (forceRefresh || isStale) {
+  if (forceRefresh && !justFetched) {
+    // Explicitly requested fresh data (e.g. the Refresh button, or a page
+    // load) — actually wait for the live result instead of firing it in
+    // the background and handing back what's now stale data.
+    return refreshCache();
+  }
+  if (isStale) {
     refreshCache().catch(() => {});
   }
   return cache;
 }
-
-// Warm the cache as soon as the server starts, so the first real request
-// doesn't have to pay for the initial Sheets fetch either.
-getEmployeeData().catch(() => {});
 
 function getConfigStatus() {
   return {
