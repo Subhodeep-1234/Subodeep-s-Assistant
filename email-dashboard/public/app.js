@@ -69,7 +69,7 @@ let currentRequestId = 0;
 
 async function loadCategory(category) {
   const requestId = ++currentRequestId;
-  list.innerHTML = '<div class="loading">Loading…</div>';
+  list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   if (category === 'joinings') {
     return loadJoinings(requestId);
   }
@@ -329,7 +329,7 @@ async function toggleBody(id) {
     box.dataset.loaded = '1';
     return;
   }
-  box.innerHTML = '<div class="loading">Loading…</div>';
+  box.innerHTML = '<div class="loading-inline"><div class="spinner spinner-sm"></div></div>';
   try {
     const res = await fetch('/api/message/' + messageId);
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load message');
