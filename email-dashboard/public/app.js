@@ -131,25 +131,76 @@ function renderJoiningsTable(data) {
     list.innerHTML = '<div class="empty">No upcoming joinings found in the last year’s offer mails</div>';
     return;
   }
-  const rows = data.items
-    .map(
-      (item) =>
-        '<tr>' +
-          '<td>' + escapeHtml(item.name) + '</td>' +
+
+  const withUrgency = data.items.map((item) => ({ item, days: daysUntil(item.doj) }));
+  const thisWeek = withUrgency.filter((x) => x.days !== null && x.days <= 7).length;
+  const thisMonth = withUrgency.filter((x) => x.days !== null && x.days > 7 && x.days <= 30).length;
+
+  const first = data.items[0];
+  const last = data.items[data.items.length - 1];
+  const rangeLabel =
+    first && last
+      ? formatJoiningDate(first.doj) + ' – ' + formatJoiningDate(last.doj)
+      : '';
+
+  const rows = withUrgency
+    .map(({ item, days }, i) => {
+      const bucket = urgencyBucket(days);
+      return (
+        '<tr class="' + bucket.rowClass + '">' +
+          '<td class="col-sl">' + (i + 1) + '</td>' +
+          '<td class="col-name">' + escapeHtml(item.name) + '</td>' +
           '<td>' + escapeHtml(item.designation || '—') + '</td>' +
           '<td>' + escapeHtml(item.company || '—') + '</td>' +
-          '<td>' + escapeHtml(formatJoiningDate(item.doj)) + '</td>' +
+          '<td class="col-doj">' +
+            '<span class="doj-date">' + escapeHtml(formatJoiningDate(item.doj)) + '</span>' +
+            '<span class="doj-badge ' + bucket.badgeClass + '">' + escapeHtml(bucket.label) + '</span>' +
+          '</td>' +
         '</tr>'
-    )
+      );
+    })
     .join('');
 
   list.innerHTML =
-    '<div class="table-wrap">' +
-      '<table class="joinings-table">' +
-        '<thead><tr><th>Candidate</th><th>Designation</th><th>Company</th><th>DOJ</th></tr></thead>' +
-        '<tbody>' + rows + '</tbody>' +
-      '</table>' +
+    '<div class="report-card">' +
+      '<div class="report-header">' +
+        '<div>' +
+          '<h3>Upcoming Joinings</h3>' +
+          '<div class="report-sub">' + data.items.length + ' candidate' + (data.items.length === 1 ? '' : 's') +
+            (rangeLabel ? ' · ' + escapeHtml(rangeLabel) : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="report-stats">' +
+          (thisWeek ? '<span class="report-stat soon">' + thisWeek + ' this week</span>' : '') +
+          (thisMonth ? '<span class="report-stat month">' + thisMonth + ' this month</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="table-wrap">' +
+        '<table class="joinings-table">' +
+          '<thead><tr><th>#</th><th>Candidate</th><th>Designation</th><th>Company</th><th>DOJ</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>' +
     '</div>';
+}
+
+function daysUntil(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const dojUtc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.round((dojUtc - todayUtc) / 86400000);
+}
+
+function urgencyBucket(days) {
+  if (days === null) return { label: '—', badgeClass: 'later', rowClass: '' };
+  if (days === 0) return { label: 'Today', badgeClass: 'soon', rowClass: 'row-soon' };
+  if (days === 1) return { label: 'Tomorrow', badgeClass: 'soon', rowClass: 'row-soon' };
+  if (days > 1 && days <= 7) return { label: 'in ' + days + ' days', badgeClass: 'soon', rowClass: 'row-soon' };
+  if (days > 7 && days <= 30) return { label: 'in ' + days + ' days', badgeClass: 'month', rowClass: '' };
+  if (days > 30) return { label: 'in ' + Math.round(days / 7) + ' wks', badgeClass: 'later', rowClass: '' };
+  return { label: 'overdue', badgeClass: 'soon', rowClass: 'row-soon' };
 }
 
 function formatJoiningDate(iso) {

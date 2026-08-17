@@ -12,6 +12,7 @@
   --muted: #5b6169;
   --other-bg: #eef0ed;
   --candidate: #a6702a;
+  --candidate-bg: #f7ecdd;
   --shadow: rgba(18, 40, 42, 0.08);
 
   /* Header brand band — stays constant across light/dark themes */
@@ -37,6 +38,7 @@
     --muted: #9aa0a6;
     --other-bg: #23282b;
     --candidate: #d9a35c;
+    --candidate-bg: #2b2116;
     --shadow: rgba(0, 0, 0, 0.35);
   }
 }
@@ -450,12 +452,58 @@ h1 {
   margin-bottom: 14px;
 }
 
+.report-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px var(--shadow);
+  overflow: hidden;
+}
+
+.report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--other-bg), var(--surface));
+}
+
+.report-header h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.report-sub {
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.report-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+  align-items: flex-end;
+}
+
+.report-stat {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.report-stat.soon { background: var(--important-bg); color: var(--important); }
+.report-stat.month { background: var(--candidate-bg); color: var(--candidate); }
+
 .table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: 0 2px 6px var(--shadow);
 }
 
 .joinings-table {
@@ -466,17 +514,26 @@ h1 {
 
 .joinings-table th,
 .joinings-table td {
-  padding: 10px 12px;
+  padding: 11px 12px;
   text-align: left;
+  vertical-align: middle;
+}
+
+.joinings-table th:first-child,
+.joinings-table td.col-sl {
+  white-space: nowrap;
+}
+
+.joinings-table td.col-doj {
   white-space: nowrap;
 }
 
 .joinings-table thead th {
   background: var(--other-bg);
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   font-weight: 700;
 }
 
@@ -484,9 +541,42 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
-.joinings-table td:last-child {
+.joinings-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--other-bg) 45%, transparent);
+}
+
+.joinings-table tbody tr.row-soon {
+  background: color-mix(in srgb, var(--important-bg) 55%, transparent);
+}
+
+.joinings-table td.col-sl {
+  color: var(--muted);
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
-  color: var(--resolved);
-  font-weight: 700;
+  text-align: center;
 }
+
+.joinings-table td.col-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.doj-date {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.doj-badge {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.doj-badge.soon { background: var(--important-bg); color: var(--important); }
+.doj-badge.month { background: var(--candidate-bg); color: var(--candidate); }
+.doj-badge.later { background: var(--resolved-bg); color: var(--resolved); }
