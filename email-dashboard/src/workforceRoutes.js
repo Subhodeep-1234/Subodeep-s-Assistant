@@ -13,6 +13,12 @@ function wantsForceRefresh(req) {
   return req.query.refresh === '1' || req.query.refresh === 'true';
 }
 
+// "0" in the sheet's Group - D column means White collar - the other two
+// values already read as real labels ("Group-D", "Blue").
+function formatCollar(value) {
+  return value === '0' ? 'White' : value;
+}
+
 router.use((req, res, next) => {
   const status = employeeService.getConfigStatus();
   if (!status.ok) {
@@ -124,7 +130,7 @@ router.get('/employees', async (req, res) => {
       name: e.name,
       department: departmentNames.get(e.departmentKey) || e.department,
       designation: e.designation,
-      groupD: e.groupD,
+      groupD: formatCollar(e.groupD),
       location: locationNames.get(e.locationKey) || e.location,
       reportingDoer: e.reportingDoer,
       reportingManager: reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager,
