@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mail Management</title>
-  <link rel="stylesheet" href="/styles.css?v=3" />
+  <link rel="stylesheet" href="/styles.css?v=4" />
 </head>
 <body>
   <div class="device">
@@ -19,7 +19,11 @@
         </div>
       </div>
       <div class="header-actions">
-        <button class="refresh" id="refreshBtn">↻ Refresh</button>
+        <button class="wf-icon-btn" id="refreshBtn" title="Refresh" aria-label="Refresh">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+        <button class="wf-avatar" id="profileAvatar" title="Subhodeep Kundu Chowdhury — click to change photo" aria-label="Upload profile photo">SK</button>
+        <input type="file" id="profilePhotoInput" accept="image/*" hidden />
       </div>
     </header>
 
@@ -68,6 +72,7 @@
     </button>
   </nav>
 
-  <script src="/app.js?v=3"></script>
+  <script src="/profile.js?v=1"></script>
+  <script src="/app.js?v=4"></script>
 </body>
 </html>

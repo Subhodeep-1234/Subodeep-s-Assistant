@@ -18,9 +18,17 @@ let activeCategory = 'recent';
 let activeSearch = '';
 let searchDebounce;
 
-document.getElementById('refreshBtn').addEventListener('click', () => {
-  loadCounts();
-  loadCategory(activeCategory);
+const refreshBtn = document.getElementById('refreshBtn');
+refreshBtn.addEventListener('click', async () => {
+  if (refreshBtn.classList.contains('spinning')) return;
+  refreshBtn.classList.add('spinning');
+  refreshBtn.disabled = true;
+  try {
+    await Promise.all([loadCounts(), loadCategory(activeCategory)]);
+  } finally {
+    refreshBtn.classList.remove('spinning');
+    refreshBtn.disabled = false;
+  }
 });
 
 tabs.addEventListener('click', (e) => {
