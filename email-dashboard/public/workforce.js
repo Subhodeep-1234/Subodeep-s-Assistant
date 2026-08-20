@@ -39,8 +39,24 @@ const ICONS = {
   probation: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M21 3l1.5 3 3.5.5-2.5 2.4.6 3.6-3.1-1.7-3.1 1.7.6-3.6L16 6.5l3.5-.5z"/>',
   confirmed: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>',
   department: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-  location: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'
+  location: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
 };
+
+const DEPARTMENT_ICON_RULES = [
+  { test: /construction|site|civil|project/i, icon: 'user' },
+  { test: /sales|marketing|business development/i, icon: 'total' },
+  { test: /finance|accounts?/i, icon: 'department' },
+  { test: /^hr$|human resource/i, icon: 'confirmed' },
+  { test: /\bit\b|information technology|tech/i, icon: 'monitor' },
+  { test: /admin/i, icon: 'settings' }
+];
+function deptIconFor(name) {
+  const match = DEPARTMENT_ICON_RULES.find((r) => r.test.test(name || ''));
+  return match ? match.icon : 'department';
+}
 function icon(name, size) {
   return '<svg viewBox="0 0 24 24" width="' + (size || 20) + '" height="' + (size || 20) +
     '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
@@ -262,7 +278,7 @@ function renderEmploymentTypeStats(overview) {
 function renderDeptBarList(rows) {
   const max = rows.length ? rows[0].count : 1;
   document.getElementById('deptBarList').innerHTML = rows.length
-    ? rows.map((r) => barListItem('department', r.name, r.count, max)).join('')
+    ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max)).join('')
     : '<li class="empty">No department data</li>';
 }
 
@@ -270,7 +286,7 @@ function barListItem(iconName, name, count, max) {
   const pct = Math.max(4, Math.round((count / max) * 100));
   return (
     '<li>' +
-      '<span class="wf-bar-icon">' + icon(iconName, 14) + '</span>' +
+      '<span class="wf-bar-icon">' + icon(iconName, 18) + '</span>' +
       '<span class="wf-bar-main">' +
         '<span class="wf-bar-name">' + escapeHtml(name) + '</span>' +
         '<span class="wf-bar-track"><span class="wf-bar-fill" style="width:' + pct + '%"></span></span>' +

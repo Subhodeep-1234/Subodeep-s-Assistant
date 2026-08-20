@@ -347,15 +347,15 @@ body {
 .wf-bar-list li {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 0;
+  gap: 12px;
+  padding: 10px 0;
 }
 
 .wf-bar-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: var(--other-bg);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--accent-bg);
   color: var(--accent);
   display: flex;
   align-items: center;
@@ -365,7 +365,7 @@ body {
 
 .wf-bar-main { flex: 1; min-width: 0; }
 .wf-bar-name {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--ink);
   font-weight: 600;
   white-space: nowrap;
@@ -374,10 +374,10 @@ body {
 }
 
 .wf-bar-track {
-  height: 6px;
+  height: 8px;
   border-radius: 999px;
   background: var(--other-bg);
-  margin-top: 4px;
+  margin-top: 6px;
   overflow: hidden;
 }
 .wf-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; }
