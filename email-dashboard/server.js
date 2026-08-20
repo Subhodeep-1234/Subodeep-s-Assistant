@@ -87,6 +87,11 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 app.use('/api/workforce', requireAuth, workforceRoutes);
 
+app.use(
+  '/vendor/chart.js',
+  express.static(path.join(__dirname, 'node_modules', 'chart.js', 'dist'), { maxAge: '7d' })
+);
+
 const VALID_CATEGORIES = ['unread', 'important', 'read', 'recent', 'candidates'];
 
 app.get('/api/counts', requireAuth, async (req, res) => {

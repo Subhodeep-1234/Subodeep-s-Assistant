@@ -1,5 +1,6 @@
 const express = require('express');
 const employeeService = require('./employeeService');
+const analytics = require('./workforceAnalytics');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -51,6 +52,8 @@ router.get('/overview', async (req, res) => {
     const inactive = employees.filter((e) => e.status === 'INACTIVE').length;
     const probation = employees.filter((e) => e.employmentType.toLowerCase() === 'probation').length;
     const confirmed = employees.filter((e) => e.employmentType.toLowerCase() === 'confirmed').length;
+    const activeProbation = employees.filter((e) => e.status === 'ACTIVE' && e.employmentType.toLowerCase() === 'probation').length;
+    const activeConfirmed = employees.filter((e) => e.status === 'ACTIVE' && e.employmentType.toLowerCase() === 'confirmed').length;
     const joinedThisMonth = employees.filter(
       (e) => e.doj && e.doj.getUTCFullYear() === currentYear && e.doj.getUTCMonth() === currentMonth
     ).length;
@@ -62,6 +65,8 @@ router.get('/overview', async (req, res) => {
       inactive,
       probation,
       confirmed,
+      activeProbation,
+      activeConfirmed,
       joinedThisMonth
     });
   } catch (err) {
@@ -129,6 +134,76 @@ router.get('/employees', async (req, res) => {
       truncated: filtered.length > items.length,
       items
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/breakdowns', async (req, res) => {
+  try {
+    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+    const statusFilter = req.query.status
+      ? (e) => e.status === String(req.query.status).toUpperCase()
+      : null;
+    res.json({
+      departments: analytics.departmentBreakdown(employees, departmentNames, statusFilter),
+      locations: analytics.locationBreakdown(employees, locationNames, statusFilter)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/joining-trend', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    const months = Math.min(36, Math.max(1, Number(req.query.months) || 12));
+    res.json({ buckets: analytics.joiningTrend(employees, months) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/insights', async (req, res) => {
+  try {
+    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+    res.json({ insights: analytics.buildInsights(employees, departmentNames, locationNames) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/probation-completing', async (req, res) => {
+  try {
+    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+    const matches = analytics.probationCompletingThisMonth(employees).map((e) => ({
+      employeeId: e.employeeId,
+      name: e.name,
+      department: departmentNames.get(e.departmentKey) || e.department,
+      designation: e.designation,
+      location: locationNames.get(e.locationKey) || e.location,
+      doj: e.doj ? e.doj.toISOString() : null,
+      reportingManager: e.reportingManager
+    }));
+    res.json({ total: matches.length, items: matches });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/tenure', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    res.json(analytics.tenureAnalytics(employees));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/data-quality', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    res.json(analytics.dataQualityReport(employees));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
