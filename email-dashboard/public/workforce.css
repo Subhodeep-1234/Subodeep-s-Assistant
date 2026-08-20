@@ -99,6 +99,7 @@ body {
 
 /* ---------- Tabs ---------- */
 
+.wf-tabs[hidden] { display: none; }
 .wf-tabs {
   display: flex;
   gap: 20px;

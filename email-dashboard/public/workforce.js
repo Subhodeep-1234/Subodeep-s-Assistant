@@ -142,6 +142,7 @@ if (bottomNavOverviewBtn) bottomNavOverviewBtn.addEventListener('click', () => s
 function setView(view) {
   if (!VIEWS.includes(view)) return;
   activeView = view;
+  wfTabs.hidden = view === 'overview';
   wfTabs.querySelectorAll('[data-view]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   });
