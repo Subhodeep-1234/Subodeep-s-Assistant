@@ -2,6 +2,7 @@ const kpiGrid = document.getElementById('kpiGrid');
 const wfTabs = document.getElementById('wfTabs');
 const VIEWS = ['overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality'];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
+const bottomNavOverviewBtn = document.querySelector('.bottom-nav-item[data-jump="overview"]');
 
 const wfSearch = document.getElementById('wfSearch');
 const filterStatus = document.getElementById('filterStatus');
@@ -92,7 +93,7 @@ document.addEventListener('click', (e) => {
   setView(target);
 });
 
-document.querySelector('.bottom-nav-item[data-jump="overview"]').addEventListener('click', () => setView('overview'));
+if (bottomNavOverviewBtn) bottomNavOverviewBtn.addEventListener('click', () => setView('overview'));
 
 function setView(view) {
   if (!VIEWS.includes(view)) return;
@@ -101,6 +102,10 @@ function setView(view) {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   });
   VIEWS.forEach((v) => { viewEls[v].hidden = v !== view; });
+  // "Workforce Intelligence" in the bottom nav is statically active on this
+  // whole page; "Overview" only lights up when that specific tab is open —
+  // this was never wired up before, so it never turned green.
+  if (bottomNavOverviewBtn) bottomNavOverviewBtn.setAttribute('aria-current', String(view === 'overview'));
   loadView(view, false);
 }
 
