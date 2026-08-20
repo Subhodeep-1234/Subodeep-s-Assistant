@@ -197,7 +197,7 @@ async function loadOverview(forceRefresh) {
 
     renderStatusDonut(overview);
     renderEmploymentTypeStats(overview);
-    renderDeptBarList(activeBreakdowns.departments.slice(0, 6));
+    renderDeptBarList(activeBreakdowns.departments.slice(0, 6), overview.active);
     renderLocationDonut(activeBreakdowns.locations);
     renderJoiningLine('joiningLineChart', trend.buckets);
     renderInsightsPreview(insights.insights);
@@ -291,15 +291,16 @@ function renderEmploymentTypeStats(overview) {
     '</div>';
 }
 
-function renderDeptBarList(rows) {
+function renderDeptBarList(rows, shareTotal) {
   const max = rows.length ? rows[0].count : 1;
   document.getElementById('deptBarList').innerHTML = rows.length
-    ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max)).join('')
+    ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max, shareTotal)).join('')
     : '<li class="empty">No department data</li>';
 }
 
-function barListItem(iconName, name, count, max) {
+function barListItem(iconName, name, count, max, shareTotal) {
   const pct = Math.max(4, Math.round((count / max) * 100));
+  const share = shareTotal ? Math.round((count / shareTotal) * 10000) / 100 : null;
   return (
     '<li>' +
       '<span class="wf-bar-icon">' + icon(iconName, 18) + '</span>' +
@@ -307,7 +308,7 @@ function barListItem(iconName, name, count, max) {
         '<span class="wf-bar-name">' + escapeHtml(name) + '</span>' +
         '<span class="wf-bar-track"><span class="wf-bar-fill" style="width:' + pct + '%"></span></span>' +
       '</span>' +
-      '<span class="wf-bar-count">' + count + '</span>' +
+      '<span class="wf-bar-count">' + count + (share !== null ? '<span class="wf-bar-pct">(' + share + '%)</span>' : '') + '</span>' +
     '</li>'
   );
 }
