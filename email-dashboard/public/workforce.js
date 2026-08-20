@@ -464,7 +464,7 @@ clearFiltersBtn.addEventListener('click', () => {
   loadEmployees();
 });
 
-const EMPLOYEE_TABLE_COLSPAN = 21;
+const EMPLOYEE_TABLE_COLSPAN = 22;
 
 async function loadEmployees(forceRefresh) {
   const requestId = ++currentRequestId;
@@ -521,6 +521,7 @@ function renderEmployees(data) {
           '<td>' + escapeHtml(e.department) + '</td>' +
           '<td>' + escapeHtml(e.location) + '</td>' +
           '<td>' + escapeHtml(e.reportingDoer) + '</td>' +
+          '<td>' + escapeHtml(e.reportingManager) + '</td>' +
           '<td>' + formatDate(e.doj) + '</td>' +
           '<td>' + escapeHtml(e.tenure) + '</td>' +
           '<td>' + formatDate(e.dob) + '</td>' +

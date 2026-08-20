@@ -16,6 +16,8 @@ const COLS = {
   reportingDoer: 11,     // Reporting DOER (there are 4 other manager-ish columns in the
                          // sheet - Reporting Manager x2, HOD-1, DEPT HOD - this is the
                          // one actually requested for the dashboard)
+  reportingManager: 44,  // sheet column literally named "HOD-1" - shown here under the
+                         // "Reporting Manager" heading per user request
   doj: 12,
   tenure: 14,            // sheet computes this itself, taken as-is
   dob: 16,
@@ -78,6 +80,7 @@ function parseRow(row, index) {
     location,
     locationKey: normalizeKey(location),
     reportingDoer: cleanValue(row[COLS.reportingDoer]),
+    reportingManager: cleanValue(row[COLS.reportingManager]),
     doj: parseSheetDate(row[COLS.doj]),
     tenure: cleanValue(row[COLS.tenure]),
     dob: parseSheetDate(row[COLS.dob]),
@@ -128,11 +131,11 @@ let inFlight = null;
 
 async function fetchRawRows() {
   const sheets = getSheetsClient();
-  // Only A:AM (through STATUS) is ever read — cuts payload size vs the full
+  // Only A:AS (through HOD-1) is ever read — cuts payload size vs the full
   // A:BC range, which included columns this app never uses.
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: `'${TAB_NAME}'!A${DATA_START_ROW}:AM`
+    range: `'${TAB_NAME}'!A${DATA_START_ROW}:AS`
   });
   return res.data.values || [];
 }

@@ -125,6 +125,7 @@ router.get('/employees', async (req, res) => {
       groupD: e.groupD,
       location: locationNames.get(e.locationKey) || e.location,
       reportingDoer: e.reportingDoer,
+      reportingManager: e.reportingManager,
       doj: e.doj ? e.doj.toISOString() : null,
       tenure: e.tenure,
       dob: e.dob ? e.dob.toISOString() : null,
