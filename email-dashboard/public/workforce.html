@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="/styles.css?v=3" />
-  <link rel="stylesheet" href="/workforce.css?v=11" />
+  <link rel="stylesheet" href="/workforce.css?v=10" />
 </head>
 <body>
   <div class="wf-shell">
@@ -41,71 +41,67 @@
 
     <!-- Overview -->
     <section id="overviewView" class="wf-view">
-      <div class="wf-view-loading" id="overviewLoading">
-        <div class="spinner"></div>
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="loading"><div class="spinner"></div></div>
       </div>
 
-      <div id="overviewContent" hidden>
-        <div class="kpi-grid" id="kpiGrid"></div>
-
-        <div class="wf-grid-2">
-          <div class="wf-panel">
-            <div class="wf-panel-head">
-              <h3>Employee Status Distribution</h3>
-            </div>
-            <div class="wf-donut-row">
-              <div class="wf-canvas-wrap wf-canvas-wrap--donut"><canvas id="statusDonut"></canvas></div>
-              <ul class="wf-legend" id="statusLegend"></ul>
-            </div>
+      <div class="wf-grid-2">
+        <div class="wf-panel">
+          <div class="wf-panel-head">
+            <h3>Employee Status Distribution</h3>
           </div>
-
-          <div class="wf-panel">
-            <div class="wf-panel-head">
-              <h3>Employment Type</h3>
-            </div>
-            <div class="wf-stat-pair" id="employmentTypeStats"></div>
-          </div>
-        </div>
-
-        <div class="wf-grid-2">
-          <div class="wf-panel">
-            <div class="wf-panel-head">
-              <h3>Department Wise Headcount (Active)</h3>
-              <button class="wf-link-btn" data-jump="directory" data-status="ACTIVE">View all →</button>
-            </div>
-            <ul class="wf-bar-list" id="deptBarList"></ul>
-          </div>
-
-          <div class="wf-panel">
-            <div class="wf-panel-head">
-              <h3>Location Wise Headcount (Active)</h3>
-              <button class="wf-link-btn" data-jump="directory" data-status="ACTIVE">View all →</button>
-            </div>
-            <div class="wf-donut-row">
-              <div class="wf-canvas-wrap wf-canvas-wrap--donut"><canvas id="locationDonut"></canvas></div>
-              <ul class="wf-legend" id="locationLegend"></ul>
-            </div>
+          <div class="wf-donut-row">
+            <div class="wf-canvas-wrap wf-canvas-wrap--donut"><canvas id="statusDonut"></canvas></div>
+            <ul class="wf-legend" id="statusLegend"></ul>
           </div>
         </div>
 
         <div class="wf-panel">
           <div class="wf-panel-head">
-            <h3>Joining Trend (Monthly)</h3>
-            <button class="wf-link-btn" data-jump="joining">View report →</button>
+            <h3>Employment Type</h3>
           </div>
-          <div class="wf-canvas-wrap wf-canvas-wrap--line"><canvas id="joiningLineChart"></canvas></div>
+          <div class="wf-stat-pair" id="employmentTypeStats"></div>
+        </div>
+      </div>
+
+      <div class="wf-grid-2">
+        <div class="wf-panel">
+          <div class="wf-panel-head">
+            <h3>Department Wise Headcount (Active)</h3>
+            <button class="wf-link-btn" data-jump="directory" data-status="ACTIVE">View all →</button>
+          </div>
+          <ul class="wf-bar-list" id="deptBarList"></ul>
         </div>
 
-        <div class="wf-panel wf-insights-panel">
-          <div class="wf-insights-icon">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>
+        <div class="wf-panel">
+          <div class="wf-panel-head">
+            <h3>Location Wise Headcount (Active)</h3>
+            <button class="wf-link-btn" data-jump="directory" data-status="ACTIVE">View all →</button>
           </div>
-          <div class="wf-insights-body">
-            <h3>Insights</h3>
-            <ul id="insightsPreview"><li class="empty">Loading…</li></ul>
+          <div class="wf-donut-row">
+            <div class="wf-canvas-wrap wf-canvas-wrap--donut"><canvas id="locationDonut"></canvas></div>
+            <ul class="wf-legend" id="locationLegend"></ul>
           </div>
-          <button class="wf-link-btn" data-jump="insights">View All Insights →</button>
         </div>
+      </div>
+
+      <div class="wf-panel">
+        <div class="wf-panel-head">
+          <h3>Joining Trend (Monthly)</h3>
+          <button class="wf-link-btn" data-jump="joining">View report →</button>
+        </div>
+        <div class="wf-canvas-wrap wf-canvas-wrap--line"><canvas id="joiningLineChart"></canvas></div>
+      </div>
+
+      <div class="wf-panel wf-insights-panel">
+        <div class="wf-insights-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>
+        </div>
+        <div class="wf-insights-body">
+          <h3>Insights</h3>
+          <ul id="insightsPreview"><li class="empty">Loading…</li></ul>
+        </div>
+        <button class="wf-link-btn" data-jump="insights">View All Insights →</button>
       </div>
     </section>
 
@@ -261,6 +257,6 @@
   </nav>
 
   <script src="/vendor/chart.js/chart.umd.js"></script>
-  <script src="/workforce.js?v=15"></script>
+  <script src="/workforce.js?v=14"></script>
 </body>
 </html>
