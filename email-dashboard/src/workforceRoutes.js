@@ -82,11 +82,13 @@ router.get('/overview', async (req, res) => {
 
 router.get('/filters', async (req, res) => {
   try {
-    const { departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData();
+    const { employees, departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData();
+    const collars = Array.from(new Set(employees.map((e) => formatCollar(e.groupD)).filter(Boolean)));
     res.json({
       departments: Array.from(departmentNames.values()).sort((a, b) => a.localeCompare(b)),
       locations: Array.from(locationNames.values()).sort((a, b) => a.localeCompare(b)),
-      reportingManagers: Array.from(reportingManagerNames.values()).sort((a, b) => a.localeCompare(b))
+      reportingManagers: Array.from(reportingManagerNames.values()).sort((a, b) => a.localeCompare(b)),
+      collars: collars.sort((a, b) => a.localeCompare(b))
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -98,6 +100,7 @@ function matchesFilters(emp, query, normalizeKey) {
   if (query.department && emp.departmentKey !== normalizeKey(query.department)) return false;
   if (query.location && emp.locationKey !== normalizeKey(query.location)) return false;
   if (query.reportingManager && emp.reportingManagerKey !== normalizeKey(query.reportingManager)) return false;
+  if (query.collar && formatCollar(emp.groupD).toLowerCase() !== String(query.collar).toLowerCase()) return false;
   if (query.employmentType && emp.employmentType.toLowerCase() !== String(query.employmentType).toLowerCase()) {
     return false;
   }

@@ -11,6 +11,7 @@ const filterEmploymentType = document.getElementById('filterEmploymentType');
 const filterDepartment = document.getElementById('filterDepartment');
 const filterLocation = document.getElementById('filterLocation');
 const filterReportingManager = document.getElementById('filterReportingManager');
+const filterCollar = document.getElementById('filterCollar');
 const clearFiltersBtn = document.getElementById('clearFilters');
 const resultSummary = document.getElementById('resultSummary');
 const employeeTableBody = document.getElementById('employeeTableBody');
@@ -237,6 +238,7 @@ function applyFiltersAndShowDirectory(filters) {
   filterDepartment.value = filters.department || '';
   filterLocation.value = filters.location || '';
   filterReportingManager.value = filters.reportingManager || '';
+  filterCollar.value = filters.collar || '';
   wfSearch.value = filters.q || '';
   setView('directory');
 }
@@ -429,6 +431,7 @@ async function loadFilterOptions() {
     data.departments.forEach((d) => filterDepartment.add(new Option(d, d)));
     data.locations.forEach((l) => filterLocation.add(new Option(l, l)));
     data.reportingManagers.forEach((m) => filterReportingManager.add(new Option(m, m)));
+    data.collars.forEach((c) => filterCollar.add(new Option(c, c)));
   } catch {
     // Filter dropdowns just stay at "All" — not fatal.
   }
@@ -444,7 +447,7 @@ async function loadFilterOptions() {
   });
 });
 
-[filterStatus, filterEmploymentType, filterDepartment, filterLocation, filterReportingManager].forEach((el) => {
+[filterStatus, filterEmploymentType, filterDepartment, filterLocation, filterReportingManager, filterCollar].forEach((el) => {
   el.addEventListener('change', () => {
     activeFilters = {
       ...activeFilters,
@@ -452,7 +455,8 @@ async function loadFilterOptions() {
       employmentType: filterEmploymentType.value,
       department: filterDepartment.value,
       location: filterLocation.value,
-      reportingManager: filterReportingManager.value
+      reportingManager: filterReportingManager.value,
+      collar: filterCollar.value
     };
     loadEmployees();
   });
@@ -466,6 +470,7 @@ clearFiltersBtn.addEventListener('click', () => {
   filterDepartment.value = '';
   filterLocation.value = '';
   filterReportingManager.value = '';
+  filterCollar.value = '';
   loadEmployees();
 });
 
