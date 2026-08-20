@@ -603,5 +603,9 @@ body {
 }
 
 @media (max-width: 460px) {
-  .kpi-grid { grid-template-columns: 1fr; }
+  .kpi-card { padding: 11px; gap: 9px; }
+  .kpi-icon { width: 34px; height: 34px; }
+  .kpi-icon svg { width: 16px; height: 16px; }
+  .kpi-label { font-size: 0.68rem; }
+  .kpi-num { font-size: 1.1rem; }
 }
