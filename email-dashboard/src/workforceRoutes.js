@@ -76,10 +76,11 @@ router.get('/overview', async (req, res) => {
 
 router.get('/filters', async (req, res) => {
   try {
-    const { departmentNames, locationNames } = await employeeService.getEmployeeData();
+    const { departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData();
     res.json({
       departments: Array.from(departmentNames.values()).sort((a, b) => a.localeCompare(b)),
-      locations: Array.from(locationNames.values()).sort((a, b) => a.localeCompare(b))
+      locations: Array.from(locationNames.values()).sort((a, b) => a.localeCompare(b)),
+      reportingManagers: Array.from(reportingManagerNames.values()).sort((a, b) => a.localeCompare(b))
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -90,6 +91,7 @@ function matchesFilters(emp, query, normalizeKey) {
   if (query.status && emp.status !== String(query.status).toUpperCase()) return false;
   if (query.department && emp.departmentKey !== normalizeKey(query.department)) return false;
   if (query.location && emp.locationKey !== normalizeKey(query.location)) return false;
+  if (query.reportingManager && emp.reportingManagerKey !== normalizeKey(query.reportingManager)) return false;
   if (query.employmentType && emp.employmentType.toLowerCase() !== String(query.employmentType).toLowerCase()) {
     return false;
   }
@@ -113,7 +115,7 @@ function matchesFilters(emp, query, normalizeKey) {
 
 router.get('/employees', async (req, res) => {
   try {
-    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData({
+    const { employees, departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData({
       forceRefresh: wantsForceRefresh(req)
     });
     const filtered = employees.filter((e) => matchesFilters(e, req.query, employeeService.normalizeKey));
@@ -125,7 +127,7 @@ router.get('/employees', async (req, res) => {
       groupD: e.groupD,
       location: locationNames.get(e.locationKey) || e.location,
       reportingDoer: e.reportingDoer,
-      reportingManager: e.reportingManager,
+      reportingManager: reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager,
       doj: e.doj ? e.doj.toISOString() : null,
       tenure: e.tenure,
       dob: e.dob ? e.dob.toISOString() : null,

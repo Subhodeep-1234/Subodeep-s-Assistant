@@ -10,6 +10,7 @@ const filterStatus = document.getElementById('filterStatus');
 const filterEmploymentType = document.getElementById('filterEmploymentType');
 const filterDepartment = document.getElementById('filterDepartment');
 const filterLocation = document.getElementById('filterLocation');
+const filterReportingManager = document.getElementById('filterReportingManager');
 const clearFiltersBtn = document.getElementById('clearFilters');
 const resultSummary = document.getElementById('resultSummary');
 const employeeTableBody = document.getElementById('employeeTableBody');
@@ -235,6 +236,7 @@ function applyFiltersAndShowDirectory(filters) {
   filterEmploymentType.value = filters.employmentType || '';
   filterDepartment.value = filters.department || '';
   filterLocation.value = filters.location || '';
+  filterReportingManager.value = filters.reportingManager || '';
   wfSearch.value = filters.q || '';
   setView('directory');
 }
@@ -426,6 +428,7 @@ async function loadFilterOptions() {
     const data = await fetchJson('/api/workforce/filters');
     data.departments.forEach((d) => filterDepartment.add(new Option(d, d)));
     data.locations.forEach((l) => filterLocation.add(new Option(l, l)));
+    data.reportingManagers.forEach((m) => filterReportingManager.add(new Option(m, m)));
   } catch {
     // Filter dropdowns just stay at "All" — not fatal.
   }
@@ -441,14 +444,15 @@ async function loadFilterOptions() {
   });
 });
 
-[filterStatus, filterEmploymentType, filterDepartment, filterLocation].forEach((el) => {
+[filterStatus, filterEmploymentType, filterDepartment, filterLocation, filterReportingManager].forEach((el) => {
   el.addEventListener('change', () => {
     activeFilters = {
       ...activeFilters,
       status: filterStatus.value,
       employmentType: filterEmploymentType.value,
       department: filterDepartment.value,
-      location: filterLocation.value
+      location: filterLocation.value,
+      reportingManager: filterReportingManager.value
     };
     loadEmployees();
   });
@@ -461,6 +465,7 @@ clearFiltersBtn.addEventListener('click', () => {
   filterEmploymentType.value = '';
   filterDepartment.value = '';
   filterLocation.value = '';
+  filterReportingManager.value = '';
   loadEmployees();
 });
 

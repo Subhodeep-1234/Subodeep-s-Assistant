@@ -81,6 +81,7 @@ function parseRow(row, index) {
     locationKey: normalizeKey(location),
     reportingDoer: cleanValue(row[COLS.reportingDoer]),
     reportingManager: cleanValue(row[COLS.reportingManager]),
+    reportingManagerKey: normalizeKey(cleanValue(row[COLS.reportingManager])),
     doj: parseSheetDate(row[COLS.doj]),
     tenure: cleanValue(row[COLS.tenure]),
     dob: parseSheetDate(row[COLS.dob]),
@@ -126,7 +127,13 @@ function buildDisplayNames(employees, field) {
   return display;
 }
 
-let cache = { employees: null, fetchedAt: 0, departmentNames: new Map(), locationNames: new Map() };
+let cache = {
+  employees: null,
+  fetchedAt: 0,
+  departmentNames: new Map(),
+  locationNames: new Map(),
+  reportingManagerNames: new Map()
+};
 let inFlight = null;
 
 async function fetchRawRows() {
@@ -152,7 +159,8 @@ function refreshCache() {
       employees,
       fetchedAt: Date.now(),
       departmentNames: buildDisplayNames(employees, 'department'),
-      locationNames: buildDisplayNames(employees, 'location')
+      locationNames: buildDisplayNames(employees, 'location'),
+      reportingManagerNames: buildDisplayNames(employees, 'reportingManager')
     };
     return cache;
   })();
