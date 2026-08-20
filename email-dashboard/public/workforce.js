@@ -190,7 +190,10 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
 }
 
 async function loadOverview(forceRefresh) {
-  kpiGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const loadingEl = document.getElementById('overviewLoading');
+  const contentEl = document.getElementById('overviewContent');
+  loadingEl.hidden = false;
+  contentEl.hidden = true;
   try {
     const [overview, activeBreakdowns, trend, insights] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
@@ -211,7 +214,11 @@ async function loadOverview(forceRefresh) {
     renderLocationDonut(activeBreakdowns.locations);
     renderJoiningLine('joiningLineChart', trend.buckets);
     renderInsightsPreview(insights.insights);
+    loadingEl.hidden = true;
+    contentEl.hidden = false;
   } catch (err) {
+    loadingEl.hidden = true;
+    contentEl.hidden = false;
     kpiGrid.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
