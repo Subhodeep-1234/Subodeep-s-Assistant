@@ -517,13 +517,13 @@ function renderEmployees(data) {
 
   employeeTableBody.innerHTML = data.items
     .map(
-      (e, i) =>
-        '<tr class="wf-emp-row' + (i % 2 === 1 ? ' wf-emp-row-alt' : '') + '">' +
-          '<td><button class="wf-expand-btn" data-expand aria-expanded="false" aria-label="Show Group - D" title="Group - D">▸</button></td>' +
+      (e) =>
+        '<tr>' +
           '<td>' + escapeHtml(e.employeeId) + '</td>' +
           '<td>' + escapeHtml(e.name) + '</td>' +
           '<td>' + escapeHtml(e.designation) + '</td>' +
           '<td>' + escapeHtml(e.department) + '</td>' +
+          '<td>' + escapeHtml(e.groupD) + '</td>' +
           '<td>' + escapeHtml(e.location) + '</td>' +
           '<td>' + escapeHtml(e.reportingDoer) + '</td>' +
           '<td>' + escapeHtml(e.reportingManager) + '</td>' +
@@ -541,24 +541,10 @@ function renderEmployees(data) {
           '<td>' + escapeHtml(e.presentAddress) + '</td>' +
           '<td>' + escapeHtml(e.employmentType) + '</td>' +
           '<td><span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span></td>' +
-        '</tr>' +
-        '<tr class="wf-emp-detail" hidden>' +
-          '<td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><strong>Group - D:</strong> ' + (escapeHtml(e.groupD) || '—') + '</td>' +
         '</tr>'
     )
     .join('');
 }
-
-employeeTableBody.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-expand]');
-  if (!btn) return;
-  const detailRow = btn.closest('tr').nextElementSibling;
-  if (!detailRow || !detailRow.classList.contains('wf-emp-detail')) return;
-  const expanded = btn.getAttribute('aria-expanded') === 'true';
-  btn.setAttribute('aria-expanded', String(!expanded));
-  btn.textContent = expanded ? '▸' : '▾';
-  detailRow.hidden = expanded;
-});
 
 // ---------- Joining tab ----------
 
