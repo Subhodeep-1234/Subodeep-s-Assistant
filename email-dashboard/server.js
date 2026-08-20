@@ -67,12 +67,22 @@ app.get('/oauth2callback', async (req, res) => {
   }
 });
 
+// These two HTML documents are the entry point that decides which
+// versioned CSS/JS URLs the browser even requests — if the *document*
+// itself gets cached (res.sendFile's own defaults, or any CDN in between),
+// bumping ?v=N on the assets never even reaches the client. no-store is
+// deliberately more aggressive than the static middleware's max-age:0.
+function sendNoStore(res, filePath) {
+  res.set('Cache-Control', 'no-store, must-revalidate');
+  res.sendFile(filePath);
+}
+
 app.get('/', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  sendNoStore(res, path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/workforce.html', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'workforce.html'));
+  sendNoStore(res, path.join(__dirname, 'public', 'workforce.html'));
 });
 
 // max-age: 0 forces the browser to revalidate (conditional GET) every time
