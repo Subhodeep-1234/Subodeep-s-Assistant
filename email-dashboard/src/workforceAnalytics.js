@@ -36,7 +36,7 @@ function joiningTrend(employees, months = 12) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     buckets.push({
       key: monthKey(d),
-      label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
+      label: d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + " '" + String(d.getUTCFullYear()).slice(-2),
       count: 0
     });
   }

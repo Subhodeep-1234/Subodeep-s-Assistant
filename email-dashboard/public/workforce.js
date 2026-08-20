@@ -302,10 +302,35 @@ function renderLocationDonut(rows) {
     : '<li class="empty">No location data</li>';
 }
 
+const joiningValueLabelsPlugin = {
+  id: 'joiningValueLabels',
+  afterDatasetsDraw(chart) {
+    const meta = chart.getDatasetMeta(0);
+    const values = chart.data.datasets[0].data;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = chartColors().ink;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    meta.data.forEach((point, i) => {
+      const value = values[i];
+      if (value === null || value === undefined) return;
+      ctx.fillText(String(value), point.x, point.y - 10);
+    });
+    ctx.restore();
+  }
+};
+
 function renderJoiningLine(canvasId, buckets) {
   const c = chartColors();
   destroyChart(canvasId);
-  const ctx = document.getElementById(canvasId);
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 220);
+  gradient.addColorStop(0, c.accent + '3d');
+  gradient.addColorStop(1, c.accent + '00');
+
   charts[canvasId] = new Chart(ctx, {
     type: 'line',
     data: {
@@ -313,19 +338,26 @@ function renderJoiningLine(canvasId, buckets) {
       datasets: [{
         data: buckets.map((b) => b.count),
         borderColor: c.accent,
-        backgroundColor: c.accent + '22',
+        backgroundColor: gradient,
         pointBackgroundColor: c.accent,
+        pointBorderColor: c.surface,
+        pointBorderWidth: 1.5,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 2,
         fill: true,
         tension: 0.35
       }]
     },
     options: {
-      plugins: { legend: { display: false } },
+      layout: { padding: { top: 22 } },
+      plugins: { legend: { display: false }, tooltip: { enabled: true } },
       scales: {
         x: { grid: { display: false }, ticks: { color: c.muted, font: { size: 10 } } },
         y: { beginAtZero: true, grid: { color: c.line }, ticks: { color: c.muted, font: { size: 10 } } }
       }
-    }
+    },
+    plugins: [joiningValueLabelsPlugin]
   });
 }
 
