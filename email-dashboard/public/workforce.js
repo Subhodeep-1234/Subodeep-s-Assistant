@@ -300,7 +300,7 @@ function renderDeptBarList(rows, shareTotal) {
 
 function barListItem(iconName, name, count, max, shareTotal) {
   const pct = Math.max(4, Math.round((count / max) * 100));
-  const share = shareTotal ? Math.round((count / shareTotal) * 10000) / 100 : null;
+  const share = shareTotal ? Math.round((count / shareTotal) * 1000) / 10 : null;
   return (
     '<li>' +
       '<span class="wf-bar-icon">' + icon(iconName, 18) + '</span>' +
