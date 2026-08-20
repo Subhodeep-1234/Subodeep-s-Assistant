@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="/styles.css?v=3" />
-  <link rel="stylesheet" href="/workforce.css?v=11" />
+  <link rel="stylesheet" href="/workforce.css?v=12" />
 </head>
 <body>
   <div class="wf-shell">
@@ -134,15 +134,27 @@
         <table class="wf-table" id="employeeTable">
           <thead>
             <tr>
+              <th></th>
               <th>Employee ID</th>
               <th>Name</th>
-              <th>Department</th>
               <th>Designation</th>
+              <th>Department</th>
               <th>Location</th>
+              <th>Reporting DOER</th>
               <th>DOJ</th>
+              <th>Tenure</th>
+              <th>Date of Birth</th>
+              <th>UAN</th>
+              <th>ESI Number</th>
+              <th>Email ID- Official</th>
+              <th>Email ID- Personal</th>
+              <th>Aadhar Card</th>
+              <th>PAN Card</th>
+              <th>Contact Number</th>
+              <th>Permanent Address</th>
+              <th>Present Address</th>
+              <th>Employment Type</th>
               <th>Status</th>
-              <th>Type</th>
-              <th>Reporting Manager</th>
             </tr>
           </thead>
           <tbody id="employeeTableBody"></tbody>
@@ -220,7 +232,7 @@
         <div class="table-wrap">
           <table class="wf-table" id="probationTable">
             <thead>
-              <tr><th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Location</th><th>DOJ</th><th>Reporting Manager</th></tr>
+              <tr><th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Location</th><th>DOJ</th><th>Reporting DOER</th></tr>
             </thead>
             <tbody id="probationTableBody"></tbody>
           </table>
@@ -256,6 +268,6 @@
   </nav>
 
   <script src="/vendor/chart.js/chart.umd.js"></script>
-  <script src="/workforce.js?v=15"></script>
+  <script src="/workforce.js?v=16"></script>
 </body>
 </html>

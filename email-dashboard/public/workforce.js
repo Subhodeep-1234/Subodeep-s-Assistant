@@ -464,10 +464,12 @@ clearFiltersBtn.addEventListener('click', () => {
   loadEmployees();
 });
 
+const EMPLOYEE_TABLE_COLSPAN = 21;
+
 async function loadEmployees(forceRefresh) {
   const requestId = ++currentRequestId;
   employeeTableBody.innerHTML =
-    '<tr><td colspan="9"><div class="loading"><div class="spinner"></div></div></td></tr>';
+    '<tr><td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><div class="loading"><div class="spinner"></div></div></td></tr>';
   const params = new URLSearchParams();
   Object.entries(activeFilters).forEach(([k, v]) => {
     if (v) params.set(k, v);
@@ -480,7 +482,7 @@ async function loadEmployees(forceRefresh) {
   } catch (err) {
     if (requestId !== currentRequestId) return;
     employeeTableBody.innerHTML =
-      '<tr><td colspan="9"><div class="error-banner">' + escapeHtml(err.message) + '</div></td></tr>';
+      '<tr><td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><div class="error-banner">' + escapeHtml(err.message) + '</div></td></tr>';
   }
 }
 
@@ -503,27 +505,54 @@ function renderEmployees(data) {
     (data.truncated ? ' (showing first ' + data.items.length + ')' : '');
 
   if (!data.items.length) {
-    employeeTableBody.innerHTML = '<tr><td colspan="9"><div class="empty">No employees match these filters</div></td></tr>';
+    employeeTableBody.innerHTML =
+      '<tr><td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><div class="empty">No employees match these filters</div></td></tr>';
     return;
   }
 
   employeeTableBody.innerHTML = data.items
     .map(
-      (e) =>
-        '<tr>' +
+      (e, i) =>
+        '<tr class="wf-emp-row' + (i % 2 === 1 ? ' wf-emp-row-alt' : '') + '">' +
+          '<td><button class="wf-expand-btn" data-expand aria-expanded="false" aria-label="Show Group - D" title="Group - D">▸</button></td>' +
           '<td>' + escapeHtml(e.employeeId) + '</td>' +
           '<td>' + escapeHtml(e.name) + '</td>' +
-          '<td>' + escapeHtml(e.department) + '</td>' +
           '<td>' + escapeHtml(e.designation) + '</td>' +
+          '<td>' + escapeHtml(e.department) + '</td>' +
           '<td>' + escapeHtml(e.location) + '</td>' +
+          '<td>' + escapeHtml(e.reportingDoer) + '</td>' +
           '<td>' + formatDate(e.doj) + '</td>' +
-          '<td><span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span></td>' +
+          '<td>' + escapeHtml(e.tenure) + '</td>' +
+          '<td>' + formatDate(e.dob) + '</td>' +
+          '<td>' + escapeHtml(e.uan) + '</td>' +
+          '<td>' + escapeHtml(e.esiNumber) + '</td>' +
+          '<td>' + escapeHtml(e.email) + '</td>' +
+          '<td>' + escapeHtml(e.emailPersonal) + '</td>' +
+          '<td>' + escapeHtml(e.aadhar) + '</td>' +
+          '<td>' + escapeHtml(e.pan) + '</td>' +
+          '<td>' + escapeHtml(e.contactNumber) + '</td>' +
+          '<td>' + escapeHtml(e.permanentAddress) + '</td>' +
+          '<td>' + escapeHtml(e.presentAddress) + '</td>' +
           '<td>' + escapeHtml(e.employmentType) + '</td>' +
-          '<td>' + escapeHtml(e.reportingManager) + '</td>' +
+          '<td><span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span></td>' +
+        '</tr>' +
+        '<tr class="wf-emp-detail" hidden>' +
+          '<td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><strong>Group - D:</strong> ' + (escapeHtml(e.groupD) || '—') + '</td>' +
         '</tr>'
     )
     .join('');
 }
+
+employeeTableBody.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-expand]');
+  if (!btn) return;
+  const detailRow = btn.closest('tr').nextElementSibling;
+  if (!detailRow || !detailRow.classList.contains('wf-emp-detail')) return;
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', String(!expanded));
+  btn.textContent = expanded ? '▸' : '▾';
+  detailRow.hidden = expanded;
+});
 
 // ---------- Joining tab ----------
 
@@ -598,7 +627,7 @@ async function loadInsightsView() {
                 '<td>' + escapeHtml(e.designation) + '</td>' +
                 '<td>' + escapeHtml(e.location) + '</td>' +
                 '<td>' + formatDate(e.doj) + '</td>' +
-                '<td>' + escapeHtml(e.reportingManager) + '</td>' +
+                '<td>' + escapeHtml(e.reportingDoer) + '</td>' +
               '</tr>'
           )
           .join('')

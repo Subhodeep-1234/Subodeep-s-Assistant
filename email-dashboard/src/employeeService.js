@@ -11,11 +11,23 @@ const COLS = {
   name: 2,              // Person Accountable (confirmed = employee name)
   designation: 3,
   department: 4,
+  groupD: 5,             // Group - D
   location: 7,
-  reportingManager: 10,
+  reportingDoer: 11,     // Reporting DOER (there are 4 other manager-ish columns in the
+                         // sheet - Reporting Manager x2, HOD-1, DEPT HOD - this is the
+                         // one actually requested for the dashboard)
   doj: 12,
+  tenure: 14,            // sheet computes this itself, taken as-is
   dob: 16,
-  email: 26,
+  uan: 21,
+  esiNumber: 23,
+  email: 26,             // Email ID- Official
+  emailPersonal: 27,
+  aadhar: 28,
+  pan: 29,
+  contactNumber: 30,
+  permanentAddress: 35,
+  presentAddress: 36,
   employmentType: 37,
   status: 38
 };
@@ -62,14 +74,24 @@ function parseRow(row, index) {
     designation: cleanValue(row[COLS.designation]),
     department,
     departmentKey: normalizeKey(department),
+    groupD: cleanValue(row[COLS.groupD]),
     location,
     locationKey: normalizeKey(location),
+    reportingDoer: cleanValue(row[COLS.reportingDoer]),
     doj: parseSheetDate(row[COLS.doj]),
+    tenure: cleanValue(row[COLS.tenure]),
     dob: parseSheetDate(row[COLS.dob]),
+    uan: cleanValue(row[COLS.uan]),
+    esiNumber: cleanValue(row[COLS.esiNumber]),
+    email: cleanValue(row[COLS.email]),
+    emailPersonal: cleanValue(row[COLS.emailPersonal]),
+    aadhar: cleanValue(row[COLS.aadhar]),
+    pan: cleanValue(row[COLS.pan]),
+    contactNumber: cleanValue(row[COLS.contactNumber]),
+    permanentAddress: cleanValue(row[COLS.permanentAddress]),
+    presentAddress: cleanValue(row[COLS.presentAddress]),
     employmentType: cleanValue(row[COLS.employmentType]),
-    status: cleanValue(row[COLS.status]).toUpperCase(),
-    reportingManager: cleanValue(row[COLS.reportingManager]),
-    email: cleanValue(row[COLS.email])
+    status: cleanValue(row[COLS.status]).toUpperCase()
   };
 }
 

@@ -122,12 +122,23 @@ router.get('/employees', async (req, res) => {
       name: e.name,
       department: departmentNames.get(e.departmentKey) || e.department,
       designation: e.designation,
+      groupD: e.groupD,
       location: locationNames.get(e.locationKey) || e.location,
+      reportingDoer: e.reportingDoer,
       doj: e.doj ? e.doj.toISOString() : null,
-      status: e.status,
+      tenure: e.tenure,
+      dob: e.dob ? e.dob.toISOString() : null,
+      uan: e.uan,
+      esiNumber: e.esiNumber,
+      email: e.email,
+      emailPersonal: e.emailPersonal,
+      aadhar: e.aadhar,
+      pan: e.pan,
+      contactNumber: e.contactNumber,
+      permanentAddress: e.permanentAddress,
+      presentAddress: e.presentAddress,
       employmentType: e.employmentType,
-      reportingManager: e.reportingManager,
-      email: e.email
+      status: e.status
     }));
     res.json({
       total: filtered.length,
@@ -183,7 +194,7 @@ router.get('/probation-completing', async (req, res) => {
       designation: e.designation,
       location: locationNames.get(e.locationKey) || e.location,
       doj: e.doj ? e.doj.toISOString() : null,
-      reportingManager: e.reportingManager
+      reportingDoer: e.reportingDoer
     }));
     res.json({ total: matches.length, items: matches });
   } catch (err) {

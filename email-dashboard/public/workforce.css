@@ -556,6 +556,30 @@ body {
   background: color-mix(in srgb, var(--other-bg) 40%, transparent);
 }
 
+/* #employeeTable interleaves a hidden Group - D detail row after every
+   employee row, which throws off :nth-child(even) striping - stripe by
+   an explicit class instead. */
+#employeeTable tbody tr:nth-child(even) { background: none; }
+#employeeTable tbody tr.wf-emp-row-alt { background: color-mix(in srgb, var(--other-bg) 40%, transparent); }
+
+.wf-expand-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.wf-expand-btn:hover { color: var(--accent); }
+
+.wf-emp-detail td {
+  background: var(--accent-bg);
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: normal;
+}
+
 .wf-status-chip {
   display: inline-block;
   font-size: 0.68rem;
