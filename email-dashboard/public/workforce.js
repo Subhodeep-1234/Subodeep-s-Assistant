@@ -193,9 +193,7 @@ async function loadOverview(forceRefresh) {
       kpiCard({ key: 'total', label: 'Total Employees', value: overview.total, tone: 'accent', icon: 'total' }) +
       kpiCard({ key: 'active', label: 'Active Employees', value: overview.active, tone: 'active', icon: 'active', live: true }) +
       kpiCard({ key: 'notice', label: 'Notice Period', value: overview.noticePeriod, tone: 'notice', icon: 'notice' }) +
-      kpiCard({ key: 'inactive', label: 'Inactive Employees', value: overview.inactive, tone: 'inactive', icon: 'inactive' }) +
-      kpiCard({ key: 'probation', label: 'Probation', value: overview.probation, tone: 'probation', icon: 'probation' }) +
-      kpiCard({ key: 'confirmed', label: 'Confirmed Employees', value: overview.confirmed, tone: 'confirmed', icon: 'confirmed' });
+      kpiCard({ key: 'inactive', label: 'Inactive Employees', value: overview.inactive, tone: 'inactive', icon: 'inactive' });
 
     renderStatusDonut(overview);
     renderEmploymentTypeStats(overview);
@@ -215,9 +213,7 @@ kpiGrid.addEventListener('click', (e) => {
     total: {},
     active: { status: 'ACTIVE' },
     notice: { status: 'NOTICE PERIOD' },
-    inactive: { status: 'INACTIVE' },
-    probation: { employmentType: 'Probation' },
-    confirmed: { employmentType: 'Confirmed' }
+    inactive: { status: 'INACTIVE' }
   };
   applyFiltersAndShowDirectory(filterMap[card.dataset.kpi] || {});
 });
@@ -274,21 +270,23 @@ function legendRow(color, label, value, pct, sub) {
 }
 
 function renderEmploymentTypeStats(overview) {
-  const total = overview.probation + overview.confirmed || 1;
-  const probPct = Math.round((overview.probation / total) * 1000) / 10;
-  const confPct = Math.round((overview.confirmed / total) * 1000) / 10;
+  const probation = overview.activeProbation;
+  const confirmed = overview.activeConfirmed;
+  const total = probation + confirmed || 1;
+  const probPct = Math.round((probation / total) * 1000) / 10;
+  const confPct = Math.round((confirmed / total) * 1000) / 10;
   document.getElementById('employmentTypeStats').innerHTML =
     '<div>' +
       '<div class="stat-icon probation">' + icon('probation', 20) + '</div>' +
       '<div class="stat-label">Probation</div>' +
-      '<div class="stat-num">' + overview.probation + '</div>' +
+      '<div class="stat-num">' + probation + '</div>' +
       '<div class="stat-pct">(' + probPct + '%)</div>' +
     '</div>' +
     '<div class="stat-divider"></div>' +
     '<div>' +
       '<div class="stat-icon confirmed">' + icon('confirmed', 20) + '</div>' +
       '<div class="stat-label">Confirmed</div>' +
-      '<div class="stat-num">' + overview.confirmed + '</div>' +
+      '<div class="stat-num">' + confirmed + '</div>' +
       '<div class="stat-pct">(' + confPct + '%)</div>' +
     '</div>';
 }
