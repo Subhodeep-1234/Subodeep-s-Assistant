@@ -106,9 +106,18 @@ function destroyChart(key) {
 
 // ---------- Navigation ----------
 
-document.getElementById('refreshBtn').addEventListener('click', () => {
+const refreshBtn = document.getElementById('refreshBtn');
+refreshBtn.addEventListener('click', async () => {
+  if (refreshBtn.classList.contains('spinning')) return;
+  refreshBtn.classList.add('spinning');
+  refreshBtn.disabled = true;
   loadedViews.clear();
-  loadView(activeView, true);
+  try {
+    await loadView(activeView, true);
+  } finally {
+    refreshBtn.classList.remove('spinning');
+    refreshBtn.disabled = false;
+  }
 });
 
 wfTabs.addEventListener('click', (e) => {
@@ -147,15 +156,16 @@ function setView(view) {
 }
 
 function loadView(view, forceRefresh) {
-  if (!forceRefresh && loadedViews.has(view)) return;
+  if (!forceRefresh && loadedViews.has(view)) return Promise.resolve();
   loadedViews.add(view);
-  if (view === 'overview') loadOverview(forceRefresh);
-  else if (view === 'directory') loadEmployees(forceRefresh);
-  else if (view === 'joining') loadJoiningView(12);
-  else if (view === 'tenure') loadTenureView();
-  else if (view === 'insights') loadInsightsView();
-  else if (view === 'quality') loadQualityView();
+  if (view === 'overview') return loadOverview(forceRefresh);
+  if (view === 'directory') return loadEmployees(forceRefresh);
+  if (view === 'joining') return loadJoiningView(12);
+  if (view === 'tenure') return loadTenureView();
+  if (view === 'insights') return loadInsightsView();
+  if (view === 'quality') return loadQualityView();
   // exit / attrition / movement are static "not available" panels — nothing to fetch.
+  return Promise.resolve();
 }
 
 // ---------- Overview ----------
