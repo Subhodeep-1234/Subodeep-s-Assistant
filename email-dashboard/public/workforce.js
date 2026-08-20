@@ -308,7 +308,8 @@ function barListItem(iconName, name, count, max, shareTotal) {
         '<span class="wf-bar-name">' + escapeHtml(name) + '</span>' +
         '<span class="wf-bar-track"><span class="wf-bar-fill" style="width:' + pct + '%"></span></span>' +
       '</span>' +
-      '<span class="wf-bar-count">' + count + (share !== null ? '<span class="wf-bar-pct">(' + share + '%)</span>' : '') + '</span>' +
+      '<span class="wf-bar-count">' + count + '</span>' +
+      (share !== null ? '<span class="wf-bar-pct">(' + share + '%)</span>' : '') +
     '</li>'
   );
 }

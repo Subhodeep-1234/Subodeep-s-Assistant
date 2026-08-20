@@ -394,7 +394,7 @@ body {
   white-space: nowrap;
 }
 
-.wf-bar-pct { color: var(--muted); font-size: 0.74rem; font-weight: 500; margin-left: 4px; }
+.wf-bar-pct { color: var(--muted); font-size: 0.74rem; font-weight: 500; flex-shrink: 0; }
 
 /* ---------- Insights ---------- */
 
