@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="/styles.css?v=5" />
-  <link rel="stylesheet" href="/workforce.css?v=16" />
+  <link rel="stylesheet" href="/workforce.css?v=17" />
 </head>
 <body>
   <div class="wf-shell">
@@ -229,16 +229,11 @@
         <h2>Joining</h2>
       </div>
       <div class="wf-panel">
-        <div class="wf-panel-head">
-          <h3>Joining Trend</h3>
-          <div class="wf-range-pills" id="joiningRangePills">
-            <button class="wf-range-pill" data-months="3">Last 3 Months</button>
-            <button class="wf-range-pill" data-months="6">Last 6 Months</button>
-            <button class="wf-range-pill" data-months="12" aria-pressed="true">Last 12 Months</button>
-            <button class="wf-range-pill" data-months="24">Last 24 Months</button>
-          </div>
+        <div class="wf-subtabs" id="joiningTabs">
+          <button class="wf-subtab" data-jtab="upcoming" aria-pressed="true">Upcoming</button>
+          <button class="wf-subtab" data-jtab="recent" aria-pressed="false">Recent</button>
         </div>
-        <div class="wf-canvas-wrap wf-canvas-wrap--line"><canvas id="joiningLineChartFull"></canvas></div>
+        <ul class="wf-join-list" id="joiningList"><li class="empty">Loading…</li></ul>
       </div>
     </section>
 
@@ -413,6 +408,6 @@
 
   <script src="/vendor/chart.js/chart.umd.js"></script>
   <script src="/profile.js?v=1"></script>
-  <script src="/workforce.js?v=23"></script>
+  <script src="/workforce.js?v=24"></script>
 </body>
 </html>

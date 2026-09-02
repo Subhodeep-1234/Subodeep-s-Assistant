@@ -188,7 +188,7 @@ function loadView(view, forceRefresh) {
   loadedViews.add(view);
   if (view === 'overview') return loadOverview(forceRefresh);
   if (view === 'directory') return loadEmployees(forceRefresh);
-  if (view === 'joining') return loadJoiningView(12);
+  if (view === 'joining') return loadJoiningView();
   if (view === 'tenure') return loadTenureView();
   if (view === 'insights') return loadInsightsView();
   if (view === 'quality') return loadQualityView();
@@ -630,26 +630,80 @@ function renderEmployees(data) {
 }
 
 // ---------- Joining tab ----------
+// "Upcoming" is Gmail-sourced (confirmed new hires not yet in the HR sheet -
+// same data as the Mail Management "Upcoming Joinings" widget). "Recent" is
+// real Employee_Master data: whoever's DOJ falls in the last 60 days.
 
-document.getElementById('joiningRangePills').addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-months]');
-  if (!btn) return;
-  document.querySelectorAll('#joiningRangePills [data-months]').forEach((b) => {
+let joiningActiveTab = 'upcoming';
+const joiningCache = {};
+
+document.getElementById('joiningTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-jtab]');
+  if (!btn || btn.dataset.jtab === joiningActiveTab) return;
+  joiningActiveTab = btn.dataset.jtab;
+  document.querySelectorAll('#joiningTabs [data-jtab]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b === btn));
   });
-  loadJoiningView(Number(btn.dataset.months));
+  renderJoiningTab(joiningActiveTab);
 });
 
-async function loadJoiningView(months) {
-  try {
-    const data = await fetchJson('/api/workforce/joining-trend?months=' + months);
-    renderJoiningLine('joiningLineChartFull', data.buckets);
-  } catch (err) {
-    document.getElementById('joiningView').querySelector('.wf-panel').insertAdjacentHTML(
-      'beforeend',
-      '<div class="error-banner">' + escapeHtml(err.message) + '</div>'
-    );
+function joinDateBadge(doj) {
+  const d = new Date(doj);
+  if (isNaN(d.getTime())) return { day: '—', month: '' };
+  return { day: String(d.getDate()).padStart(2, '0'), month: d.toLocaleDateString(undefined, { month: 'short' }) };
+}
+
+function joinRow(name, designation, subLabel, doj) {
+  const badge = joinDateBadge(doj);
+  return (
+    '<li>' +
+      '<span class="wf-join-badge"><b>' + badge.day + '</b><span>' + badge.month + '</span></span>' +
+      '<span>' +
+        '<span class="wf-join-name">' + escapeHtml(name) + '</span>' +
+        '<span class="wf-join-sub" style="display:block;">' + escapeHtml(designation || '—') + ' · ' + escapeHtml(subLabel || '—') + '</span>' +
+      '</span>' +
+    '</li>'
+  );
+}
+
+async function fetchJoiningTab(tab) {
+  if (tab === 'upcoming') {
+    const data = await fetchJson('/api/hr/upcoming-joinings');
+    return data.items.length
+      ? data.items.map((it) => joinRow(it.name, it.designation, it.company, it.doj)).join('')
+      : '<li class="empty">No upcoming joinings found</li>';
   }
+  const today = new Date();
+  const from = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const params = new URLSearchParams({
+    dateFrom: from.toISOString().slice(0, 10),
+    dateTo: today.toISOString().slice(0, 10)
+  });
+  const data = await fetchJson('/api/workforce/employees?' + params.toString());
+  const items = data.items.slice().sort((a, b) => new Date(b.doj) - new Date(a.doj));
+  return items.length
+    ? items.map((it) => joinRow(it.name, it.designation, it.location, it.doj)).join('')
+    : '<li class="empty">No recent joiners in the last 60 days</li>';
+}
+
+async function renderJoiningTab(tab) {
+  const listEl = document.getElementById('joiningList');
+  if (joiningCache[tab]) {
+    listEl.innerHTML = joiningCache[tab];
+    return;
+  }
+  listEl.innerHTML = '<li class="empty">Loading…</li>';
+  try {
+    const html = await fetchJoiningTab(tab);
+    joiningCache[tab] = html;
+    if (tab === joiningActiveTab) listEl.innerHTML = html;
+  } catch (err) {
+    if (tab === joiningActiveTab) listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function loadJoiningView() {
+  return renderJoiningTab(joiningActiveTab);
 }
 
 // ---------- Tenure tab ----------
