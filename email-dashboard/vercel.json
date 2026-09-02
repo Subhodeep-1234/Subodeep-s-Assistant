@@ -16,6 +16,10 @@
     {
       "source": "/login",
       "headers": [{ "key": "Cache-Control", "value": "no-store, must-revalidate" }]
+    },
+    {
+      "source": "/mail",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, must-revalidate" }]
     }
   ],
   "rewrites": [

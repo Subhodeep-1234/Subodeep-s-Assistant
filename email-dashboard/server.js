@@ -63,7 +63,7 @@ app.get('/oauth2callback', async (req, res) => {
           '</pre>'
       );
     }
-    res.redirect('/');
+    res.redirect('/mail');
   } catch (err) {
     res.status(500).send('Authentication failed: ' + err.message);
   }
@@ -79,7 +79,13 @@ function sendNoStore(res, filePath) {
   res.sendFile(filePath);
 }
 
-app.get('/', requireAuth, (req, res) => {
+// The bare domain is now the link shared with directors, so it goes straight
+// to the new login instead of the old Mail Management inbox tool.
+app.get('/', (req, res) => {
+  res.redirect('/login');
+});
+
+app.get('/mail', requireAuth, (req, res) => {
   sendNoStore(res, path.join(__dirname, 'public', 'index.html'));
 });
 
