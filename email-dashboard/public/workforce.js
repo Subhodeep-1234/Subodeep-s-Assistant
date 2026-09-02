@@ -1,6 +1,11 @@
 const kpiGrid = document.getElementById('kpiGrid');
-const wfTabs = document.getElementById('wfTabs');
-const VIEWS = ['overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality'];
+const wfDrawer = document.getElementById('wfDrawer');
+const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
+const menuBtn = document.getElementById('menuBtn');
+const VIEWS = [
+  'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
+  'mailReplies', 'mailJoinings', 'profile'
+];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 const bottomNavOverviewBtn = document.querySelector('.bottom-nav-item[data-jump="overview"]');
 const bottomNavWorkforceBtn = document.getElementById('bottomNavWorkforceBtn');
@@ -122,10 +127,11 @@ refreshBtn.addEventListener('click', async () => {
   }
 });
 
-wfTabs.addEventListener('click', (e) => {
+wfDrawer.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-view]');
   if (!btn) return;
   setView(btn.dataset.view);
+  closeDrawer();
 });
 
 document.addEventListener('click', (e) => {
@@ -141,11 +147,36 @@ document.addEventListener('click', (e) => {
 
 if (bottomNavOverviewBtn) bottomNavOverviewBtn.addEventListener('click', () => setView('overview'));
 
+function openDrawer() {
+  wfDrawer.hidden = false;
+  wfDrawerBackdrop.hidden = false;
+  menuBtn.setAttribute('aria-expanded', 'true');
+}
+function closeDrawer() {
+  wfDrawer.hidden = true;
+  wfDrawerBackdrop.hidden = true;
+  menuBtn.setAttribute('aria-expanded', 'false');
+}
+menuBtn.addEventListener('click', () => (wfDrawer.hidden ? openDrawer() : closeDrawer()));
+wfDrawerBackdrop.addEventListener('click', closeDrawer);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !wfDrawer.hidden) closeDrawer();
+});
+
+async function logout() {
+  try {
+    await fetch('/api/hr-auth/logout', { method: 'POST' });
+  } finally {
+    window.location.href = '/login';
+  }
+}
+document.getElementById('logoutBtn').addEventListener('click', logout);
+document.getElementById('profileLogoutBtn').addEventListener('click', logout);
+
 function setView(view) {
   if (!VIEWS.includes(view)) return;
   activeView = view;
-  wfTabs.hidden = view === 'overview';
-  wfTabs.querySelectorAll('[data-view]').forEach((b) => {
+  wfDrawer.querySelectorAll('[data-view]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   });
   VIEWS.forEach((v) => { viewEls[v].hidden = v !== view; });
@@ -167,8 +198,61 @@ function loadView(view, forceRefresh) {
   if (view === 'tenure') return loadTenureView();
   if (view === 'insights') return loadInsightsView();
   if (view === 'quality') return loadQualityView();
+  if (view === 'mailReplies') return loadMailReplies();
+  if (view === 'mailJoinings') return loadMailJoinings();
+  if (view === 'profile') return loadProfile();
   // exit / attrition / movement are static "not available" panels — nothing to fetch.
   return Promise.resolve();
+}
+
+async function loadMailReplies() {
+  const el = document.getElementById('mailRepliesList');
+  el.innerHTML = '<li class="empty">Loading…</li>';
+  try {
+    const data = await fetchJson('/api/hr/job-applications');
+    el.innerHTML = data.items.length
+      ? data.items.map((item) => (
+          '<li>' +
+            '<span class="wf-bar-main">' +
+              '<span class="wf-bar-name">' + escapeHtml(item.subject || '(no subject)') + '</span>' +
+              '<span style="display:block; font-size:.74rem; color:var(--muted);">' + escapeHtml(item.from) + '</span>' +
+            '</span>' +
+          '</li>'
+        )).join('')
+      : '<li class="empty">No job application emails found</li>';
+  } catch (err) {
+    el.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+async function loadMailJoinings() {
+  const body = document.getElementById('mailJoiningsBody');
+  body.innerHTML = '<tr><td colspan="4"><div class="loading"><div class="spinner"></div></div></td></tr>';
+  try {
+    const data = await fetchJson('/api/hr/upcoming-joinings');
+    body.innerHTML = data.items.length
+      ? data.items.map((item) => (
+          '<tr>' +
+            '<td>' + escapeHtml(item.name) + '</td>' +
+            '<td>' + escapeHtml(item.designation || '—') + '</td>' +
+            '<td>' + escapeHtml(item.company || '—') + '</td>' +
+            '<td>' + formatDate(item.doj) + '</td>' +
+          '</tr>'
+        )).join('')
+      : '<tr><td colspan="4"><div class="empty">No joinings in the next 3 months</div></td></tr>';
+  } catch (err) {
+    body.innerHTML = '<tr><td colspan="4"><div class="error-banner">' + escapeHtml(err.message) + '</div></td></tr>';
+  }
+}
+
+async function loadProfile() {
+  try {
+    const data = await fetchJson('/api/hr-auth/me');
+    document.getElementById('profileEmail').textContent = data.email || '';
+    document.getElementById('profileName').textContent = data.email ? data.email.split('@')[0] : 'Not logged in';
+  } catch {
+    // Profile display is non-critical - leave the placeholders.
+  }
 }
 
 // ---------- Overview ----------
@@ -669,5 +753,17 @@ async function loadQualityView() {
 
 // ---------- Init ----------
 
+async function loadDrawerIdentity() {
+  try {
+    const data = await fetchJson('/api/hr-auth/me');
+    if (!data.email) return;
+    document.getElementById('drawerName').textContent = data.email.split('@')[0];
+    document.getElementById('drawerEmail').textContent = data.email;
+  } catch {
+    // Non-critical - drawer just keeps its placeholder text.
+  }
+}
+
 setView('overview');
 loadFilterOptions();
+loadDrawerIdentity();

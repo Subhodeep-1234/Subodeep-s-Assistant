@@ -7,7 +7,10 @@
   if (!avatar || !input) return;
 
   function renderPhoto(dataUrl) {
-    avatar.innerHTML = dataUrl ? '<img src="' + dataUrl + '" alt="Profile photo" />' : 'SK';
+    var html = dataUrl ? '<img src="' + dataUrl + '" alt="Profile photo" />' : 'SK';
+    document.querySelectorAll('.wf-avatar').forEach(function (el) {
+      el.innerHTML = html;
+    });
   }
 
   var saved = localStorage.getItem(PHOTO_KEY);

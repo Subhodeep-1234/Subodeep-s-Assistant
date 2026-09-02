@@ -169,6 +169,7 @@ body {
 .wf-avatar:hover { box-shadow: 0 0 0 3px var(--accent-bg); }
 .wf-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wf-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wf-avatar.lg { width: 64px; height: 64px; font-size: 1.3rem; cursor: default; }
 
 .tabbar {
   display: flex;

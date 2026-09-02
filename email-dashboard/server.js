@@ -4,6 +4,8 @@ const path = require('path');
 const { getAuthUrl, handleCallback, isAuthenticated, getConfigStatus } = require('./src/auth');
 const gmailService = require('./src/gmailService');
 const workforceRoutes = require('./src/workforceRoutes');
+const hrAuth = require('./src/hrAuth');
+const emailService = require('./src/emailService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,8 +83,64 @@ app.get('/', requireAuth, (req, res) => {
   sendNoStore(res, path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/workforce.html', requireAuth, (req, res) => {
+// Workforce Intelligence is gated by the separate email+OTP login below
+// (hrAuth), not the Google OAuth used for the Mail Management page above -
+// director access shouldn't depend on this app's single Gmail account.
+app.get('/workforce.html', hrAuth.requireHrAuth, (req, res) => {
   sendNoStore(res, path.join(__dirname, 'public', 'workforce.html'));
+});
+
+app.get('/login', (req, res) => {
+  sendNoStore(res, path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/api/hr-auth/request-otp', async (req, res) => {
+  const email = hrAuth.normalizeEmail(req.body.email);
+  if (!hrAuth.isValidEmail(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address' });
+  }
+  const waitSeconds = hrAuth.checkAndSetResendCooldown(req, res, email);
+  if (waitSeconds > 0) {
+    return res.status(429).json({ error: 'Please wait before requesting another code', waitSeconds });
+  }
+  try {
+    const code = hrAuth.generateOtp(email);
+    await emailService.sendOtpEmail(email, code);
+    res.json({ ok: true, cooldownSeconds: Math.round(hrAuth.RESEND_COOLDOWN_MS / 1000) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/hr-auth/verify-otp', (req, res) => {
+  const email = hrAuth.normalizeEmail(req.body.email);
+  const code = req.body.code;
+  if (!hrAuth.isValidEmail(email) || !code) {
+    return res.status(400).json({ error: 'Email and code are required' });
+  }
+  if (hrAuth.tooManyAttempts(req, email)) {
+    return res.status(429).json({ error: 'Too many attempts. Request a new code.' });
+  }
+  if (!hrAuth.verifyOtp(email, code)) {
+    hrAuth.recordFailedAttempt(req, res, email);
+    return res.status(401).json({ error: 'Incorrect or expired code' });
+  }
+  hrAuth.createSession(res, email);
+  res.json({ ok: true });
+});
+
+app.post('/api/hr-auth/logout', (req, res) => {
+  hrAuth.destroySession(res);
+  res.json({ ok: true });
+});
+
+app.get('/api/hr-auth/me', (req, res) => {
+  try {
+    const session = hrAuth.readSession(req);
+    res.json({ email: session ? session.email : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // max-age: 0 forces the browser to revalidate (conditional GET) every time
@@ -95,7 +153,31 @@ app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: 0
 }));
 
-app.use('/api/workforce', requireAuth, workforceRoutes);
+app.use('/api/workforce', hrAuth.requireHrAuth, workforceRoutes);
+
+// Read-only equivalents of the old standalone Mail Management page's two
+// most useful reports, folded into the HR app's own menu. These still run
+// against the admin's existing Gmail OAuth (gmailService) internally - the
+// director viewing them doesn't need their own Gmail access, only an
+// hr_session from the OTP login above.
+app.get('/api/hr/job-applications', hrAuth.requireHrAuth, async (req, res) => {
+  const search = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
+  try {
+    const data = await gmailService.getMessagesByCategory('candidates', { search });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/hr/upcoming-joinings', hrAuth.requireHrAuth, async (req, res) => {
+  try {
+    const data = await gmailService.getUpcomingJoinings();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.use(
   '/vendor/chart.js',
