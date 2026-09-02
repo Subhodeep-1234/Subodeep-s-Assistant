@@ -892,16 +892,18 @@ function loadJoiningView() {
 // ---------- Tenure tab ----------
 
 async function loadTenureView() {
-  const kpisEl = document.getElementById('tenureKpis');
-  kpisEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const rowsEl = document.getElementById('tenureRows');
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await fetchJson('/api/workforce/tenure');
-    kpisEl.innerHTML =
-      kpiCard({ key: 'avg', label: 'Average Tenure', value: data.averageTenureYears !== null ? data.averageTenureYears + ' yrs' : null, tone: 'accent', icon: 'total', clickable: false }) +
-      kpiCard({ key: 'eligible', label: 'Employees Counted', value: data.eligibleCount, tone: 'active', icon: 'active', clickable: false });
+    // The donut only covers tenure-eligible employees (inactive staff are
+    // excluded - see the note below), so the center total is that eligible
+    // count, not the company-wide headcount - it has to match what the
+    // segments actually sum to.
+    document.getElementById('tenureDonutTotal').textContent = data.eligibleCount.toLocaleString();
 
     const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
-    document.getElementById('tenureRows').innerHTML = data.buckets
+    rowsEl.innerHTML = data.buckets
       .map((b) => (
         '<div class="wf-row-3col">' +
           '<span class="wf-row-label">' + escapeHtml(b.label) + '</span>' +
@@ -916,7 +918,7 @@ async function loadTenureView() {
         : '';
     renderTenureDonut(data.buckets);
   } catch (err) {
-    kpisEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
 
