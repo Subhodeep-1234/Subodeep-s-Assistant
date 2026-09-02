@@ -28,31 +28,15 @@ body {
   gap: 14px;
 }
 
-.wf-brand-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: var(--accent-bg);
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.wf-topbar h1 {
+.wf-wordmark {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
-  font-size: 1.5rem;
   font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1.15;
   color: var(--ink);
 }
-
-.wf-tagline {
-  font-size: 0.82rem;
-  color: var(--muted);
-  margin-top: 2px;
-}
+.wf-wordmark span { display: block; color: var(--accent); }
 
 .wf-topbar-actions {
   display: flex;
@@ -728,7 +712,7 @@ body {
 
 @media (max-width: 640px) {
   .wf-shell { padding: 14px 14px 32px; }
-  .wf-topbar h1 { font-size: 1.25rem; }
+  .wf-wordmark { font-size: 1.05rem; }
   .wf-table th, .wf-table td { padding: 8px 9px; font-size: 0.78rem; }
 }
 
