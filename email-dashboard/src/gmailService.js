@@ -388,4 +388,29 @@ async function trashMessage(id) {
   await client.users.messages.trash({ userId: 'me', id });
 }
 
-module.exports = { getCounts, getMessagesByCategory, getFullMessage, sendReply, trashMessage, getUpcomingJoinings };
+function buildRawMessage({ to, subject, bodyText }) {
+  const bodyBase64 = Buffer.from(bodyText, 'utf8').toString('base64');
+  const lines = [
+    `To: ${to}`,
+    `Subject: ${encodeHeaderText(subject)}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    bodyBase64
+  ];
+  return Buffer.from(lines.join('\r\n'))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+// Standalone send (no thread to reply into) - used for OTP emails, which go
+// to arbitrary recipients rather than an existing Gmail thread.
+async function sendMail({ to, subject, text }) {
+  const raw = buildRawMessage({ to, subject, bodyText: text });
+  await gmail().users.messages.send({ userId: 'me', requestBody: { raw } });
+}
+
+module.exports = { getCounts, getMessagesByCategory, getFullMessage, sendReply, trashMessage, getUpcomingJoinings, sendMail };
