@@ -885,7 +885,7 @@ async function fetchJoiningTab(tab) {
   const data = await fetchJson('/api/workforce/employees?' + params.toString());
   const items = data.items.slice().sort((a, b) => new Date(b.doj) - new Date(a.doj));
   return items.length
-    ? items.map((it) => joinRow(it.name, it.designation, it.location, it.doj, false)).join('')
+    ? items.map((it) => joinRow(it.name, it.designation, it.department, it.doj, false)).join('')
     : '<li class="empty">No recent joiners in the last 60 days</li>';
 }
 
