@@ -913,8 +913,9 @@ async function loadTenureView() {
       ))
       .join('');
     document.getElementById('tenureNote').textContent =
-      data.excludedCount > 0
-        ? data.excludedCount + ' non-Active employees excluded (Notice Period or Inactive) — this view covers Active staff only.'
+      data.missingDojCount > 0
+        ? data.eligibleCount + ' of ' + data.activeCount + ' Active employees shown — ' + data.missingDojCount +
+          (data.missingDojCount === 1 ? ' is' : ' are') + ' missing a Date of Joining, so tenure can\'t be calculated for them.'
         : '';
     renderTenureDonut(data.buckets);
   } catch (err) {

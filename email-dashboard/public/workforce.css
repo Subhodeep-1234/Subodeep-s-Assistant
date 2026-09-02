@@ -319,18 +319,6 @@ body {
 .wf-donut-center b { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 1.1rem; font-weight: 700; color: var(--ink); }
 .wf-donut-center span { font-size: 0.68rem; color: var(--muted); }
 
-.dd-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 7px 12px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--ink);
-}
 
 .wf-legend {
   list-style: none;
