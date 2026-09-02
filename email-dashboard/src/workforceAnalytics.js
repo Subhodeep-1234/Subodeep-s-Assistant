@@ -125,7 +125,8 @@ const TENURE_BUCKETS = [
   { key: '1to2y', label: '1-2 years', maxDays: 730 },
   { key: '2to5y', label: '2-5 years', maxDays: 1826 },
   { key: '5to10y', label: '5-10 years', maxDays: 3652 },
-  { key: 'gt10y', label: '10+ years', maxDays: Infinity }
+  { key: '10to15y', label: '10-15 years', maxDays: 5478 },
+  { key: 'gt15y', label: '15+ years', maxDays: Infinity }
 ];
 
 function tenureAnalytics(employees, now = new Date()) {
