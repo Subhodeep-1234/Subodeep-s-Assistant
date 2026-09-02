@@ -599,6 +599,139 @@ body {
 .wf-join-name { font-size: 0.85rem; font-weight: 700; color: var(--ink); }
 .wf-join-sub { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
 
+/* ---------- Employee list ---------- */
+
+.wf-emp-list { list-style: none; margin: 0; padding: 0; }
+.wf-emp-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 11px 13px;
+  margin-bottom: 9px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+.wf-emp-list li:hover { border-color: var(--accent); }
+.wf-emp-list li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wf-emp-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--other-bg);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wf-emp-avatar svg { width: 22px; height: 22px; }
+
+.wf-emp-main { flex: 1; min-width: 0; }
+.wf-emp-name { font-size: 0.86rem; font-weight: 700; color: var(--ink); }
+.wf-emp-meta { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
+.wf-emp-meta .wf-status-chip { padding: 1px 7px; font-size: 0.62rem; }
+.wf-emp-role { font-size: 0.74rem; color: var(--muted); margin-top: 1px; }
+
+/* ---------- Employee profile (detail) ---------- */
+
+.wf-emp-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.wf-emp-profile-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--other-bg);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wf-emp-profile-avatar svg { width: 34px; height: 34px; }
+.wf-emp-profile-info { flex: 1; min-width: 0; }
+.wf-emp-profile-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wf-emp-profile-name-row .name { font-size: 1.02rem; font-weight: 700; color: var(--ink); }
+.wf-emp-profile-sub { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+.wf-emp-mail-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wf-field-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.wf-field-section h4 { margin: 0 0 6px; font-size: 0.82rem; font-weight: 700; color: var(--accent); }
+.wf-field-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.wf-field-row:last-child { border-bottom: none; }
+.wf-field-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wf-field-icon svg { width: 15px; height: 15px; }
+.wf-field-label { flex: 1; font-size: 0.78rem; color: var(--muted); }
+.wf-field-value { font-size: 0.82rem; font-weight: 600; color: var(--ink); text-align: right; max-width: 55%; word-break: break-word; }
+
+.wf-work-summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.wf-work-summary-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+.wf-work-summary-card .wf-ws-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 6px;
+}
+.wf-work-summary-card .wf-ws-label { font-size: 0.68rem; color: var(--muted); }
+.wf-work-summary-card .wf-ws-value { font-size: 0.88rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
+
 /* ---------- Employee table ---------- */
 
 .wf-table {

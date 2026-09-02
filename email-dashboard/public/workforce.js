@@ -17,7 +17,7 @@ const filterReportingManager = document.getElementById('filterReportingManager')
 const filterCollar = document.getElementById('filterCollar');
 const clearFiltersBtn = document.getElementById('clearFilters');
 const resultSummary = document.getElementById('resultSummary');
-const employeeTableBody = document.getElementById('employeeTableBody');
+const employeeList = document.getElementById('employeeList');
 
 let activeFilters = {};
 let searchDebounce;
@@ -249,6 +249,10 @@ function setView(view) {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   });
   VIEWS.forEach((v) => { viewEls[v].hidden = v !== view; });
+  if (view === 'directory') {
+    document.getElementById('directoryDetailPanel').hidden = true;
+    document.getElementById('directoryListPanel').hidden = false;
+  }
   loadView(view, false);
 }
 
@@ -622,12 +626,11 @@ clearFiltersBtn.addEventListener('click', () => {
   loadEmployees();
 });
 
-const EMPLOYEE_TABLE_COLSPAN = 22;
+let lastEmployeeList = [];
 
 async function loadEmployees(forceRefresh) {
   const requestId = ++currentRequestId;
-  employeeTableBody.innerHTML =
-    '<tr><td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><div class="loading"><div class="spinner"></div></div></td></tr>';
+  employeeList.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
   const params = new URLSearchParams();
   Object.entries(activeFilters).forEach(([k, v]) => {
     if (v) params.set(k, v);
@@ -639,8 +642,7 @@ async function loadEmployees(forceRefresh) {
     renderEmployees(data);
   } catch (err) {
     if (requestId !== currentRequestId) return;
-    employeeTableBody.innerHTML =
-      '<tr><td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><div class="error-banner">' + escapeHtml(err.message) + '</div></td></tr>';
+    employeeList.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }
 }
 
@@ -657,47 +659,156 @@ function formatDate(iso) {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+const PERSON_ICON = '<circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/>';
+
 function renderEmployees(data) {
+  lastEmployeeList = data.items;
+  document.getElementById('directoryTotalCount').textContent = data.total;
   resultSummary.textContent =
     data.total + ' employee' + (data.total === 1 ? '' : 's') +
     (data.truncated ? ' (showing first ' + data.items.length + ')' : '');
 
   if (!data.items.length) {
-    employeeTableBody.innerHTML =
-      '<tr><td colspan="' + EMPLOYEE_TABLE_COLSPAN + '"><div class="empty">No employees match these filters</div></td></tr>';
+    employeeList.innerHTML = '<li class="empty">No employees match these filters</li>';
     return;
   }
 
-  employeeTableBody.innerHTML = data.items
+  employeeList.innerHTML = data.items
     .map(
-      (e) =>
-        '<tr>' +
-          '<td>' + escapeHtml(e.employeeId) + '</td>' +
-          '<td>' + escapeHtml(e.name) + '</td>' +
-          '<td>' + escapeHtml(e.designation) + '</td>' +
-          '<td>' + escapeHtml(e.department) + '</td>' +
-          '<td>' + escapeHtml(e.groupD) + '</td>' +
-          '<td>' + escapeHtml(e.location) + '</td>' +
-          '<td>' + escapeHtml(e.reportingDoer) + '</td>' +
-          '<td>' + escapeHtml(e.reportingManager) + '</td>' +
-          '<td>' + formatDate(e.doj) + '</td>' +
-          '<td>' + escapeHtml(e.tenure) + '</td>' +
-          '<td>' + formatDate(e.dob) + '</td>' +
-          '<td>' + escapeHtml(e.uan) + '</td>' +
-          '<td>' + escapeHtml(e.esiNumber) + '</td>' +
-          '<td>' + escapeHtml(e.email) + '</td>' +
-          '<td>' + escapeHtml(e.emailPersonal) + '</td>' +
-          '<td>' + escapeHtml(e.aadhar) + '</td>' +
-          '<td>' + escapeHtml(e.pan) + '</td>' +
-          '<td>' + escapeHtml(e.contactNumber) + '</td>' +
-          '<td>' + escapeHtml(e.permanentAddress) + '</td>' +
-          '<td>' + escapeHtml(e.presentAddress) + '</td>' +
-          '<td>' + escapeHtml(e.employmentType) + '</td>' +
-          '<td><span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span></td>' +
-        '</tr>'
+      (e, i) =>
+        '<li data-emp-idx="' + i + '">' +
+          '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+          '<span class="wf-emp-main">' +
+            '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
+            '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + ' · <span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span></span>' +
+            '<span class="wf-emp-role">' + escapeHtml(e.designation || '—') + '</span>' +
+          '</span>' +
+        '</li>'
     )
     .join('');
 }
+
+employeeList.addEventListener('click', (e) => {
+  const li = e.target.closest('[data-emp-idx]');
+  if (!li) return;
+  const emp = lastEmployeeList[Number(li.dataset.empIdx)];
+  if (emp) showEmployeeDetail(emp);
+});
+
+document.getElementById('filterToggleBtn').addEventListener('click', () => {
+  const expanded = document.getElementById('filterToggleBtn').getAttribute('aria-expanded') === 'true';
+  document.getElementById('wfFilterbar').hidden = expanded;
+  document.getElementById('filterToggleBtn').setAttribute('aria-expanded', String(!expanded));
+});
+
+function fieldRow(iconPath, label, value) {
+  return (
+    '<div class="wf-field-row">' +
+      '<span class="wf-field-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + iconPath + '</svg></span>' +
+      '<span class="wf-field-label">' + escapeHtml(label) + '</span>' +
+      '<span class="wf-field-value">' + escapeHtml(value || '—') + '</span>' +
+    '</div>'
+  );
+}
+
+const FIELD_ICONS = {
+  id: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6"/>',
+  person: PERSON_ICON,
+  badge: '<circle cx="12" cy="8" r="6"/><path d="M15.5 13.5 17 22l-5-3-5 3 1.5-8.5"/>',
+  building: '<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/>',
+  collar: '<path d="M20.59 13.41 13 21l-9-9 7.59-7.59A2 2 0 0 1 13 4h6a2 2 0 0 1 2 2v6a2 2 0 0 1-.41 1.41z"/>',
+  pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  mail: '<path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/>',
+  id2: '<rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M6 16c0-1.5 1-2.5 2-2.5s2 1 2 2.5"/><line x1="14" y1="9" x2="19" y2="9"/><line x1="14" y1="13" x2="19" y2="13"/>',
+  card: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'
+};
+
+function showEmployeeDetail(e) {
+  document.getElementById('directoryListPanel').hidden = true;
+  document.getElementById('directoryDetailPanel').hidden = false;
+
+  const collarLabel = e.groupD ? e.groupD + (/collar$/i.test(e.groupD) ? '' : ' Collar') : '—';
+
+  document.getElementById('empDetailBody').innerHTML =
+    '<div class="wf-emp-profile-head">' +
+      '<span class="wf-emp-profile-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+      '<span class="wf-emp-profile-info">' +
+        '<span class="wf-emp-profile-name-row">' +
+          '<span class="name">' + escapeHtml(e.name) + '</span>' +
+          '<span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span>' +
+        '</span>' +
+        '<div class="wf-emp-profile-sub">' + escapeHtml(e.employeeId) + ' · ' + escapeHtml(e.designation || '—') + '</div>' +
+        '<div class="wf-emp-profile-sub">' + escapeHtml(e.department || '—') + '</div>' +
+      '</span>' +
+      (e.email ? '<a class="wf-emp-mail-btn" href="mailto:' + encodeURIComponent(e.email) + '" aria-label="Email"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + FIELD_ICONS.mail + '</svg></a>' : '') +
+    '</div>' +
+
+    '<div class="wf-field-section">' +
+      '<h4>Personal &amp; Official Details</h4>' +
+      fieldRow(FIELD_ICONS.id, 'Emp. No.', e.employeeId) +
+      fieldRow(FIELD_ICONS.person, 'Name', e.name) +
+      fieldRow(FIELD_ICONS.badge, 'Designation', e.designation) +
+      fieldRow(FIELD_ICONS.building, 'Department', e.department) +
+      fieldRow(FIELD_ICONS.collar, 'Collar Type', collarLabel) +
+      fieldRow(FIELD_ICONS.pin, 'Location', e.location) +
+      fieldRow(FIELD_ICONS.users, 'Reporting DOER', e.reportingDoer) +
+      fieldRow(FIELD_ICONS.calendar, 'DOJ', formatDate(e.doj)) +
+      fieldRow(FIELD_ICONS.clock, 'Tenure', e.tenure) +
+      fieldRow(FIELD_ICONS.calendar, 'Date of Birth', formatDate(e.dob)) +
+    '</div>' +
+
+    '<div class="wf-field-section">' +
+      '<h4>Identification Details</h4>' +
+      fieldRow(FIELD_ICONS.shield, 'UAN Number', e.uan) +
+      fieldRow(FIELD_ICONS.shield, 'ESI Number', e.esiNumber) +
+      fieldRow(FIELD_ICONS.mail, 'Email ID- Official', e.email) +
+      fieldRow(FIELD_ICONS.mail, 'Email ID- Personal', e.emailPersonal) +
+      fieldRow(FIELD_ICONS.id2, 'AADHAR CARD', e.aadhar) +
+      fieldRow(FIELD_ICONS.card, 'PAN CARD', e.pan) +
+    '</div>' +
+
+    '<div class="wf-field-section">' +
+      '<h4>Contact &amp; Address Details</h4>' +
+      fieldRow(FIELD_ICONS.phone, 'Contact number', e.contactNumber) +
+      fieldRow(FIELD_ICONS.home, 'Permanent Address', e.permanentAddress) +
+      fieldRow(FIELD_ICONS.home, 'Present Address', e.presentAddress) +
+    '</div>' +
+
+    '<div class="wf-field-section">' +
+      '<h4>Employment Details</h4>' +
+      fieldRow(FIELD_ICONS.briefcase, 'Employment Type', e.employmentType) +
+      fieldRow(FIELD_ICONS.shield, 'STATUS', e.status) +
+      fieldRow(FIELD_ICONS.users, 'Reporting Manager', e.reportingManager) +
+    '</div>' +
+
+    '<div class="wf-field-section">' +
+      '<h4>Work Summary</h4>' +
+      '<div class="wf-work-summary-grid">' +
+        '<div class="wf-work-summary-card">' +
+          '<div class="wf-ws-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + FIELD_ICONS.clock + '</svg></div>' +
+          '<div class="wf-ws-label">Tenure</div>' +
+          '<div class="wf-ws-value">' + escapeHtml(e.tenure || '—') + '</div>' +
+        '</div>' +
+        '<div class="wf-work-summary-card">' +
+          '<div class="wf-ws-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + FIELD_ICONS.calendar + '</svg></div>' +
+          '<div class="wf-ws-label">Date of Joining</div>' +
+          '<div class="wf-ws-value">' + formatDate(e.doj) + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+document.getElementById('empDetailBackBtn').addEventListener('click', () => {
+  document.getElementById('directoryDetailPanel').hidden = true;
+  document.getElementById('directoryListPanel').hidden = false;
+});
 
 // ---------- Joining tab ----------
 // "Upcoming" is Gmail-sourced (confirmed new hires not yet in the HR sheet -
