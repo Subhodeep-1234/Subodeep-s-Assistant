@@ -7,8 +7,6 @@ const VIEWS = [
   'mailReplies', 'mailJoinings', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
-const bottomNavOverviewBtn = document.querySelector('.bottom-nav-item[data-jump="overview"]');
-const bottomNavWorkforceBtn = document.getElementById('bottomNavWorkforceBtn');
 
 const wfSearch = document.getElementById('wfSearch');
 const filterStatus = document.getElementById('filterStatus');
@@ -145,7 +143,9 @@ document.addEventListener('click', (e) => {
   setView(target);
 });
 
-if (bottomNavOverviewBtn) bottomNavOverviewBtn.addEventListener('click', () => setView('overview'));
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-back]')) setView('overview');
+});
 
 function openDrawer() {
   wfDrawer.hidden = false;
@@ -180,12 +180,6 @@ function setView(view) {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
   });
   VIEWS.forEach((v) => { viewEls[v].hidden = v !== view; });
-  // Overview and Workforce Intelligence are mutually exclusive in the bottom
-  // nav: Overview lights up only on that tab, Workforce Intelligence lights
-  // up for every other tab — never both at once.
-  const onOverview = view === 'overview';
-  if (bottomNavOverviewBtn) bottomNavOverviewBtn.setAttribute('aria-current', String(onOverview));
-  if (bottomNavWorkforceBtn) bottomNavWorkforceBtn.setAttribute('aria-current', String(!onOverview));
   loadView(view, false);
 }
 

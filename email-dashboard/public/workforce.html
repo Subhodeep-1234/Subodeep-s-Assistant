@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="/styles.css?v=5" />
-  <link rel="stylesheet" href="/workforce.css?v=14" />
+  <link rel="stylesheet" href="/workforce.css?v=15" />
 </head>
 <body>
   <div class="wf-shell">
@@ -151,6 +151,12 @@
 
     <!-- Employee Data -->
     <section id="directoryView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Employee Data</h2>
+      </div>
       <div class="wf-filterbar" id="wfFilterbar">
         <input type="search" id="wfSearch" placeholder="Search by name, ID, email, department…" autocomplete="off" />
         <select id="filterStatus">
@@ -216,6 +222,12 @@
 
     <!-- Joining -->
     <section id="joiningView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Joining</h2>
+      </div>
       <div class="wf-panel">
         <div class="wf-panel-head">
           <h3>Joining Trend</h3>
@@ -232,6 +244,12 @@
 
     <!-- Exit / Attrition / Workforce Movement: honestly blocked, not faked -->
     <section id="exitView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Exit</h2>
+      </div>
       <div class="wf-unavailable">
         <h3>Exit &amp; Resignation Analytics — Data not available</h3>
         <p>The Employee_Master sheet has no Exit Date, Resignation Date, or Last Working Date column. STATUS = INACTIVE
@@ -242,6 +260,12 @@
     </section>
 
     <section id="attritionView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Attrition</h2>
+      </div>
       <div class="wf-unavailable">
         <h3>Attrition Analytics — Data not available</h3>
         <p>Attrition rate = exits in a period ÷ headcount at the start of that period. Both need dated exit records,
@@ -251,6 +275,12 @@
     </section>
 
     <section id="movementView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Workforce Movement</h2>
+      </div>
       <div class="wf-unavailable">
         <h3>Workforce Movement — Data not available</h3>
         <p>Movement (transfers, promotions, department changes over time) needs historical snapshots or change-dated
@@ -260,6 +290,12 @@
 
     <!-- Tenure -->
     <section id="tenureView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Tenure</h2>
+      </div>
       <div class="kpi-grid" id="tenureKpis">
         <div class="loading"><div class="spinner"></div></div>
       </div>
@@ -272,6 +308,12 @@
 
     <!-- Insights -->
     <section id="insightsView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Insights</h2>
+      </div>
       <div class="wf-panel">
         <div class="wf-panel-head"><h3>All Insights</h3></div>
         <ul class="wf-insights-full" id="insightsFull"><li class="empty">Loading…</li></ul>
@@ -294,6 +336,12 @@
 
     <!-- Data Quality -->
     <section id="qualityView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Data Quality</h2>
+      </div>
       <div class="kpi-grid" id="qualityKpis">
         <div class="loading"><div class="spinner"></div></div>
       </div>
@@ -305,6 +353,12 @@
 
     <!-- Job Application Auto Replies (folded in from the old Mail Management page) -->
     <section id="mailRepliesView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Job Application Auto Replies</h2>
+      </div>
       <div class="wf-panel">
         <div class="wf-panel-head"><h3>Job Application Auto Replies</h3></div>
         <ul class="wf-bar-list" id="mailRepliesList"><li class="empty">Loading…</li></ul>
@@ -313,6 +367,12 @@
 
     <!-- Upcoming Joinings, mail-sourced (folded in from the old Mail Management page) -->
     <section id="mailJoiningsView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Upcoming Joinings</h2>
+      </div>
       <div class="wf-panel">
         <div class="wf-panel-head"><h3>Upcoming Joinings</h3></div>
         <div class="table-wrap">
@@ -328,6 +388,12 @@
 
     <!-- Profile -->
     <section id="profileView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Profile</h2>
+      </div>
       <div class="wf-panel" style="text-align:center;">
         <button class="wf-avatar lg" id="profileAvatarLg" style="margin:0 auto 12px;" aria-hidden="true">SK</button>
         <div style="font-size:1rem; font-weight:700; color:var(--ink);" id="profileName">—</div>
@@ -337,23 +403,9 @@
     </section>
   </div>
 
-  <nav class="bottom-nav">
-    <button class="bottom-nav-item" data-jump="overview" aria-current="false">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
-      <span>Overview</span>
-    </button>
-    <button class="bottom-nav-item" id="bottomNavWorkforceBtn" data-jump="directory" aria-current="false">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span>Workforce Intelligence</span>
-    </button>
-    <a class="bottom-nav-item" href="/mail" aria-current="false">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/></svg>
-      <span>Mail Management</span>
-    </a>
-  </nav>
 
   <script src="/vendor/chart.js/chart.umd.js"></script>
   <script src="/profile.js?v=1"></script>
-  <script src="/workforce.js?v=21"></script>
+  <script src="/workforce.js?v=22"></script>
 </body>
 </html>
