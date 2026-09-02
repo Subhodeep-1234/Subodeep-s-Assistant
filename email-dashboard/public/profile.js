@@ -2,9 +2,8 @@
   var PHOTO_KEY = 'dashboardProfilePhoto';
   var AVATAR_SIZE = 160;
 
-  var avatar = document.getElementById('profileAvatar');
   var input = document.getElementById('profilePhotoInput');
-  if (!avatar || !input) return;
+  if (!input) return;
 
   function renderPhoto(dataUrl) {
     var html = dataUrl ? '<img src="' + dataUrl + '" alt="Profile photo" />' : 'SK';
@@ -16,8 +15,12 @@
   var saved = localStorage.getItem(PHOTO_KEY);
   if (saved) renderPhoto(saved);
 
-  avatar.addEventListener('click', function () {
-    input.click();
+  // Every avatar on the page (topbar, drawer, Profile page) opens the same
+  // upload flow - not just the topbar one.
+  document.querySelectorAll('.wf-avatar').forEach(function (el) {
+    el.addEventListener('click', function () {
+      input.click();
+    });
   });
 
   input.addEventListener('change', function () {

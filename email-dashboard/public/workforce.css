@@ -119,6 +119,37 @@ body {
 .wf-drawer-spacer { flex: 1; }
 .wf-drawer-divider { height: 1px; background: var(--line); margin: 8px 10px; }
 
+/* ---------- Profile name edit ---------- */
+
+.wf-profile-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.wf-profile-name-row .wf-icon-btn { width: 28px; height: 28px; }
+.wf-profile-name-row .wf-icon-btn svg { width: 13px; height: 13px; }
+.wf-profile-name-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wf-profile-name-edit input {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+  width: 180px;
+}
+
 /* ---------- Greeting (Overview) ---------- */
 
 .wf-greeting { margin-bottom: 18px; }

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="/styles.css?v=5" />
-  <link rel="stylesheet" href="/workforce.css?v=18" />
+  <link rel="stylesheet" href="/workforce.css?v=19" />
 </head>
 <body>
   <div class="wf-shell">
@@ -28,7 +28,7 @@
     <div class="wf-drawer-backdrop" id="wfDrawerBackdrop" hidden></div>
     <nav class="wf-drawer" id="wfDrawer" hidden aria-label="Menu">
       <div class="wf-drawer-head">
-        <button class="wf-avatar lg" id="drawerAvatar" aria-hidden="true">SK</button>
+        <button class="wf-avatar lg" id="drawerAvatar" title="Tap to change photo" aria-label="Upload profile photo">SK</button>
         <div class="wf-drawer-name" id="drawerName">—</div>
         <div class="wf-drawer-email" id="drawerEmail"></div>
       </div>
@@ -396,8 +396,9 @@
         <h2>Profile</h2>
       </div>
       <div class="wf-panel" style="text-align:center;">
-        <button class="wf-avatar lg" id="profileAvatarLg" style="margin:0 auto 12px;" aria-hidden="true">SK</button>
-        <div style="font-size:1rem; font-weight:700; color:var(--ink);" id="profileName">—</div>
+        <button class="wf-avatar lg" id="profileAvatarLg" style="margin:0 auto 8px;" title="Tap to change photo" aria-label="Upload profile photo">SK</button>
+        <div class="wf-note" style="margin:0 0 12px;">Tap photo to change it</div>
+        <div class="wf-profile-name-row" id="profileNameRow"></div>
         <div style="font-size:.82rem; color:var(--muted); margin-bottom:18px;" id="profileEmail"></div>
         <button class="wf-clear-btn" id="profileLogoutBtn" type="button">Logout</button>
       </div>
@@ -406,7 +407,7 @@
 
 
   <script src="/vendor/chart.js/chart.umd.js"></script>
-  <script src="/profile.js?v=1"></script>
-  <script src="/workforce.js?v=25"></script>
+  <script src="/profile.js?v=2"></script>
+  <script src="/workforce.js?v=26"></script>
 </body>
 </html>
