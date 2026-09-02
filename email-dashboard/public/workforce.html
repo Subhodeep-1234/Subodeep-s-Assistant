@@ -159,7 +159,7 @@
           <h2>Employee Data</h2>
         </div>
 
-        <div class="wf-greeting-sub">Total Employees</div>
+        <div class="wf-greeting-sub" id="directoryTotalLabel">Active Employees</div>
         <div class="wf-completeness-num" id="directoryTotalCount" style="margin-bottom:14px;">—</div>
 
         <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -175,7 +175,7 @@
         <div class="wf-filterbar" id="wfFilterbar" hidden>
           <select id="filterStatus">
             <option value="">All statuses</option>
-            <option value="ACTIVE">Active</option>
+            <option value="ACTIVE" selected>Active</option>
             <option value="NOTICE PERIOD">Notice Period</option>
             <option value="INACTIVE">Inactive</option>
           </select>
@@ -405,6 +405,6 @@
 
   <script src="/vendor/chart.js/chart.umd.js"></script>
   <script src="/profile.js?v=2"></script>
-  <script src="/workforce.js?v=28"></script>
+  <script src="/workforce.js?v=29"></script>
 </body>
 </html>

@@ -19,7 +19,7 @@ const clearFiltersBtn = document.getElementById('clearFilters');
 const resultSummary = document.getElementById('resultSummary');
 const employeeList = document.getElementById('employeeList');
 
-let activeFilters = {};
+let activeFilters = { status: 'ACTIVE' };
 let searchDebounce;
 let currentRequestId = 0;
 let activeView = 'overview';
@@ -664,6 +664,9 @@ const PERSON_ICON = '<circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 1
 function renderEmployees(data) {
   lastEmployeeList = data.items;
   document.getElementById('directoryTotalCount').textContent = data.total;
+  document.getElementById('directoryTotalLabel').textContent =
+    activeFilters.status === 'ACTIVE' ? 'Active Employees' :
+    Object.values(activeFilters).some(Boolean) ? 'Filtered Employees' : 'Total Employees';
   resultSummary.textContent =
     data.total + ' employee' + (data.total === 1 ? '' : 's') +
     (data.truncated ? ' (showing first ' + data.items.length + ')' : '');
