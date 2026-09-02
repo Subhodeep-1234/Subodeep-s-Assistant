@@ -93,6 +93,16 @@ function parseConfirmationMail(bodyTextRaw) {
   return { name, designation, company, dojDate };
 }
 
+function extractNameFromSubject(subject) {
+  const m = subject.match(/Alcove Confirmation Mail\s*-\s*([^-]+?)\s*-/i);
+  return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+}
+
+function fullerName(a, b) {
+  const wordCount = (s) => (s ? s.trim().split(/\s+/).length : 0);
+  return wordCount(b) > wordCount(a) ? b : a;
+}
+
 function gmail() {
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
@@ -248,17 +258,22 @@ async function getUpcomingJoinings() {
     else bodyText = decodeHtmlEntities(msg.snippet || '');
 
     const parsed = parseConfirmationMail(bodyText);
-    if (!parsed.name || !parsed.dojDate) continue;
+    const subject = headerValue(headers, 'Subject') || '';
+    // The "Dear X," salutation is often just a first name, but the subject
+    // line ("Alcove Confirmation Mail - Full Name - Designation") reliably
+    // carries the full name - prefer whichever has more words.
+    const fullName = fullerName(parsed.name, extractNameFromSubject(subject));
+    if (!fullName || !parsed.dojDate) continue;
     if (parsed.dojDate < today || parsed.dojDate > threeMonthsOut) continue;
 
     rows.push({
       id: msg.id,
       threadId: msg.threadId,
-      name: parsed.name,
+      name: fullName,
       designation: parsed.designation,
       company: parsed.company,
       doj: parsed.dojDate.toISOString(),
-      subject: headerValue(headers, 'Subject') || '',
+      subject,
       to: headerValue(headers, 'To') || ''
     });
   }

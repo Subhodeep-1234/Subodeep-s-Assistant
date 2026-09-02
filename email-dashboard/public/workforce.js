@@ -836,11 +836,28 @@ function joinDateBadge(doj) {
   return { day: String(d.getDate()).padStart(2, '0'), month: d.toLocaleDateString(undefined, { month: 'short' }) };
 }
 
-function joinRow(name, designation, subLabel, doj) {
+function daysUntilLabel(doj) {
+  const d = new Date(doj);
+  if (isNaN(d.getTime())) return '';
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const dojUtc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((dojUtc - todayUtc) / 86400000);
+  if (days < 0) return '';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  return 'in ' + days + ' days';
+}
+
+function joinRow(name, designation, subLabel, doj, showCountdown) {
   const badge = joinDateBadge(doj);
+  const countdown = showCountdown ? daysUntilLabel(doj) : '';
   return (
     '<li>' +
-      '<span class="wf-join-badge"><b>' + badge.day + '</b><span>' + badge.month + '</span></span>' +
+      '<span class="wf-join-badge-wrap">' +
+        '<span class="wf-join-badge"><b>' + badge.day + '</b><span>' + badge.month + '</span></span>' +
+        (countdown ? '<span class="wf-join-countdown">' + escapeHtml(countdown) + '</span>' : '') +
+      '</span>' +
       '<span>' +
         '<span class="wf-join-name">' + escapeHtml(name) + '</span>' +
         '<span class="wf-join-sub" style="display:block;">' + escapeHtml(designation || '—') + ' · ' + escapeHtml(subLabel || '—') + '</span>' +
@@ -849,11 +866,14 @@ function joinRow(name, designation, subLabel, doj) {
   );
 }
 
+let upcomingJoiningsCache = [];
+
 async function fetchJoiningTab(tab) {
   if (tab === 'upcoming') {
     const data = await fetchJson('/api/hr/upcoming-joinings');
+    upcomingJoiningsCache = data.items;
     return data.items.length
-      ? data.items.map((it) => joinRow(it.name, it.designation, it.company, it.doj)).join('')
+      ? data.items.map((it) => joinRow(it.name, it.designation, it.company, it.doj, true)).join('')
       : '<li class="empty">No upcoming joinings found</li>';
   }
   const today = new Date();
@@ -865,7 +885,7 @@ async function fetchJoiningTab(tab) {
   const data = await fetchJson('/api/workforce/employees?' + params.toString());
   const items = data.items.slice().sort((a, b) => new Date(b.doj) - new Date(a.doj));
   return items.length
-    ? items.map((it) => joinRow(it.name, it.designation, it.location, it.doj)).join('')
+    ? items.map((it) => joinRow(it.name, it.designation, it.location, it.doj, false)).join('')
     : '<li class="empty">No recent joiners in the last 60 days</li>';
 }
 
@@ -888,6 +908,28 @@ async function renderJoiningTab(tab) {
 function loadJoiningView() {
   return renderJoiningTab(joiningActiveTab);
 }
+
+document.getElementById('exportJoiningsPdf').addEventListener('click', async () => {
+  if (!upcomingJoiningsCache.length) {
+    await fetchJoiningTab('upcoming');
+  }
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportBody').innerHTML = upcomingJoiningsCache.length
+    ? upcomingJoiningsCache
+        .map((it) => (
+          '<tr>' +
+            '<td>' + escapeHtml(it.name) + '</td>' +
+            '<td>' + escapeHtml(it.designation || '—') + '</td>' +
+            '<td>' + escapeHtml(it.company || '—') + '</td>' +
+            '<td>' + formatDate(it.doj) + '</td>' +
+            '<td>' + escapeHtml(daysUntilLabel(it.doj) || '—') + '</td>' +
+          '</tr>'
+        ))
+        .join('')
+    : '<tr><td colspan="5">No upcoming joinings found</td></tr>';
+  window.print();
+});
 
 // ---------- Tenure tab ----------
 
