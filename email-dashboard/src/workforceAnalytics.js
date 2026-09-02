@@ -129,10 +129,11 @@ const TENURE_BUCKETS = [
 ];
 
 function tenureAnalytics(employees, now = new Date()) {
-  // Tenure needs a firm end date. Inactive employees' departure date isn't
-  // tracked (see the earlier "no exit date" gap), so they're excluded here
-  // rather than guessing an end date for them.
-  const eligible = employees.filter((e) => e.doj && e.status !== 'INACTIVE');
+  // Scoped to Active staff only, matching Employee Data's own default -
+  // Notice Period and Inactive employees are excluded (their tenure is
+  // about to end or already has, and Inactive's exit date isn't tracked
+  // anyway - see the earlier "no exit date" gap).
+  const eligible = employees.filter((e) => e.doj && e.status === 'ACTIVE');
   const buckets = TENURE_BUCKETS.map((b) => ({ ...b, count: 0 }));
   let totalDays = 0;
 
@@ -147,7 +148,7 @@ function tenureAnalytics(employees, now = new Date()) {
 
   return {
     eligibleCount: eligible.length,
-    excludedInactiveCount: employees.length - eligible.length,
+    excludedCount: employees.length - eligible.length,
     averageTenureYears: averageYears === null ? null : Math.round(averageYears * 10) / 10,
     buckets: buckets.map(({ key, label, count }) => ({ key, label, count }))
   };

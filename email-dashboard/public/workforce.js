@@ -913,8 +913,8 @@ async function loadTenureView() {
       ))
       .join('');
     document.getElementById('tenureNote').textContent =
-      data.excludedInactiveCount > 0
-        ? data.excludedInactiveCount + ' inactive employees excluded — their departure date isn\'t tracked, so tenure can\'t be pinned to an end date.'
+      data.excludedCount > 0
+        ? data.excludedCount + ' non-Active employees excluded (Notice Period or Inactive) — this view covers Active staff only.'
         : '';
     renderTenureDonut(data.buckets);
   } catch (err) {
