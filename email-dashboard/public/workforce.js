@@ -663,17 +663,42 @@ async function loadTenureView() {
       kpiCard({ key: 'avg', label: 'Average Tenure', value: data.averageTenureYears !== null ? data.averageTenureYears + ' yrs' : null, tone: 'accent', icon: 'total', clickable: false }) +
       kpiCard({ key: 'eligible', label: 'Employees Counted', value: data.eligibleCount, tone: 'active', icon: 'active', clickable: false });
 
-    const max = Math.max(1, ...data.buckets.map((b) => b.count));
-    document.getElementById('tenureBarList').innerHTML = data.buckets
-      .map((b) => barListItem('total', b.label, b.count, max))
+    const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
+    document.getElementById('tenureRows').innerHTML = data.buckets
+      .map((b) => (
+        '<div class="wf-row-3col">' +
+          '<span class="wf-row-label">' + escapeHtml(b.label) + '</span>' +
+          '<span class="wf-row-value">' + b.count + '</span>' +
+          '<span class="wf-row-pct">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+        '</div>'
+      ))
       .join('');
     document.getElementById('tenureNote').textContent =
       data.excludedInactiveCount > 0
         ? data.excludedInactiveCount + ' inactive employees excluded — their departure date isn\'t tracked, so tenure can\'t be pinned to an end date.'
         : '';
+    renderTenureDonut(data.buckets);
   } catch (err) {
     kpisEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
+}
+
+// No separate legend here - the label/value/pct rows above already cover
+// that, so this donut is just the visual summary (matches the reference).
+function renderTenureDonut(buckets) {
+  const c = chartColors();
+  const palette = [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted];
+
+  destroyChart('tenureDonut');
+  const ctx = document.getElementById('tenureDonut');
+  charts.tenureDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: buckets.map((b) => b.label),
+      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 0 }]
+    },
+    options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+  });
 }
 
 // ---------- Insights tab ----------
@@ -718,18 +743,41 @@ document.getElementById('exportProbationPdf').addEventListener('click', () => {
 
 // ---------- Data Quality tab ----------
 
+const QUALITY_FIELDS = [
+  { key: 'department', label: 'Department' },
+  { key: 'location', label: 'Location' },
+  { key: 'designation', label: 'Designation' },
+  { key: 'doj', label: 'Date of Joining' },
+  { key: 'dob', label: 'Date of Birth' },
+  { key: 'email', label: 'Email' }
+];
+
 async function loadQualityView() {
-  const kpisEl = document.getElementById('qualityKpis');
-  kpisEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const completenessEl = document.getElementById('qualityCompletenessPanel');
+  completenessEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await fetchJson('/api/workforce/data-quality');
-    kpisEl.innerHTML =
-      kpiCard({ key: 'total', label: 'Total Records', value: data.total, tone: 'accent', icon: 'total', clickable: false }) +
-      kpiCard({ key: 'doj', label: 'Missing DOJ', value: data.missing.doj, tone: data.missing.doj ? 'inactive' : 'confirmed', icon: 'notice', clickable: false }) +
-      kpiCard({ key: 'dob', label: 'Missing Date of Birth', value: data.missing.dob, tone: data.missing.dob ? 'notice' : 'confirmed', icon: 'notice', clickable: false }) +
-      kpiCard({ key: 'email', label: 'Missing Email', value: data.missing.email, tone: data.missing.email ? 'notice' : 'confirmed', icon: 'notice', clickable: false }) +
-      kpiCard({ key: 'dept', label: 'Missing Department', value: data.missing.department, tone: data.missing.department ? 'inactive' : 'confirmed', icon: 'department', clickable: false }) +
-      kpiCard({ key: 'dup', label: 'Duplicate Employee IDs', value: data.duplicateIds.length, tone: data.duplicateIds.length ? 'inactive' : 'confirmed', icon: 'total', clickable: false });
+    const totalPoints = data.total * QUALITY_FIELDS.length;
+    const missingSum = QUALITY_FIELDS.reduce((sum, f) => sum + data.missing[f.key], 0);
+    const completenessPct = totalPoints ? Math.round(((totalPoints - missingSum) / totalPoints) * 1000) / 10 : 100;
+
+    completenessEl.innerHTML =
+      '<div class="wf-completeness-label">Data Completeness</div>' +
+      '<div class="wf-completeness-num">' + completenessPct + '%</div>' +
+      '<div class="wf-progress-track"><div class="wf-progress-fill" style="width:' + completenessPct + '%"></div></div>';
+
+    document.getElementById('qualityMissingRows').innerHTML = QUALITY_FIELDS
+      .map((f) => (
+        '<div class="wf-stat-row' + (data.missing[f.key] ? ' warn' : ' ok') + '">' +
+          '<span class="wf-row-label">' + escapeHtml(f.label) + '</span>' +
+          '<span class="wf-row-value">' + data.missing[f.key] + '</span>' +
+        '</div>'
+      ))
+      .join('') +
+      '<div class="wf-stat-row' + (data.duplicateIds.length ? ' warn' : ' ok') + '">' +
+        '<span class="wf-row-label">Duplicate Employee IDs</span>' +
+        '<span class="wf-row-value">' + data.duplicateIds.length + '</span>' +
+      '</div>';
 
     const dupPanel = document.getElementById('duplicatesPanel');
     if (data.duplicateIds.length) {
@@ -741,7 +789,7 @@ async function loadQualityView() {
       dupPanel.hidden = true;
     }
   } catch (err) {
-    kpisEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+    completenessEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
 

@@ -592,6 +592,68 @@ body {
 
 .wf-note { font-size: 0.78rem; color: var(--muted); margin: 12px 0 0; }
 
+/* ---------- 3-column stat rows (Tenure) and label/value rows (Missing Data) ---------- */
+
+.wf-row-3col {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.83rem;
+}
+.wf-row-3col:last-child { border-bottom: none; }
+.wf-row-3col .wf-row-label { flex: 1; color: var(--ink); font-weight: 600; }
+.wf-row-3col .wf-row-value {
+  width: 60px;
+  text-align: right;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--muted);
+}
+.wf-row-3col .wf-row-pct {
+  width: 56px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.wf-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.wf-stat-row:last-child { border-bottom: none; }
+.wf-stat-row .wf-row-label { color: var(--ink); font-weight: 600; }
+.wf-stat-row .wf-row-value {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 700;
+  color: var(--ink);
+}
+.wf-stat-row.ok .wf-row-value { color: var(--resolved); }
+.wf-stat-row.warn .wf-row-value { color: var(--important); }
+
+/* ---------- Big stat + progress bar (Data Quality completeness) ---------- */
+
+.wf-completeness-label { font-size: 0.78rem; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.wf-completeness-num {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.wf-progress-track {
+  height: 9px;
+  border-radius: 999px;
+  background: var(--other-bg);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.wf-progress-fill { height: 100%; border-radius: 999px; background: var(--resolved); }
+
 /* ---------- Shared states ---------- */
 
 .empty {

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="/styles.css?v=5" />
-  <link rel="stylesheet" href="/workforce.css?v=15" />
+  <link rel="stylesheet" href="/workforce.css?v=16" />
 </head>
 <body>
   <div class="wf-shell">
@@ -301,8 +301,11 @@
       </div>
       <div class="wf-panel">
         <div class="wf-panel-head"><h3>Tenure Distribution</h3></div>
-        <ul class="wf-bar-list" id="tenureBarList"></ul>
+        <div id="tenureRows"></div>
         <p class="wf-note" id="tenureNote"></p>
+      </div>
+      <div class="wf-panel" style="display:flex; justify-content:center;">
+        <div class="wf-canvas-wrap wf-canvas-wrap--donut" style="width:170px; height:170px;"><canvas id="tenureDonut"></canvas></div>
       </div>
     </section>
 
@@ -342,8 +345,12 @@
         </button>
         <h2>Data Quality</h2>
       </div>
-      <div class="kpi-grid" id="qualityKpis">
+      <div class="wf-panel" id="qualityCompletenessPanel">
         <div class="loading"><div class="spinner"></div></div>
+      </div>
+      <div class="wf-panel">
+        <div class="wf-panel-head"><h3>Missing Data</h3></div>
+        <div id="qualityMissingRows"></div>
       </div>
       <div class="wf-panel" id="duplicatesPanel" hidden>
         <div class="wf-panel-head"><h3>Duplicate Employee IDs</h3></div>
@@ -406,6 +413,6 @@
 
   <script src="/vendor/chart.js/chart.umd.js"></script>
   <script src="/profile.js?v=1"></script>
-  <script src="/workforce.js?v=22"></script>
+  <script src="/workforce.js?v=23"></script>
 </body>
 </html>
