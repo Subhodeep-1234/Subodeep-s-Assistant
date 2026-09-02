@@ -35,6 +35,26 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+// Login is open email+OTP, not tied to the HR sheet's employee records, so
+// there's no real directory to look a name up in - the closest we can show
+// is the email's own local-part turned into a name ("arindam.director@..."
+// -> "Arindam Director").
+function formatNameFromEmail(email) {
+  if (!email) return 'there';
+  const local = email.split('@')[0];
+  return local
+    .split(/[.\-_+]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ') || local;
+}
+
+function greetingForHour(hour) {
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
 // ---------- Icons ----------
 const ICONS = {
   total: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -243,7 +263,7 @@ async function loadProfile() {
   try {
     const data = await fetchJson('/api/hr-auth/me');
     document.getElementById('profileEmail').textContent = data.email || '';
-    document.getElementById('profileName').textContent = data.email ? data.email.split('@')[0] : 'Not logged in';
+    document.getElementById('profileName').textContent = data.email ? formatNameFromEmail(data.email) : 'Not logged in';
   } catch {
     // Profile display is non-critical - leave the placeholders.
   }
@@ -853,12 +873,16 @@ async function loadDrawerIdentity() {
   try {
     const data = await fetchJson('/api/hr-auth/me');
     if (!data.email) return;
-    document.getElementById('drawerName').textContent = data.email.split('@')[0];
+    const name = formatNameFromEmail(data.email);
+    document.getElementById('drawerName').textContent = name;
     document.getElementById('drawerEmail').textContent = data.email;
+    document.getElementById('greetingName').textContent = name;
   } catch {
-    // Non-critical - drawer just keeps its placeholder text.
+    // Non-critical - drawer/greeting just keep their placeholder text.
   }
 }
+
+document.getElementById('greetingTime').textContent = greetingForHour(new Date().getHours());
 
 setView('overview');
 loadFilterOptions();

@@ -119,6 +119,12 @@ body {
 .wf-drawer-spacer { flex: 1; }
 .wf-drawer-divider { height: 1px; background: var(--line); margin: 8px 10px; }
 
+/* ---------- Greeting (Overview) ---------- */
+
+.wf-greeting { margin-bottom: 18px; }
+.wf-greeting-sub { font-size: 0.82rem; color: var(--muted); }
+.wf-greeting-name { font-size: 1.2rem; font-weight: 700; color: var(--ink); margin: 2px 0; }
+
 /* ---------- KPI cards ---------- */
 
 .kpi-grid {
