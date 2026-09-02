@@ -487,6 +487,7 @@ body {
 
 /* ---------- Filter bar (Employee Data) ---------- */
 
+.wf-filterbar[hidden] { display: none; }
 .wf-filterbar {
   display: flex;
   flex-wrap: wrap;
