@@ -737,7 +737,6 @@ function showEmployeeDetail(e) {
   document.getElementById('directoryListPanel').hidden = true;
   document.getElementById('directoryDetailPanel').hidden = false;
 
-  const collarLabel = e.groupD ? e.groupD + (/collar$/i.test(e.groupD) ? '' : ' Collar') : '—';
 
   document.getElementById('empDetailBody').innerHTML =
     '<div class="wf-emp-profile-head">' +
@@ -759,7 +758,7 @@ function showEmployeeDetail(e) {
       fieldRow(FIELD_ICONS.person, 'Name', e.name) +
       fieldRow(FIELD_ICONS.badge, 'Designation', e.designation) +
       fieldRow(FIELD_ICONS.building, 'Department', e.department) +
-      fieldRow(FIELD_ICONS.collar, 'Collar Type', collarLabel) +
+      fieldRow(FIELD_ICONS.collar, 'Collar Type', e.groupD) +
       fieldRow(FIELD_ICONS.pin, 'Location', e.location) +
       fieldRow(FIELD_ICONS.users, 'Reporting DOER', e.reportingDoer) +
       fieldRow(FIELD_ICONS.calendar, 'DOJ', formatDate(e.doj)) +
