@@ -921,6 +921,15 @@ body {
   .kpi-icon svg { width: 16px; height: 16px; }
   .kpi-label { font-size: 0.68rem; }
   .kpi-num { font-size: 1.1rem; }
+
+  /* The fixed-size donut plus its legend's count+percentage no longer fit
+     on one line at this width without the numbers clipping at the right
+     edge - shrink the donut and let each legend row wrap instead. */
+  .wf-canvas-wrap--donut { width: 96px; height: 96px; }
+  .wf-donut-row { gap: 12px; }
+  .wf-legend { font-size: 0.72rem; }
+  .wf-legend li { flex-wrap: wrap; row-gap: 2px; }
+  .wf-legend-value, .wf-legend-pct { flex-shrink: 0; }
 }
 
 /* ---------- Printable report (Upcoming Joinings) ---------- */
