@@ -49,7 +49,7 @@ function startCountdown(seconds) {
 }
 
 async function requestOtp(email) {
-  const res = await fetch('/api/hr-auth/request-otp', {
+  const res = await fetch('api/hr-auth/request-otp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email })
@@ -127,14 +127,14 @@ otpForm.addEventListener('submit', async (e) => {
   verifyBtn.disabled = true;
   verifyBtn.textContent = 'Verifying…';
   try {
-    const res = await fetch('/api/hr-auth/verify-otp', {
+    const res = await fetch('api/hr-auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: currentEmail, code })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Verification failed');
-    window.location.href = '/workforce.html';
+    window.location.href = 'workforce.html';
   } catch (err) {
     showError(otpError, err.message);
     verifyBtn.disabled = false;

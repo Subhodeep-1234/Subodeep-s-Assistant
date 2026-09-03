@@ -60,7 +60,7 @@ function setActiveTab(category) {
 
 async function loadCounts() {
   try {
-    const res = await fetch('/api/counts');
+    const res = await fetch('api/counts');
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load counts');
     const data = await res.json();
     subtitle.textContent = data.emailAddress;
@@ -85,7 +85,7 @@ async function loadCategory(category) {
   if (activeSearch) params.set('q', activeSearch);
   const qs = params.toString();
   try {
-    const res = await fetch('/api/messages/' + category + (qs ? '?' + qs : ''));
+    const res = await fetch('api/messages/' + category + (qs ? '?' + qs : ''));
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
     const data = await res.json();
     if (requestId !== currentRequestId) return; // a newer tab/search has since started
@@ -119,7 +119,7 @@ function prefetchBodies(items) {
     while (index < toFetch.length) {
       const item = toFetch[index++];
       try {
-        const res = await fetch('/api/message/' + item.id);
+        const res = await fetch('api/message/' + item.id);
         if (res.ok) {
           const data = await res.json();
           bodyCache[item.id] = data.bodyText;
@@ -135,7 +135,7 @@ function prefetchBodies(items) {
 
 async function loadJoinings(requestId) {
   try {
-    const res = await fetch('/api/joinings');
+    const res = await fetch('api/joinings');
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
     const data = await res.json();
     if (requestId !== currentRequestId) return; // a newer tab/search has since started
@@ -306,7 +306,7 @@ async function handleDelete(messageId, button) {
   if (!confirm('Move this email to Trash?')) return;
   button.disabled = true;
   try {
-    const res = await fetch('/api/message/' + messageId, { method: 'DELETE' });
+    const res = await fetch('api/message/' + messageId, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to delete');
     loadCounts();
@@ -339,7 +339,7 @@ async function toggleBody(id) {
   }
   box.innerHTML = '<div class="loading-inline"><div class="spinner spinner-sm"></div></div>';
   try {
-    const res = await fetch('/api/message/' + messageId);
+    const res = await fetch('api/message/' + messageId);
     if (!res.ok) throw new Error((await res.json()).error || 'Failed to load message');
     const data = await res.json();
     bodyCache[messageId] = data.bodyText;
@@ -361,7 +361,7 @@ async function sendReply(messageId, boxId, taId, button) {
   status.textContent = 'Sending…';
 
   try {
-    const res = await fetch('/api/reply', {
+    const res = await fetch('api/reply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messageId, replyText })

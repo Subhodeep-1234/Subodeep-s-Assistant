@@ -234,9 +234,9 @@ document.addEventListener('keydown', (e) => {
 
 async function logout() {
   try {
-    await fetch('/api/hr-auth/logout', { method: 'POST' });
+    await fetch('api/hr-auth/logout', { method: 'POST' });
   } finally {
-    window.location.href = '/login';
+    window.location.href = 'login';
   }
 }
 document.getElementById('logoutBtn').addEventListener('click', logout);
