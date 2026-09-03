@@ -51,6 +51,13 @@
 
 * { box-sizing: border-box; }
 
+/* If any element ever exceeds the viewport width by even a pixel (a long
+   name, a long address, a wide row), the whole page becomes horizontally
+   pannable on mobile - it visibly shifts left/right when touched. This is
+   the standard guard against that: the page itself can never scroll
+   sideways, no matter what overflows inside it. */
+html, body { overflow-x: hidden; }
+
 body {
   margin: 0;
   background: var(--paper);

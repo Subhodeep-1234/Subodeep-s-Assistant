@@ -596,6 +596,9 @@ body {
 .wf-join-list li:last-child { border-bottom: none; }
 
 .wf-join-badge-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.wf-join-main { flex: 1; min-width: 0; }
+.wf-join-name { word-break: break-word; }
+.wf-join-sub { word-break: break-word; }
 
 .wf-join-badge {
   width: 44px;

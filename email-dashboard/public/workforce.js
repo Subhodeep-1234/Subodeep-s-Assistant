@@ -859,7 +859,7 @@ function joinRow(name, designation, subLabel, doj, showCountdown) {
         '<span class="wf-join-badge"><b>' + badge.day + '</b><span>' + badge.month + '</span></span>' +
         (countdown ? '<span class="wf-join-countdown">' + escapeHtml(countdown) + '</span>' : '') +
       '</span>' +
-      '<span>' +
+      '<span class="wf-join-main">' +
         '<span class="wf-join-name">' + escapeHtml(name) + '</span>' +
         '<span class="wf-join-sub" style="display:block;">' + escapeHtml(designation || '—') + ' · ' + escapeHtml(subLabel || '—') + '</span>' +
       '</span>' +
