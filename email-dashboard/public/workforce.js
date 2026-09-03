@@ -827,6 +827,7 @@ document.getElementById('joiningTabs').addEventListener('click', (e) => {
   document.querySelectorAll('#joiningTabs [data-jtab]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b === btn));
   });
+  document.getElementById('exportJoiningsPdf').hidden = joiningActiveTab !== 'upcoming';
   renderJoiningTab(joiningActiveTab);
 });
 
