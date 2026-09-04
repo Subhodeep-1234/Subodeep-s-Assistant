@@ -949,6 +949,7 @@ async function loadTenureView() {
   rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await fetchJson('/api/workforce/tenure');
+    const palette = distributionPalette();
     // The donut only covers tenure-eligible employees (inactive staff are
     // excluded - see the note below), so the center total is that eligible
     // count, not the company-wide headcount - it has to match what the
@@ -956,15 +957,26 @@ async function loadTenureView() {
     document.getElementById('tenureDonutTotal').textContent = data.eligibleCount.toLocaleString();
 
     const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
-    rowsEl.innerHTML = data.buckets
-      .map((b) => (
-        '<div class="wf-row-3col">' +
-          '<span class="wf-row-label">' + escapeHtml(b.label) + '</span>' +
-          '<span class="wf-row-value">' + b.count + '</span>' +
-          '<span class="wf-row-pct">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
-        '</div>'
-      ))
-      .join('');
+    rowsEl.innerHTML =
+      '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Tenure Range</span>' +
+        '<span class="wf-dist-num-col">Employees</span>' +
+        '<span class="wf-dist-num-col">% of Total</span>' +
+      '</div>' +
+      data.buckets
+        .map((b, i) => (
+          '<div class="wf-dist-row">' +
+            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
+            '<span class="wf-dist-num-col">' + b.count + '</span>' +
+            '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+          '</div>'
+        ))
+        .join('') +
+      '<div class="wf-dist-row wf-dist-total-row">' +
+        '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-dist-num-col">' + data.eligibleCount + '</span>' +
+        '<span class="wf-dist-num-col">100%</span>' +
+      '</div>';
     document.getElementById('tenureNote').textContent =
       data.missingDojCount > 0
         ? data.eligibleCount + ' of ' + data.activeCount + ' Active employees shown — ' + data.missingDojCount +
@@ -979,8 +991,7 @@ async function loadTenureView() {
 // No separate legend here - the label/value/pct rows above already cover
 // that, so this donut is just the visual summary (matches the reference).
 function renderTenureDonut(buckets) {
-  const c = chartColors();
-  const palette = [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted];
+  const palette = distributionPalette();
 
   destroyChart('tenureDonut');
   const ctx = document.getElementById('tenureDonut');
@@ -988,7 +999,7 @@ function renderTenureDonut(buckets) {
     type: 'doughnut',
     data: {
       labels: buckets.map((b) => b.label),
-      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 0 }]
+      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 2, borderColor: chartColors().surface }]
     },
     options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
   });
@@ -996,11 +1007,11 @@ function renderTenureDonut(buckets) {
 
 // ---------- Age Distribution (Demographics) ----------
 
-// 8 buckets need 8 distinct colors - the app's core semantic palette only
-// has 6 (accent/resolved/warning/candidate/important/muted), so two more
-// muted tones are added here, in the same desaturated style, just for this
-// chart's extra variety.
-function agePalette() {
+// Shared by Age Distribution (8 buckets) and Tenure (7 buckets) - the app's
+// core semantic palette only has 6 (accent/resolved/warning/candidate/
+// important/muted), so two more muted tones are added here, in the same
+// desaturated style, for whichever chart needs the extra variety.
+function distributionPalette() {
   const c = chartColors();
   return [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted, '#4a5a8a', '#7c5295'];
 }
@@ -1010,30 +1021,30 @@ async function loadAgeDistributionView() {
   rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await fetchJson('/api/workforce/age');
-    const palette = agePalette();
+    const palette = distributionPalette();
     const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
 
     document.getElementById('ageDonutTotal').textContent = data.eligibleCount.toLocaleString();
 
     rowsEl.innerHTML =
-      '<div class="wf-age-row wf-age-header">' +
-        '<span class="wf-age-label-col">Age Range</span>' +
-        '<span class="wf-age-num-col">Employees</span>' +
-        '<span class="wf-age-num-col">% of Total</span>' +
+      '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Age Range</span>' +
+        '<span class="wf-dist-num-col">Employees</span>' +
+        '<span class="wf-dist-num-col">% of Total</span>' +
       '</div>' +
       data.buckets
         .map((b, i) => (
-          '<div class="wf-age-row">' +
-            '<span class="wf-age-label-col"><span class="wf-age-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
-            '<span class="wf-age-num-col">' + b.count + '</span>' +
-            '<span class="wf-age-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+          '<div class="wf-dist-row">' +
+            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
+            '<span class="wf-dist-num-col">' + b.count + '</span>' +
+            '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
           '</div>'
         ))
         .join('') +
-      '<div class="wf-age-row wf-age-total-row">' +
-        '<span class="wf-age-label-col"><span class="wf-age-total-icon">' + icon('total', 14) + '</span>Total</span>' +
-        '<span class="wf-age-num-col">' + data.eligibleCount + '</span>' +
-        '<span class="wf-age-num-col">100%</span>' +
+      '<div class="wf-dist-row wf-dist-total-row">' +
+        '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-dist-num-col">' + data.eligibleCount + '</span>' +
+        '<span class="wf-dist-num-col">100%</span>' +
       '</div>';
 
     document.getElementById('ageNote').textContent =
@@ -1048,7 +1059,7 @@ async function loadAgeDistributionView() {
 }
 
 function renderAgeDonut(buckets) {
-  const palette = agePalette();
+  const palette = distributionPalette();
 
   destroyChart('ageDonut');
   const ctx = document.getElementById('ageDonut');

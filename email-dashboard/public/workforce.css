@@ -369,8 +369,8 @@ body {
 
 /* ---------- Age Distribution table ---------- */
 
-.wf-age-table { display: flex; flex-direction: column; }
-.wf-age-row {
+.wf-dist-table { display: flex; flex-direction: column; }
+.wf-dist-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -378,11 +378,11 @@ body {
   border-bottom: 1px solid var(--line);
   font-size: 0.82rem;
 }
-.wf-age-row:last-of-type { border-bottom: none; }
-.wf-age-header { font-weight: 700; color: var(--ink); font-size: 0.78rem; padding-bottom: 12px; }
-.wf-age-label-col { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); font-weight: 600; }
-.wf-age-header .wf-age-label-col { color: var(--muted); font-weight: 700; }
-.wf-age-num-col {
+.wf-dist-row:last-of-type { border-bottom: none; }
+.wf-dist-header { font-weight: 700; color: var(--ink); font-size: 0.78rem; padding-bottom: 12px; }
+.wf-dist-label-col { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); font-weight: 600; }
+.wf-dist-header .wf-dist-label-col { color: var(--muted); font-weight: 700; }
+.wf-dist-num-col {
   width: 76px;
   flex-shrink: 0;
   text-align: right;
@@ -392,19 +392,19 @@ body {
   font-weight: 700;
   color: var(--ink);
 }
-.wf-age-header .wf-age-num-col { color: var(--muted); font-family: inherit; font-weight: 700; }
-.wf-age-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.wf-dist-header .wf-dist-num-col { color: var(--muted); font-family: inherit; font-weight: 700; }
+.wf-dist-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-.wf-age-total-row {
+.wf-dist-total-row {
   background: var(--accent-bg);
   border-radius: 11px;
   padding: 10px 12px;
   margin-top: 6px;
   border-bottom: none;
 }
-.wf-age-total-row .wf-age-label-col,
-.wf-age-total-row .wf-age-num-col { color: var(--accent); font-weight: 700; }
-.wf-age-total-icon {
+.wf-dist-total-row .wf-dist-label-col,
+.wf-dist-total-row .wf-dist-num-col { color: var(--accent); font-weight: 700; }
+.wf-dist-total-icon {
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -415,7 +415,7 @@ body {
   justify-content: center;
   flex-shrink: 0;
 }
-.wf-age-total-icon svg { width: 14px; height: 14px; }
+.wf-dist-total-icon svg { width: 14px; height: 14px; }
 
 
 .wf-legend {
