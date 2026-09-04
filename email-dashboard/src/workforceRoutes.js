@@ -134,6 +134,7 @@ router.get('/employees', async (req, res) => {
       department: departmentNames.get(e.departmentKey) || e.department,
       designation: e.designation,
       groupD: formatCollar(e.groupD),
+      gender: e.gender,
       location: locationNames.get(e.locationKey) || e.location,
       reportingDoer: e.reportingDoer,
       reportingManager: reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager,

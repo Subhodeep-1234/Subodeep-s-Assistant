@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=37" />
+  <link rel="stylesheet" href="workforce.css?v=38" />
 </head>
 <body>
   <div class="wf-shell">
@@ -209,7 +209,10 @@
           <button class="wf-clear-btn" id="clearFilters">Clear filters</button>
         </div>
 
-        <div class="wf-result-summary" id="resultSummary"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div class="wf-result-summary" id="resultSummary"></div>
+          <button class="wf-link-btn" id="exportEmployeesPdf" type="button">⬇ Export PDF</button>
+        </div>
 
         <ul class="wf-emp-list" id="employeeList"></ul>
       </div>
@@ -246,15 +249,17 @@
       </div>
     </section>
 
-    <!-- Print-only Upcoming Joinings report - isolated via @media print in workforce.css -->
+    <!-- Print-only report (Upcoming Joinings / Employee Data exports share this
+         one container - each export handler fills in title/subtitle/head/body
+         fresh before printing) - isolated via @media print in workforce.css -->
     <div id="printReport">
       <div class="print-report-head">
-        <h1>Upcoming Joinings Report</h1>
-        <div class="print-meta">Alcove Realty · Generated <span id="printReportDate"></span></div>
+        <h1 id="printReportTitle">Upcoming Joinings Report</h1>
+        <div class="print-meta">Alcove Realty · <span id="printReportSubtitle"></span>Generated <span id="printReportDate"></span></div>
       </div>
       <table>
         <thead>
-          <tr><th>Name</th><th>Designation</th><th>Company</th><th>Date of Joining</th><th>Days Remaining</th></tr>
+          <tr id="printReportHead"><th>Name</th><th>Designation</th><th>Company</th><th>Date of Joining</th><th>Days Remaining</th></tr>
         </thead>
         <tbody id="printReportBody"></tbody>
       </table>
@@ -499,6 +504,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=48"></script>
+  <script src="workforce.js?v=49"></script>
 </body>
 </html>

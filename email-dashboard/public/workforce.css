@@ -569,6 +569,17 @@ body {
 
 .wf-bar-pct { color: var(--muted); font-size: 0.74rem; font-weight: 500; flex-shrink: 0; }
 
+.wf-bar-list li.clickable {
+  cursor: pointer;
+  margin: 0 -8px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.wf-bar-list li.clickable:hover,
+.wf-bar-list li.clickable:focus-visible { background: var(--accent-bg); }
+.wf-bar-list li.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
 .wf-bar-list li.wf-bar-total-row {
   background: var(--accent-bg);
   border-radius: 11px;

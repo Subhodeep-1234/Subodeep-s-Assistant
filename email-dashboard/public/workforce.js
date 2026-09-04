@@ -555,7 +555,7 @@ function barListItem(iconName, name, count, max, shareTotal) {
   const pct = Math.max(4, Math.round((count / max) * 100));
   const share = shareTotal ? Math.round((count / shareTotal) * 1000) / 10 : null;
   return (
-    '<li>' +
+    '<li class="clickable" tabindex="0" role="button" data-department="' + escapeHtml(name) + '">' +
       '<span class="wf-bar-icon">' + icon(iconName, 18) + '</span>' +
       '<span class="wf-bar-main">' +
         '<span class="wf-bar-name">' + escapeHtml(name) + '</span>' +
@@ -566,6 +566,27 @@ function barListItem(iconName, name, count, max, shareTotal) {
     '</li>'
   );
 }
+
+// barListItem is only used for department rows (locations use legendRow
+// instead), so wiring click/keydown once on each of its two containers
+// covers the dashboard preview and the "View all" full list.
+function wireDeptBarListClicks(id) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-department]');
+    if (!row) return;
+    applyFiltersAndShowDirectory({ status: 'ACTIVE', department: row.dataset.department });
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('[data-department]');
+    if (!row) return;
+    e.preventDefault();
+    row.click();
+  });
+}
+wireDeptBarListClicks('deptBarList');
+wireDeptBarListClicks('departmentFullBarList');
 
 function renderLocationDonut(rows) {
   const c = chartColors();
@@ -792,6 +813,40 @@ employeeList.addEventListener('click', (e) => {
   if (emp) showEmployeeDetail(emp);
 });
 
+document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
+  const filterParts = [];
+  if (activeFilters.status) filterParts.push(activeFilters.status === 'ACTIVE' ? 'Active' : activeFilters.status);
+  if (activeFilters.department) filterParts.push(activeFilters.department);
+  if (activeFilters.employmentType) filterParts.push(activeFilters.employmentType);
+  if (activeFilters.location) filterParts.push(activeFilters.location);
+
+  document.getElementById('printReportTitle').textContent = 'Employee Data Report';
+  document.getElementById('printReportSubtitle').textContent =
+    (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
+    lastEmployeeList.length + ' employee' + (lastEmployeeList.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th>';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportBody').innerHTML = lastEmployeeList.length
+    ? lastEmployeeList
+        .map((e) => (
+          '<tr>' +
+            '<td>' + escapeHtml(e.employeeId) + '</td>' +
+            '<td>' + escapeHtml(e.name) + '</td>' +
+            '<td>' + escapeHtml(e.designation || '—') + '</td>' +
+            '<td>' + escapeHtml(e.department || '—') + '</td>' +
+            '<td>' + escapeHtml(e.groupD || '—') + '</td>' +
+            '<td>' + escapeHtml(e.gender || '—') + '</td>' +
+            '<td>' + escapeHtml(e.location || '—') + '</td>' +
+            '<td>' + formatDate(e.doj) + '</td>' +
+          '</tr>'
+        ))
+        .join('')
+    : '<tr><td colspan="8">No employees match these filters</td></tr>';
+  window.print();
+});
+
 document.getElementById('filterToggleBtn').addEventListener('click', () => {
   const expanded = document.getElementById('filterToggleBtn').getAttribute('aria-expanded') === 'true';
   document.getElementById('wfFilterbar').hidden = expanded;
@@ -1008,6 +1063,10 @@ document.getElementById('exportJoiningsPdf').addEventListener('click', async () 
   if (!upcomingJoiningsCache.length) {
     await fetchJoiningTab('upcoming');
   }
+  document.getElementById('printReportTitle').textContent = 'Upcoming Joinings Report';
+  document.getElementById('printReportSubtitle').textContent = '';
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Name</th><th>Designation</th><th>Company</th><th>Date of Joining</th><th>Days Remaining</th>';
   document.getElementById('printReportDate').textContent =
     new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   document.getElementById('printReportBody').innerHTML = upcomingJoiningsCache.length
