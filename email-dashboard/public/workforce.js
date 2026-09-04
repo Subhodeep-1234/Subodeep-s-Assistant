@@ -529,7 +529,18 @@ async function loadDepartmentFullView() {
       fetchJson('/api/workforce/overview'),
       fetchJson('/api/workforce/breakdowns?status=ACTIVE')
     ]);
-    renderDeptBarList(breakdowns.departments, overview.active, 'departmentFullBarList');
+    const rows = breakdowns.departments;
+    const max = rows.length ? rows[0].count : 1;
+    const total = rows.reduce((sum, r) => sum + r.count, 0);
+    listEl.innerHTML = rows.length
+      ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max, overview.active)).join('') +
+        '<li class="wf-bar-total-row">' +
+          '<span class="wf-bar-icon">' + icon('total', 18) + '</span>' +
+          '<span class="wf-bar-main"><span class="wf-bar-name">Total</span></span>' +
+          '<span class="wf-bar-count">' + total + '</span>' +
+          '<span class="wf-bar-pct">100%</span>' +
+        '</li>'
+      : '<li class="empty">No department data</li>';
   } catch (err) {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }

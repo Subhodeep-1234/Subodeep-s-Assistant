@@ -565,6 +565,17 @@ body {
 
 .wf-bar-pct { color: var(--muted); font-size: 0.74rem; font-weight: 500; flex-shrink: 0; }
 
+.wf-bar-list li.wf-bar-total-row {
+  background: var(--accent-bg);
+  border-radius: 11px;
+  padding: 10px 12px;
+  margin-top: 6px;
+}
+.wf-bar-list li.wf-bar-total-row .wf-bar-icon { background: var(--surface); }
+.wf-bar-list li.wf-bar-total-row .wf-bar-name,
+.wf-bar-list li.wf-bar-total-row .wf-bar-count,
+.wf-bar-list li.wf-bar-total-row .wf-bar-pct { color: var(--accent); font-weight: 700; }
+
 /* ---------- Insights ---------- */
 
 .wf-insights-panel {
