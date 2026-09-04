@@ -1095,7 +1095,10 @@ body {
   .print-report-head { border-bottom: 2px solid #1d5c63; padding-bottom: 10px; margin-bottom: 16px; }
   .print-report-head h1 { margin: 0 0 4px; font-size: 1.3rem; color: #1d5c63; }
   .print-meta { font-size: 0.8rem; color: #5b6169; }
-  #printReport table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  #printReport th, #printReport td { text-align: left; padding: 7px 9px; border-bottom: 1px solid #dde4e2; }
-  #printReport thead th { background: #eef0ed; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  #printReport table { width: 100%; border-collapse: collapse; font-size: 0.82rem; border: 1px solid #c3ccc8; }
+  #printReport th, #printReport td { text-align: left; padding: 7px 9px; border: 1px solid #c3ccc8; }
+  #printReport thead th { background: #eef0ed; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #1d5c63; }
+  #printReport tbody tr:nth-child(even) { background: #f7f9f8; }
+  #printReport tbody tr { break-inside: avoid; }
+  #printReport thead { display: table-header-group; }
 }

@@ -813,6 +813,33 @@ employeeList.addEventListener('click', (e) => {
   if (emp) showEmployeeDetail(emp);
 });
 
+// Best-effort seniority ranking for the PDF report - the sheet has 150+
+// distinct freeform designation strings, so this matches on keyword tiers
+// (checked top-down, first match wins) rather than an exhaustive per-title
+// map. Anything unrecognized falls into the generic skilled-trade tier
+// rather than accidentally sorting to the very top or bottom.
+const DESIGNATION_RANK_TIERS = [
+  { rank: 10, test: /\b(DIRECTOR|CHAIRMAN|COMPANY SECRETARY|MANAGING DIRECTOR)\b/ },
+  { rank: 20, test: /\bVICE PRESIDENT\b/ },
+  { rank: 30, test: /\b(GENERAL MANAGER|\bAGM\b|\bDGM\b|PLANT MANAGER|FINANCE CONTROLLER)\b/ },
+  { rank: 40, test: /\b(SR\.?|SENIOR)\s*MANAGER\b/ },
+  { rank: 50, test: /\bMANAGER\b/ },
+  { rank: 60, test: /\b(DEPUTY MANAGER|ASSISTANT MANAGER|ASST\.?\s*MAN[AG]ER)\b/ },
+  { rank: 70, test: /\b(SR\.?|SENIOR)\s*ENGINEER\b/ },
+  { rank: 80, test: /\bENGINEER\b/ },
+  { rank: 100, test: /\b(SR\.?|SENIOR)\s*(SUPERVISOR|FOREMAN|EXECUTIVE)\b/ },
+  { rank: 110, test: /\b(SUPERVISOR|FOREMAN|EXECUTIVE)\b/ },
+  { rank: 130, test: /\b(SR\.?|SENIOR)\b/ }, // any other "Sr. <trade>" not already caught above
+  { rank: 170, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|HOUSE STAFF|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER|PANDIT|DOG TRAINER)\b/ }
+];
+const DESIGNATION_RANK_DEFAULT = 140; // plain skilled trades (Electrician, Fitter, Mason, Driver, Operator...)
+
+function designationRank(designation) {
+  const upper = String(designation || '').toUpperCase();
+  const tier = DESIGNATION_RANK_TIERS.find((t) => t.test.test(upper));
+  return tier ? tier.rank : DESIGNATION_RANK_DEFAULT;
+}
+
 document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   const filterParts = [];
   if (activeFilters.status) filterParts.push(activeFilters.status === 'ACTIVE' ? 'Active' : activeFilters.status);
@@ -820,16 +847,24 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   if (activeFilters.employmentType) filterParts.push(activeFilters.employmentType);
   if (activeFilters.location) filterParts.push(activeFilters.location);
 
+  const sortedList = lastEmployeeList.slice().sort((a, b) => {
+    const rankDiff = designationRank(a.designation) - designationRank(b.designation);
+    if (rankDiff !== 0) return rankDiff;
+    const desigDiff = (a.designation || '').localeCompare(b.designation || '');
+    if (desigDiff !== 0) return desigDiff;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
   document.getElementById('printReportTitle').textContent = 'Employee Data Report';
   document.getElementById('printReportSubtitle').textContent =
     (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
-    lastEmployeeList.length + ' employee' + (lastEmployeeList.length === 1 ? '' : 's') + ' · ';
+    sortedList.length + ' employee' + (sortedList.length === 1 ? '' : 's') + ' · ';
   document.getElementById('printReportHead').innerHTML =
     '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th>';
   document.getElementById('printReportDate').textContent =
     new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-  document.getElementById('printReportBody').innerHTML = lastEmployeeList.length
-    ? lastEmployeeList
+  document.getElementById('printReportBody').innerHTML = sortedList.length
+    ? sortedList
         .map((e) => (
           '<tr>' +
             '<td>' + escapeHtml(e.employeeId) + '</td>' +
