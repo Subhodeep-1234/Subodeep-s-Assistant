@@ -261,6 +261,11 @@ function setView(view) {
     document.getElementById('directoryDetailPanel').hidden = true;
     document.getElementById('directoryListPanel').hidden = false;
   }
+  // All views live in the same scrolling document (sections are toggled via
+  // [hidden], not real navigation), so the old scroll position otherwise
+  // carries over - e.g. leaving a long list scrolled down, then reopening
+  // it later lands mid-page instead of at the top.
+  window.scrollTo(0, 0);
   loadView(view, false);
 }
 
