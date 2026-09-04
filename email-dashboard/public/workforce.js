@@ -847,6 +847,7 @@ const DESIGNATION_RANK_TIERS = [
   { rank: 160, test: /\b(SUPERVISOR|FOREMAN)\b/ },
   { rank: 180, test: /\b(SR\.?|SENIOR)\b/ }, // any other "Sr. <trade>" not already caught above
   { rank: 210, test: /\b(ASST\.?|ASSISTANT)\b/ }, // Asst./Assistant-prefixed trades (Asst. Electrician, Asst. Welder...) rank below their plain counterpart - checked after Assistant Manager/Engineer, which are already caught by their own higher tiers above
+  { rank: 215, test: /\bOPERATOR\b/ }, // machine/equipment operators (Lift, JCB, Tower Crane, Batching Plant...) rank below assistant-level trades - Data Entry Operator is caught by its own tier above, before reaching this one
   { rank: 220, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|HOUSE STAFF|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER|PANDIT|DOG TRAINER)\b/ }
 ];
 const DESIGNATION_RANK_DEFAULT = 200; // plain skilled trades (Electrician, Fitter, Mason, Driver, Operator...)
