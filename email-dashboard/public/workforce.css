@@ -116,8 +116,6 @@ body {
 .wf-drawer-item.danger svg { color: var(--important); }
 .wf-drawer-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.wf-drawer-group { color: var(--accent); }
-.wf-drawer-group svg:first-of-type { color: var(--accent); }
 .wf-drawer-chevron {
   margin-left: auto;
   width: 14px;
