@@ -815,27 +815,40 @@ employeeList.addEventListener('click', (e) => {
 
 // Best-effort seniority ranking for the PDF report - the sheet has 150+
 // distinct freeform designation strings, so this matches on keyword tiers
-// (checked top-down, first match wins) rather than an exhaustive per-title
-// map. Anything unrecognized falls into the generic skilled-trade tier
-// rather than accidentally sorting to the very top or bottom.
+// (checked top-down, first match wins - specific patterns like "Deputy
+// Manager" are listed before the generic "Manager" catch-all so they don't
+// get swallowed by it) rather than an exhaustive per-title map. There are
+// two parallel ladders that both bottleneck through Manager: a corporate/
+// office track (DEO < Jr Executive < Executive < Sr Executive < Asst
+// Manager < Deputy Manager) and a project-site technical track (Engineer/
+// Supervisor). DEO itself spans both offices and sites, ranking below both
+// Engineer and Executive but above Supervisor. Anything unrecognized falls
+// into the generic skilled-trade tier rather than accidentally sorting to
+// the very top or bottom.
 const DESIGNATION_RANK_TIERS = [
   { rank: 10, test: /\b(DIRECTOR|CHAIRMAN|COMPANY SECRETARY|MANAGING DIRECTOR)\b/ },
   { rank: 20, test: /\bVICE PRESIDENT\b/ },
-  { rank: 30, test: /\b(GENERAL MANAGER|\bAGM\b|\bDGM\b|PLANT MANAGER|FINANCE CONTROLLER)\b/ },
-  { rank: 40, test: /\b(SR\.?|SENIOR)\s*MANAGER\b/ },
-  { rank: 50, test: /\bMANAGER\b/ },
-  { rank: 60, test: /\b(DEPUTY MANAGER|ASSISTANT MANAGER|ASST\.?\s*MAN[AG]ER)\b/ },
-  { rank: 70, test: /\b(SR\.?|SENIOR)\s*ENGINEER\b/ },
-  { rank: 80, test: /\bENGINEER\b/ },
-  { rank: 82, test: /\bDTE\b/ }, // Diploma Trainee Engineer - junior to a full Engineer
-  { rank: 85, test: /\b(SR\.?|SENIOR)\s*(DATA ENTRY OPERATOR|DEO)\b/ }, // office/computer role, not a site machine operator - ranks below Engineer, above Supervisor
-  { rank: 90, test: /\b(DATA ENTRY OPERATOR|DEO)\b/ },
-  { rank: 100, test: /\b(SR\.?|SENIOR)\s*(SUPERVISOR|FOREMAN|EXECUTIVE)\b/ },
-  { rank: 110, test: /\b(SUPERVISOR|FOREMAN|EXECUTIVE)\b/ },
-  { rank: 130, test: /\b(SR\.?|SENIOR)\b/ }, // any other "Sr. <trade>" not already caught above
-  { rank: 170, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|HOUSE STAFF|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER|PANDIT|DOG TRAINER)\b/ }
+  { rank: 30, test: /\b(GENERAL MANAGER|\bGM\b|PLANT MANAGER|FINANCE CONTROLLER)\b/ },
+  { rank: 40, test: /\bDGM\b/ },
+  { rank: 50, test: /\bAGM\b/ },
+  { rank: 60, test: /\b(SR\.?|SENIOR)\s*MANAGER\b/ },
+  { rank: 80, test: /\bDEPUTY MANAGER\b/ }, // before plain Manager
+  { rank: 90, test: /\b(ASSISTANT MANAGER|ASST\.?\s*MAN[AG]ER)\b/ }, // before plain Manager
+  { rank: 70, test: /\bMANAGER\b/ }, // generic catch-all for the Manager family, checked last
+  { rank: 100, test: /\b(SR\.?|SENIOR)\s*ENGINEER\b/ },
+  { rank: 100, test: /\b(SR\.?|SENIOR)\s*EXECUTIVE\b/ },
+  { rank: 130, test: /\bJR\.?\s*EXECUTIVE\b|\bJUNIOR EXECUTIVE\b/ }, // before plain Executive
+  { rank: 120, test: /\bENGINEER\b/ },
+  { rank: 120, test: /\bEXECUTIVE\b/ },
+  { rank: 130, test: /\bDTE\b/ }, // Diploma Trainee Engineer - junior to a full Engineer
+  { rank: 135, test: /\b(SR\.?|SENIOR)\s*(DATA ENTRY OPERATOR|DEO)\b/ },
+  { rank: 140, test: /\b(DATA ENTRY OPERATOR|DEO)\b/ }, // spans office & site, below Engineer/Executive, above Supervisor
+  { rank: 150, test: /\b(SR\.?|SENIOR)\s*(SUPERVISOR|FOREMAN)\b/ },
+  { rank: 160, test: /\b(SUPERVISOR|FOREMAN)\b/ },
+  { rank: 180, test: /\b(SR\.?|SENIOR)\b/ }, // any other "Sr. <trade>" not already caught above
+  { rank: 220, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|HOUSE STAFF|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER|PANDIT|DOG TRAINER)\b/ }
 ];
-const DESIGNATION_RANK_DEFAULT = 140; // plain skilled trades (Electrician, Fitter, Mason, Driver, Operator...)
+const DESIGNATION_RANK_DEFAULT = 200; // plain skilled trades (Electrician, Fitter, Mason, Driver, Operator...)
 
 function designationRank(designation) {
   const upper = String(designation || '').toUpperCase();
