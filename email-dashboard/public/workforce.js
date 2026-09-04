@@ -394,6 +394,22 @@ kpiGrid.addEventListener('click', (e) => {
   applyFiltersAndShowDirectory(filterMap[card.dataset.kpi] || {});
 });
 
+const statusLegendEl = document.getElementById('statusLegend');
+statusLegendEl.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-status]');
+  if (!row) return;
+  const filters = { status: row.dataset.status };
+  if (row.dataset.employmentType) filters.employmentType = row.dataset.employmentType;
+  applyFiltersAndShowDirectory(filters);
+});
+statusLegendEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-status]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
 function applyFiltersAndShowDirectory(filters) {
   activeFilters = filters;
   filterStatus.value = filters.status || '';
@@ -434,16 +450,23 @@ function renderStatusDonut(overview) {
   const total = overview.total || 1;
   const pct = (n) => Math.round((n / total) * 1000) / 10;
   document.getElementById('statusLegend').innerHTML =
-    legendRow(c.resolved, 'Active', overview.active, pct(overview.active)) +
-    legendRow(c.resolved, 'Probation', overview.activeProbation, pct(overview.activeProbation), true) +
-    legendRow(c.resolved, 'Confirmed', overview.activeConfirmed, pct(overview.activeConfirmed), true) +
-    legendRow(c.warning, 'Notice Period', overview.noticePeriod, pct(overview.noticePeriod)) +
-    legendRow(c.important, 'Inactive', overview.inactive, pct(overview.inactive));
+    legendRow(c.resolved, 'Active', overview.active, pct(overview.active), false, { status: 'ACTIVE' }) +
+    legendRow(c.resolved, 'Probation', overview.activeProbation, pct(overview.activeProbation), true, { status: 'ACTIVE', employmentType: 'Probation' }) +
+    legendRow(c.resolved, 'Confirmed', overview.activeConfirmed, pct(overview.activeConfirmed), true, { status: 'ACTIVE', employmentType: 'Confirmed' }) +
+    legendRow(c.warning, 'Notice Period', overview.noticePeriod, pct(overview.noticePeriod), false, { status: 'NOTICE PERIOD' }) +
+    legendRow(c.important, 'Inactive', overview.inactive, pct(overview.inactive), false, { status: 'INACTIVE' });
 }
 
-function legendRow(color, label, value, pct, sub) {
+function legendRow(color, label, value, pct, sub, filter) {
+  const classes = [sub ? 'sub' : null, filter ? 'clickable' : null].filter(Boolean).join(' ');
+  const attrs =
+    (classes ? ' class="' + classes + '"' : '') +
+    (filter
+      ? ' tabindex="0" role="button" data-status="' + escapeHtml(filter.status) + '"' +
+        (filter.employmentType ? ' data-employment-type="' + escapeHtml(filter.employmentType) + '"' : '')
+      : '');
   return (
-    '<li' + (sub ? ' class="sub"' : '') + '>' +
+    '<li' + attrs + '>' +
       '<span class="wf-legend-dot' + (sub ? ' outline' : '') + '" style="' + (sub ? 'color:' + color : 'background:' + color) + '"></span>' +
       '<span class="wf-legend-name">' + escapeHtml(label) + '</span>' +
       '<span class="wf-legend-value">' + value + '</span>' +
