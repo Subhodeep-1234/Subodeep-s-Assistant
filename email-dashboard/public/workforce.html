@@ -121,7 +121,7 @@
         <div class="wf-panel">
           <div class="wf-panel-head">
             <h3>Department Wise Headcount (Active)</h3>
-            <button class="wf-link-btn" data-jump="directory" data-status="ACTIVE">View all →</button>
+            <button class="wf-link-btn" data-jump="departmentFull">View all →</button>
           </div>
           <ul class="wf-bar-list" id="deptBarList"></ul>
         </div>
@@ -378,6 +378,21 @@
       </div>
     </section>
 
+    <!-- Department Wise Headcount (full list, Active only) -->
+    <section id="departmentFullView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Department Wise Headcount (Active)</h2>
+      </div>
+      <div class="wf-panel">
+        <ul class="wf-bar-list" id="departmentFullBarList">
+          <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
+        </ul>
+      </div>
+    </section>
+
     <!-- Age Distribution (Demographics) -->
     <section id="ageDistributionView" class="wf-view" hidden>
       <div class="wf-page-head">
@@ -484,6 +499,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=45"></script>
+  <script src="workforce.js?v=46"></script>
 </body>
 </html>

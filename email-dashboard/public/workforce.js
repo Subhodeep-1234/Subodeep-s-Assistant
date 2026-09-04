@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
+  'departmentFull', 'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -273,6 +273,7 @@ function loadView(view, forceRefresh) {
   if (view === 'tenure') return loadTenureView();
   if (view === 'insights') return loadInsightsView();
   if (view === 'quality') return loadQualityView();
+  if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'mailReplies') return loadMailReplies();
@@ -513,11 +514,25 @@ function renderEmploymentTypeStats(overview) {
     '</div>';
 }
 
-function renderDeptBarList(rows, shareTotal) {
+function renderDeptBarList(rows, shareTotal, targetId) {
   const max = rows.length ? rows[0].count : 1;
-  document.getElementById('deptBarList').innerHTML = rows.length
+  document.getElementById(targetId || 'deptBarList').innerHTML = rows.length
     ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max, shareTotal)).join('')
     : '<li class="empty">No department data</li>';
+}
+
+async function loadDepartmentFullView() {
+  const listEl = document.getElementById('departmentFullBarList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  try {
+    const [overview, breakdowns] = await Promise.all([
+      fetchJson('/api/workforce/overview'),
+      fetchJson('/api/workforce/breakdowns?status=ACTIVE')
+    ]);
+    renderDeptBarList(breakdowns.departments, overview.active, 'departmentFullBarList');
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
 }
 
 function barListItem(iconName, name, count, max, shareTotal) {
