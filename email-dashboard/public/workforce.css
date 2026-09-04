@@ -534,6 +534,7 @@ body {
 
 .wf-bar-main { flex: 1; min-width: 0; }
 .wf-bar-name {
+  display: block;
   font-size: 0.85rem;
   color: var(--ink);
   font-weight: 600;
