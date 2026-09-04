@@ -647,6 +647,14 @@ let lastEmployeeList = [];
 async function loadEmployees(forceRefresh) {
   const requestId = ++currentRequestId;
   employeeList.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  // The label is derivable from activeFilters alone, so update it right
+  // away; the count needs the server response, so blank it instead of
+  // leaving the previous filter's number on screen while this one loads.
+  document.getElementById('directoryTotalCount').textContent = '—';
+  document.getElementById('directoryTotalLabel').textContent =
+    activeFilters.status === 'ACTIVE' ? 'Active Employees' :
+    Object.values(activeFilters).some(Boolean) ? 'Filtered Employees' : 'Total Employees';
+  resultSummary.textContent = '';
   const params = new URLSearchParams();
   Object.entries(activeFilters).forEach(([k, v]) => {
     if (v) params.set(k, v);
