@@ -116,6 +116,54 @@ body {
 .wf-drawer-item.danger svg { color: var(--important); }
 .wf-drawer-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+.wf-drawer-group { color: var(--accent); }
+.wf-drawer-group svg:first-of-type { color: var(--accent); }
+.wf-drawer-chevron {
+  margin-left: auto;
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s ease;
+}
+.wf-drawer-group[aria-expanded="true"] .wf-drawer-chevron { transform: rotate(180deg); }
+
+.wf-drawer-submenu[hidden] { display: none; }
+.wf-drawer-submenu { position: relative; padding-left: 27px; margin: 2px 0 4px; }
+.wf-drawer-submenu::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 2px;
+  bottom: 18px;
+  border-left: 1.5px dashed var(--line);
+}
+
+.wf-drawer-subitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  width: 100%;
+  border-radius: 9px;
+}
+.wf-drawer-subitem::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.wf-drawer-subitem[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); }
+.wf-drawer-subitem:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .wf-drawer-spacer { flex: 1; }
 .wf-drawer-divider { height: 1px; background: var(--line); margin: 8px 10px; }
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=27" />
+  <link rel="stylesheet" href="workforce.css?v=28" />
 </head>
 <body>
   <div class="wf-shell">
@@ -60,6 +60,16 @@
       <button class="wf-drawer-item" data-view="quality" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Data Quality
       </button>
+
+      <button class="wf-drawer-item wf-drawer-group" id="demographicsToggle" aria-expanded="false" aria-controls="demographicsSubmenu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Demographics
+        <svg class="wf-drawer-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="wf-drawer-submenu" id="demographicsSubmenu" hidden>
+        <button class="wf-drawer-subitem" data-view="ageDistribution" aria-pressed="false">Age Distribution</button>
+        <button class="wf-drawer-subitem" data-view="genderDistribution" aria-pressed="false">Gender Distribution</button>
+      </div>
+
       <button class="wf-drawer-item" data-view="mailReplies" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/></svg>Job Application Auto Replies
       </button>
@@ -368,6 +378,47 @@
       </div>
     </section>
 
+    <!-- Age Distribution (Demographics) -->
+    <section id="ageDistributionView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Age Distribution</h2>
+      </div>
+      <div class="kpi-grid" id="ageKpis">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+      <div class="wf-panel">
+        <div id="ageRows"></div>
+        <p class="wf-note" id="ageNote"></p>
+      </div>
+      <div class="wf-panel" style="display:flex; justify-content:center;">
+        <div class="wf-canvas-wrap wf-canvas-wrap--donut" style="width:170px; height:170px;">
+          <canvas id="ageDonut"></canvas>
+          <div class="wf-donut-center">
+            <b id="ageDonutTotal">—</b>
+            <span>Total</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Gender Distribution (Demographics) - honestly blocked, not faked -->
+    <section id="genderDistributionView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Gender Distribution</h2>
+      </div>
+      <div class="wf-unavailable">
+        <h3>Gender Distribution — Data not available</h3>
+        <p>The Employee_Master sheet has no Gender column, so this can't be calculated without guessing. Add a
+          Gender field to the sheet and this tab will populate automatically.</p>
+      </div>
+    </section>
+
     <!-- Job Application Auto Replies (folded in from the old Mail Management page) -->
     <section id="mailRepliesView" class="wf-view" hidden>
       <div class="wf-page-head">
@@ -424,6 +475,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=37"></script>
+  <script src="workforce.js?v=38"></script>
 </body>
 </html>

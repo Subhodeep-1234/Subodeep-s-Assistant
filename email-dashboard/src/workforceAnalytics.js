@@ -157,6 +157,48 @@ function tenureAnalytics(employees, now = new Date()) {
   };
 }
 
+const AGE_BUCKETS = [
+  { key: 'lt25', label: '< 25', maxAge: 24 },
+  { key: '25to34', label: '25-34', maxAge: 34 },
+  { key: '35to44', label: '35-44', maxAge: 44 },
+  { key: '45to54', label: '45-54', maxAge: 54 },
+  { key: 'gte55', label: '55+', maxAge: Infinity }
+];
+
+function calcAge(dob, now) {
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const hadBirthdayThisYear =
+    now.getUTCMonth() > dob.getUTCMonth() ||
+    (now.getUTCMonth() === dob.getUTCMonth() && now.getUTCDate() >= dob.getUTCDate());
+  if (!hadBirthdayThisYear) age--;
+  return age;
+}
+
+function ageAnalytics(employees, now = new Date()) {
+  // Scoped to Active staff only, matching Tenure/Data Quality's convention.
+  const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
+  const eligible = activeEmployees.filter((e) => e.dob);
+  const buckets = AGE_BUCKETS.map((b) => ({ ...b, count: 0 }));
+  let totalAge = 0;
+
+  for (const emp of eligible) {
+    const age = calcAge(emp.dob, now);
+    totalAge += age;
+    const bucket = buckets.find((b) => age <= b.maxAge);
+    (bucket || buckets[buckets.length - 1]).count++;
+  }
+
+  const averageAge = eligible.length ? totalAge / eligible.length : null;
+
+  return {
+    eligibleCount: eligible.length,
+    activeCount: activeEmployees.length,
+    missingDobCount: activeEmployees.length - eligible.length,
+    averageAge: averageAge === null ? null : Math.round(averageAge * 10) / 10,
+    buckets: buckets.map(({ key, label, count }) => ({ key, label, count }))
+  };
+}
+
 function dataQualityReport(employees) {
   const total = employees.length;
   const missing = {
@@ -194,6 +236,7 @@ module.exports = {
   probationCompletingThisMonth,
   turning58ThisMonth,
   tenureAnalytics,
+  ageAnalytics,
   dataQualityReport,
   isProbation
 };

@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'mailReplies', 'mailJoinings', 'profile'
+  'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -232,6 +232,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !wfDrawer.hidden) closeDrawer();
 });
 
+const demographicsToggle = document.getElementById('demographicsToggle');
+const demographicsSubmenu = document.getElementById('demographicsSubmenu');
+demographicsToggle.addEventListener('click', () => {
+  const expanded = demographicsToggle.getAttribute('aria-expanded') === 'true';
+  demographicsToggle.setAttribute('aria-expanded', String(!expanded));
+  demographicsSubmenu.hidden = expanded;
+});
+
 async function logout() {
   try {
     await fetch('api/hr-auth/logout', { method: 'POST' });
@@ -265,10 +273,12 @@ function loadView(view, forceRefresh) {
   if (view === 'tenure') return loadTenureView();
   if (view === 'insights') return loadInsightsView();
   if (view === 'quality') return loadQualityView();
+  if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'mailReplies') return loadMailReplies();
   if (view === 'mailJoinings') return loadMailJoinings();
   if (view === 'profile') return loadProfile();
-  // exit / attrition / movement are static "not available" panels — nothing to fetch.
+  // exit / attrition / movement / genderDistribution are static "not
+  // available" panels — nothing to fetch.
   return Promise.resolve();
 }
 
@@ -975,6 +985,57 @@ function renderTenureDonut(buckets) {
   destroyChart('tenureDonut');
   const ctx = document.getElementById('tenureDonut');
   charts.tenureDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: buckets.map((b) => b.label),
+      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 0 }]
+    },
+    options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+  });
+}
+
+// ---------- Age Distribution (Demographics) ----------
+
+async function loadAgeDistributionView() {
+  const kpisEl = document.getElementById('ageKpis');
+  const rowsEl = document.getElementById('ageRows');
+  kpisEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetchJson('/api/workforce/age');
+    kpisEl.innerHTML =
+      kpiCard({ key: 'avgAge', label: 'Average Age', value: data.averageAge !== null ? data.averageAge + ' yrs' : null, tone: 'accent', icon: 'total', clickable: false }) +
+      kpiCard({ key: 'ageEligible', label: 'Employees Counted', value: data.eligibleCount, tone: 'active', icon: 'active', clickable: false });
+
+    document.getElementById('ageDonutTotal').textContent = data.eligibleCount.toLocaleString();
+
+    const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
+    rowsEl.innerHTML = data.buckets
+      .map((b) => (
+        '<div class="wf-row-3col">' +
+          '<span class="wf-row-label">' + escapeHtml(b.label) + '</span>' +
+          '<span class="wf-row-value">' + b.count + '</span>' +
+          '<span class="wf-row-pct">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+        '</div>'
+      ))
+      .join('');
+    document.getElementById('ageNote').textContent =
+      data.missingDobCount > 0
+        ? data.eligibleCount + ' of ' + data.activeCount + ' Active employees shown — ' + data.missingDobCount +
+          (data.missingDobCount === 1 ? ' is' : ' are') + ' missing a Date of Birth, so age can\'t be calculated for them.'
+        : '';
+    renderAgeDonut(data.buckets);
+  } catch (err) {
+    kpisEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderAgeDonut(buckets) {
+  const c = chartColors();
+  const palette = [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted];
+
+  destroyChart('ageDonut');
+  const ctx = document.getElementById('ageDonut');
+  charts.ageDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: buckets.map((b) => b.label),
