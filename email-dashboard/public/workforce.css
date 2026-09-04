@@ -379,13 +379,14 @@ body {
   font-size: 0.82rem;
 }
 .wf-age-row:last-of-type { border-bottom: none; }
-.wf-age-header { font-weight: 700; color: var(--ink); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; padding-bottom: 12px; }
+.wf-age-header { font-weight: 700; color: var(--ink); font-size: 0.78rem; padding-bottom: 12px; }
 .wf-age-label-col { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); font-weight: 600; }
 .wf-age-header .wf-age-label-col { color: var(--muted); font-weight: 700; }
 .wf-age-num-col {
-  width: 64px;
+  width: 76px;
   flex-shrink: 0;
   text-align: right;
+  white-space: nowrap;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
