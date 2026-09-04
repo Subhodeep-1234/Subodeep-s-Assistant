@@ -1100,5 +1100,15 @@ body {
   #printReport thead th { background: #eef0ed; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #1d5c63; }
   #printReport tbody tr:nth-child(even) { background: #f7f9f8; }
   #printReport tbody tr { break-inside: avoid; }
+  #printReport tbody tr.print-section-row { break-after: avoid; }
+  #printReport tbody tr.print-section-row td {
+    background: #1d5c63;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 9px;
+  }
   #printReport thead { display: table-header-group; }
 }

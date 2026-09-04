@@ -858,6 +858,13 @@ function designationRank(designation) {
   return tier ? tier.rank : DESIGNATION_RANK_DEFAULT;
 }
 
+// Collar groups the report at the top level (White > Blue > Group-D), with
+// the designation seniority tiers above applying inside each group.
+const COLLAR_RANK = { White: 0, Blue: 1, 'Group-D': 2 };
+function collarRank(collar) {
+  return collar in COLLAR_RANK ? COLLAR_RANK[collar] : 99;
+}
+
 document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   const filterParts = [];
   if (activeFilters.status) filterParts.push(activeFilters.status === 'ACTIVE' ? 'Active' : activeFilters.status);
@@ -866,6 +873,8 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   if (activeFilters.location) filterParts.push(activeFilters.location);
 
   const sortedList = lastEmployeeList.slice().sort((a, b) => {
+    const collarDiff = collarRank(a.groupD) - collarRank(b.groupD);
+    if (collarDiff !== 0) return collarDiff;
     const rankDiff = designationRank(a.designation) - designationRank(b.designation);
     if (rankDiff !== 0) return rankDiff;
     const desigDiff = (a.designation || '').localeCompare(b.designation || '');
@@ -881,9 +890,17 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
     '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th>';
   document.getElementById('printReportDate').textContent =
     new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  let lastGroupHeading = null;
   document.getElementById('printReportBody').innerHTML = sortedList.length
     ? sortedList
-        .map((e) => (
+        .map((e) => {
+          const heading = e.groupD || 'Unspecified Collar';
+          let sectionRow = '';
+          if (heading !== lastGroupHeading) {
+            sectionRow = '<tr class="print-section-row"><td colspan="8">' + escapeHtml(heading) + '</td></tr>';
+            lastGroupHeading = heading;
+          }
+          return sectionRow + (
           '<tr>' +
             '<td>' + escapeHtml(e.employeeId) + '</td>' +
             '<td>' + escapeHtml(e.name) + '</td>' +
@@ -894,7 +911,8 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
             '<td>' + escapeHtml(e.location || '—') + '</td>' +
             '<td>' + formatDate(e.doj) + '</td>' +
           '</tr>'
-        ))
+          );
+        })
         .join('')
     : '<tr><td colspan="8">No employees match these filters</td></tr>';
   window.print();
