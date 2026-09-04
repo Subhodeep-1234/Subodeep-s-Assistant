@@ -410,6 +410,22 @@ statusLegendEl.addEventListener('keydown', (e) => {
   row.click();
 });
 
+const employmentTypeStatsEl = document.getElementById('employmentTypeStats');
+employmentTypeStatsEl.addEventListener('click', (e) => {
+  const block = e.target.closest('[data-status]');
+  if (!block) return;
+  const filters = { status: block.dataset.status };
+  if (block.dataset.employmentType) filters.employmentType = block.dataset.employmentType;
+  applyFiltersAndShowDirectory(filters);
+});
+employmentTypeStatsEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const block = e.target.closest('[data-status]');
+  if (!block) return;
+  e.preventDefault();
+  block.click();
+});
+
 function applyFiltersAndShowDirectory(filters) {
   activeFilters = filters;
   filterStatus.value = filters.status || '';
@@ -482,14 +498,14 @@ function renderEmploymentTypeStats(overview) {
   const probPct = Math.round((probation / total) * 1000) / 10;
   const confPct = Math.round((confirmed / total) * 1000) / 10;
   document.getElementById('employmentTypeStats').innerHTML =
-    '<div>' +
+    '<div class="stat-block clickable" tabindex="0" role="button" data-status="ACTIVE" data-employment-type="Probation">' +
       '<div class="stat-icon probation">' + icon('probation', 20) + '</div>' +
       '<div class="stat-label">Probation</div>' +
       '<div class="stat-num">' + probation + '</div>' +
       '<div class="stat-pct">(' + probPct + '%)</div>' +
     '</div>' +
     '<div class="stat-divider"></div>' +
-    '<div>' +
+    '<div class="stat-block clickable" tabindex="0" role="button" data-status="ACTIVE" data-employment-type="Confirmed">' +
       '<div class="stat-icon confirmed">' + icon('confirmed', 20) + '</div>' +
       '<div class="stat-label">Confirmed</div>' +
       '<div class="stat-num">' + confirmed + '</div>' +

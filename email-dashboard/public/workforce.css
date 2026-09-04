@@ -495,6 +495,16 @@ body {
 .wf-stat-pair .stat-pct { font-size: 0.74rem; color: var(--muted); }
 .wf-stat-pair .stat-divider { width: 1px; align-self: stretch; background: var(--line); }
 
+.wf-stat-pair .stat-block.clickable {
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 4px 10px;
+  transition: background 0.15s ease;
+}
+.wf-stat-pair .stat-block.clickable:hover,
+.wf-stat-pair .stat-block.clickable:focus-visible { background: var(--accent-bg); }
+.wf-stat-pair .stat-block.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
 /* ---------- Bar list ---------- */
 
 .wf-bar-list {
