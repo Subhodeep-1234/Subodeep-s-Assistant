@@ -274,11 +274,12 @@ function loadView(view, forceRefresh) {
   if (view === 'insights') return loadInsightsView();
   if (view === 'quality') return loadQualityView();
   if (view === 'ageDistribution') return loadAgeDistributionView();
+  if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'mailReplies') return loadMailReplies();
   if (view === 'mailJoinings') return loadMailJoinings();
   if (view === 'profile') return loadProfile();
-  // exit / attrition / movement / genderDistribution are static "not
-  // available" panels — nothing to fetch.
+  // exit / attrition / movement are static "not available" panels —
+  // nothing to fetch.
   return Promise.resolve();
 }
 
@@ -1064,6 +1065,57 @@ function renderAgeDonut(buckets) {
   destroyChart('ageDonut');
   const ctx = document.getElementById('ageDonut');
   charts.ageDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: buckets.map((b) => b.label),
+      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 2, borderColor: chartColors().surface }]
+    },
+    options: { cutout: '62%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+  });
+}
+
+async function loadGenderDistributionView() {
+  const rowsEl = document.getElementById('genderRows');
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetchJson('/api/workforce/gender');
+    const palette = distributionPalette();
+    const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
+    document.getElementById('genderDonutTotal').textContent = data.eligibleCount.toLocaleString();
+    rowsEl.innerHTML =
+      '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Gender</span>' +
+        '<span class="wf-dist-num-col">Employees</span>' +
+        '<span class="wf-dist-num-col">% of Total</span>' +
+      '</div>' +
+      data.buckets.map((b, i) => (
+        '<div class="wf-dist-row">' +
+          '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
+          '<span class="wf-dist-num-col">' + b.count + '</span>' +
+          '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+        '</div>'
+      )).join('') +
+      '<div class="wf-dist-row wf-dist-total-row">' +
+        '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-dist-num-col">' + data.eligibleCount + '</span>' +
+        '<span class="wf-dist-num-col">100%</span>' +
+      '</div>';
+    document.getElementById('genderNote').textContent =
+      data.missingGenderCount > 0
+        ? data.eligibleCount + ' of ' + data.activeCount + ' Active employees shown — ' + data.missingGenderCount +
+          (data.missingGenderCount === 1 ? ' is' : ' are') + ' missing a recorded Gender.'
+        : '';
+    renderGenderDonut(data.buckets);
+  } catch (err) {
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderGenderDonut(buckets) {
+  const palette = distributionPalette();
+  destroyChart('genderDonut');
+  const ctx = document.getElementById('genderDonut');
+  charts.genderDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: buckets.map((b) => b.label),

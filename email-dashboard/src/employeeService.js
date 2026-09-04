@@ -12,6 +12,7 @@ const COLS = {
   designation: 3,
   department: 4,
   groupD: 5,             // Group - D
+  gender: 6,
   location: 7,
   reportingDoer: 11,     // Reporting DOER (there are 4 other manager-ish columns in the
                          // sheet - Reporting Manager x2, HOD-1, DEPT HOD - this is the
@@ -77,6 +78,7 @@ function parseRow(row, index) {
     department,
     departmentKey: normalizeKey(department),
     groupD: cleanValue(row[COLS.groupD]),
+    gender: cleanValue(row[COLS.gender]),
     location,
     locationKey: normalizeKey(location),
     reportingDoer: cleanValue(row[COLS.reportingDoer]),

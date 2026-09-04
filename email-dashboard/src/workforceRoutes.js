@@ -232,6 +232,15 @@ router.get('/age', async (req, res) => {
   }
 });
 
+router.get('/gender', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    res.json(analytics.genderAnalytics(employees));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/data-quality', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();

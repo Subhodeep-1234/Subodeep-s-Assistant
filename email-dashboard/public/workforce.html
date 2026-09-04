@@ -403,7 +403,7 @@
       </div>
     </section>
 
-    <!-- Gender Distribution (Demographics) - honestly blocked, not faked -->
+    <!-- Gender Distribution (Demographics) -->
     <section id="genderDistributionView" class="wf-view" hidden>
       <div class="wf-page-head">
         <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
@@ -411,10 +411,20 @@
         </button>
         <h2>Gender Distribution</h2>
       </div>
-      <div class="wf-unavailable">
-        <h3>Gender Distribution — Data not available</h3>
-        <p>The Employee_Master sheet has no Gender column, so this can't be calculated without guessing. Add a
-          Gender field to the sheet and this tab will populate automatically.</p>
+      <div class="wf-panel">
+        <div class="wf-dist-table" id="genderRows">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <p class="wf-note" id="genderNote"></p>
+      </div>
+      <div class="wf-panel" style="display:flex; justify-content:center;">
+        <div class="wf-canvas-wrap wf-canvas-wrap--donut wf-canvas-wrap--donut-lg" style="width:220px; height:220px;">
+          <canvas id="genderDonut"></canvas>
+          <div class="wf-donut-center">
+            <b id="genderDonutTotal">—</b>
+            <span>Total</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -474,6 +484,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=40"></script>
+  <script src="workforce.js?v=41"></script>
 </body>
 </html>

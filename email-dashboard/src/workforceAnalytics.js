@@ -205,6 +205,26 @@ function ageAnalytics(employees, now = new Date()) {
   };
 }
 
+function genderAnalytics(employees) {
+  // Scoped to Active staff only, matching Tenure/Age's convention.
+  const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
+  const eligible = activeEmployees.filter((e) => e.gender);
+  const counts = new Map();
+  for (const emp of eligible) {
+    counts.set(emp.gender, (counts.get(emp.gender) || 0) + 1);
+  }
+  const buckets = Array.from(counts.entries())
+    .map(([key, count]) => ({ key: key.toLowerCase(), label: key, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    eligibleCount: eligible.length,
+    activeCount: activeEmployees.length,
+    missingGenderCount: activeEmployees.length - eligible.length,
+    buckets
+  };
+}
+
 function dataQualityReport(employees) {
   const total = employees.length;
   const missing = {
@@ -243,6 +263,7 @@ module.exports = {
   turning58ThisMonth,
   tenureAnalytics,
   ageAnalytics,
+  genderAnalytics,
   dataQualityReport,
   isProbation
 };
