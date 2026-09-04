@@ -869,6 +869,22 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   const filterParts = [];
   if (activeFilters.status) filterParts.push(activeFilters.status === 'ACTIVE' ? 'Active' : activeFilters.status);
   if (activeFilters.department) filterParts.push(activeFilters.department);
+  if (activeFilters.department) {
+    // HOD-1 (the "Reporting Manager" field) is per-employee, but for a
+    // single-department report it's effectively the department's HOD -
+    // take whichever name is most common among the filtered list rather
+    // than assuming every row agrees exactly.
+    const managerCounts = {};
+    lastEmployeeList.forEach((e) => {
+      if (e.reportingManager) managerCounts[e.reportingManager] = (managerCounts[e.reportingManager] || 0) + 1;
+    });
+    let hodName = null;
+    let hodCount = 0;
+    Object.entries(managerCounts).forEach(([name, count]) => {
+      if (count > hodCount) { hodName = name; hodCount = count; }
+    });
+    if (hodName) filterParts.push('HOD: ' + hodName);
+  }
   if (activeFilters.employmentType) filterParts.push(activeFilters.employmentType);
   if (activeFilters.location) filterParts.push(activeFilters.location);
 
