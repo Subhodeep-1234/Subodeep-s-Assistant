@@ -827,6 +827,8 @@ const DESIGNATION_RANK_TIERS = [
   { rank: 60, test: /\b(DEPUTY MANAGER|ASSISTANT MANAGER|ASST\.?\s*MAN[AG]ER)\b/ },
   { rank: 70, test: /\b(SR\.?|SENIOR)\s*ENGINEER\b/ },
   { rank: 80, test: /\bENGINEER\b/ },
+  { rank: 85, test: /\b(SR\.?|SENIOR)\s*(DATA ENTRY OPERATOR|DTE)\b/ }, // office/computer role, not a site machine operator - ranks below Engineer, above Supervisor
+  { rank: 90, test: /\b(DATA ENTRY OPERATOR|DTE)\b/ },
   { rank: 100, test: /\b(SR\.?|SENIOR)\s*(SUPERVISOR|FOREMAN|EXECUTIVE)\b/ },
   { rank: 110, test: /\b(SUPERVISOR|FOREMAN|EXECUTIVE)\b/ },
   { rank: 130, test: /\b(SR\.?|SENIOR)\b/ }, // any other "Sr. <trade>" not already caught above
