@@ -403,7 +403,12 @@ function applyFiltersAndShowDirectory(filters) {
   filterReportingManager.value = filters.reportingManager || '';
   filterCollar.value = filters.collar || '';
   wfSearch.value = filters.q || '';
+  // setView() skips reloading the list when 'directory' was already visited
+  // this session (see loadView's loadedViews cache) - force it here since
+  // the filters just changed and the list must reflect the new KPI clicked.
+  const alreadyLoaded = loadedViews.has('directory');
   setView('directory');
+  if (alreadyLoaded) loadEmployees();
 }
 
 function renderStatusDonut(overview) {
