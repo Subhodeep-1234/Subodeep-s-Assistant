@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=28" />
+  <link rel="stylesheet" href="workforce.css?v=29" />
 </head>
 <body>
   <div class="wf-shell">
@@ -386,15 +386,14 @@
         </button>
         <h2>Age Distribution</h2>
       </div>
-      <div class="kpi-grid" id="ageKpis">
-        <div class="loading"><div class="spinner"></div></div>
-      </div>
       <div class="wf-panel">
-        <div id="ageRows"></div>
+        <div class="wf-age-table" id="ageRows">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
         <p class="wf-note" id="ageNote"></p>
       </div>
       <div class="wf-panel" style="display:flex; justify-content:center;">
-        <div class="wf-canvas-wrap wf-canvas-wrap--donut" style="width:170px; height:170px;">
+        <div class="wf-canvas-wrap wf-canvas-wrap--donut wf-canvas-wrap--donut-lg" style="width:220px; height:220px;">
           <canvas id="ageDonut"></canvas>
           <div class="wf-donut-center">
             <b id="ageDonutTotal">—</b>
@@ -475,6 +474,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=38"></script>
+  <script src="workforce.js?v=39"></script>
 </body>
 </html>

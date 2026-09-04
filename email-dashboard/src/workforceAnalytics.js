@@ -157,12 +157,18 @@ function tenureAnalytics(employees, now = new Date()) {
   };
 }
 
+// The 58 cutoff isn't arbitrary - it's this company's retirement age
+// (see turning58ThisMonth in the insights below), so it's kept as its own
+// boundary rather than folded into a generic "55+" bucket.
 const AGE_BUCKETS = [
-  { key: 'lt25', label: '< 25', maxAge: 24 },
-  { key: '25to34', label: '25-34', maxAge: 34 },
-  { key: '35to44', label: '35-44', maxAge: 44 },
-  { key: '45to54', label: '45-54', maxAge: 54 },
-  { key: 'gte55', label: '55+', maxAge: Infinity }
+  { key: 'lt18', label: '< 18 years', maxAge: 17 },
+  { key: '18to25', label: '18 - 25 years', maxAge: 25 },
+  { key: '26to30', label: '26 - 30 years', maxAge: 30 },
+  { key: '31to35', label: '31 - 35 years', maxAge: 35 },
+  { key: '36to40', label: '36 - 40 years', maxAge: 40 },
+  { key: '41to50', label: '41 - 50 years', maxAge: 50 },
+  { key: '51to58', label: '51 - 58 years', maxAge: 58 },
+  { key: 'gt58', label: '58+ years', maxAge: Infinity }
 ];
 
 function calcAge(dob, now) {

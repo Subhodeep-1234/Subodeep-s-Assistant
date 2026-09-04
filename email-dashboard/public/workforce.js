@@ -996,28 +996,46 @@ function renderTenureDonut(buckets) {
 
 // ---------- Age Distribution (Demographics) ----------
 
+// 8 buckets need 8 distinct colors - the app's core semantic palette only
+// has 6 (accent/resolved/warning/candidate/important/muted), so two more
+// muted tones are added here, in the same desaturated style, just for this
+// chart's extra variety.
+function agePalette() {
+  const c = chartColors();
+  return [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted, '#4a5a8a', '#7c5295'];
+}
+
 async function loadAgeDistributionView() {
-  const kpisEl = document.getElementById('ageKpis');
   const rowsEl = document.getElementById('ageRows');
-  kpisEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await fetchJson('/api/workforce/age');
-    kpisEl.innerHTML =
-      kpiCard({ key: 'avgAge', label: 'Average Age', value: data.averageAge !== null ? data.averageAge + ' yrs' : null, tone: 'accent', icon: 'total', clickable: false }) +
-      kpiCard({ key: 'ageEligible', label: 'Employees Counted', value: data.eligibleCount, tone: 'active', icon: 'active', clickable: false });
+    const palette = agePalette();
+    const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
 
     document.getElementById('ageDonutTotal').textContent = data.eligibleCount.toLocaleString();
 
-    const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
-    rowsEl.innerHTML = data.buckets
-      .map((b) => (
-        '<div class="wf-row-3col">' +
-          '<span class="wf-row-label">' + escapeHtml(b.label) + '</span>' +
-          '<span class="wf-row-value">' + b.count + '</span>' +
-          '<span class="wf-row-pct">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
-        '</div>'
-      ))
-      .join('');
+    rowsEl.innerHTML =
+      '<div class="wf-age-row wf-age-header">' +
+        '<span class="wf-age-label-col">Age Range</span>' +
+        '<span class="wf-age-num-col">Employees</span>' +
+        '<span class="wf-age-num-col">% of Total</span>' +
+      '</div>' +
+      data.buckets
+        .map((b, i) => (
+          '<div class="wf-age-row">' +
+            '<span class="wf-age-label-col"><span class="wf-age-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
+            '<span class="wf-age-num-col">' + b.count + '</span>' +
+            '<span class="wf-age-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+          '</div>'
+        ))
+        .join('') +
+      '<div class="wf-age-row wf-age-total-row">' +
+        '<span class="wf-age-label-col"><span class="wf-age-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-age-num-col">' + data.eligibleCount + '</span>' +
+        '<span class="wf-age-num-col">100%</span>' +
+      '</div>';
+
     document.getElementById('ageNote').textContent =
       data.missingDobCount > 0
         ? data.eligibleCount + ' of ' + data.activeCount + ' Active employees shown — ' + data.missingDobCount +
@@ -1025,13 +1043,12 @@ async function loadAgeDistributionView() {
         : '';
     renderAgeDonut(data.buckets);
   } catch (err) {
-    kpisEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
 
 function renderAgeDonut(buckets) {
-  const c = chartColors();
-  const palette = [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted];
+  const palette = agePalette();
 
   destroyChart('ageDonut');
   const ctx = document.getElementById('ageDonut');
@@ -1039,9 +1056,9 @@ function renderAgeDonut(buckets) {
     type: 'doughnut',
     data: {
       labels: buckets.map((b) => b.label),
-      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 0 }]
+      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 2, borderColor: chartColors().surface }]
     },
-    options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+    options: { cutout: '62%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
   });
 }
 
