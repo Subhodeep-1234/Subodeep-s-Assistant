@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
+  'departmentFull', 'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -279,7 +279,6 @@ function loadView(view, forceRefresh) {
   if (view === 'insights') return loadInsightsView();
   if (view === 'quality') return loadQualityView();
   if (view === 'departmentFull') return loadDepartmentFullView();
-  if (view === 'locationFull') return loadLocationFullView();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'mailReplies') return loadMailReplies();
@@ -381,7 +380,7 @@ async function loadOverview(forceRefresh) {
     renderStatusDonut(overview);
     renderEmploymentTypeStats(overview);
     renderDeptBarList(activeBreakdowns.departments.slice(0, 6), overview.active);
-    renderLocationBarList(activeBreakdowns.locations.slice(0, 6), overview.active);
+    renderLocationDonut(activeBreakdowns.locations);
     renderJoiningLine('joiningLineChart', trend.buckets);
     renderInsightsPreview(insights.insights);
   } catch (err) {
@@ -523,7 +522,7 @@ function renderEmploymentTypeStats(overview) {
 function renderDeptBarList(rows, shareTotal, targetId) {
   const max = rows.length ? rows[0].count : 1;
   document.getElementById(targetId || 'deptBarList').innerHTML = rows.length
-    ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max, shareTotal, 'department')).join('')
+    ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max, shareTotal)).join('')
     : '<li class="empty">No department data</li>';
 }
 
@@ -539,7 +538,7 @@ async function loadDepartmentFullView() {
     const max = rows.length ? rows[0].count : 1;
     const total = rows.reduce((sum, r) => sum + r.count, 0);
     listEl.innerHTML = rows.length
-      ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max, overview.active, 'department')).join('') +
+      ? rows.map((r) => barListItem(deptIconFor(r.name), r.name, r.count, max, overview.active)).join('') +
         '<li class="wf-bar-total-row">' +
           '<span class="wf-bar-icon">' + icon('total', 18) + '</span>' +
           '<span class="wf-bar-main"><span class="wf-bar-name">Total</span></span>' +
@@ -552,44 +551,11 @@ async function loadDepartmentFullView() {
   }
 }
 
-function renderLocationBarList(rows, shareTotal, targetId) {
-  const max = rows.length ? rows[0].count : 1;
-  document.getElementById(targetId || 'locationBarList').innerHTML = rows.length
-    ? rows.map((r) => barListItem('location', r.name, r.count, max, shareTotal, 'location')).join('')
-    : '<li class="empty">No location data</li>';
-}
-
-async function loadLocationFullView() {
-  const listEl = document.getElementById('locationFullBarList');
-  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
-  try {
-    const [overview, breakdowns] = await Promise.all([
-      fetchJson('/api/workforce/overview'),
-      fetchJson('/api/workforce/breakdowns?status=ACTIVE')
-    ]);
-    const rows = breakdowns.locations;
-    const max = rows.length ? rows[0].count : 1;
-    const total = rows.reduce((sum, r) => sum + r.count, 0);
-    listEl.innerHTML = rows.length
-      ? rows.map((r) => barListItem('location', r.name, r.count, max, overview.active, 'location')).join('') +
-        '<li class="wf-bar-total-row">' +
-          '<span class="wf-bar-icon">' + icon('total', 18) + '</span>' +
-          '<span class="wf-bar-main"><span class="wf-bar-name">Total</span></span>' +
-          '<span class="wf-bar-count">' + total + '</span>' +
-          '<span class="wf-bar-pct">100%</span>' +
-        '</li>'
-      : '<li class="empty">No location data</li>';
-  } catch (err) {
-    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
-  }
-}
-
-function barListItem(iconName, name, count, max, shareTotal, filterKey) {
+function barListItem(iconName, name, count, max, shareTotal) {
   const pct = Math.max(4, Math.round((count / max) * 100));
   const share = shareTotal ? Math.round((count / shareTotal) * 1000) / 10 : null;
-  const filterAttr = filterKey ? ' data-' + filterKey + '="' + escapeHtml(name) + '"' : '';
   return (
-    '<li class="clickable" tabindex="0" role="button"' + filterAttr + '>' +
+    '<li class="clickable" tabindex="0" role="button" data-department="' + escapeHtml(name) + '">' +
       '<span class="wf-bar-icon">' + icon(iconName, 18) + '</span>' +
       '<span class="wf-bar-main">' +
         '<span class="wf-bar-name">' + escapeHtml(name) + '</span>' +
@@ -601,28 +567,48 @@ function barListItem(iconName, name, count, max, shareTotal, filterKey) {
   );
 }
 
-// barListItem is used for both department and location rows, tagged with
-// data-department/data-location respectively - one generic wiring function
-// covers the dashboard preview and "View all" full list for each.
-function wireBarListClicks(id, filterKey) {
+// barListItem is only used for department rows (locations use legendRow
+// instead), so wiring click/keydown once on each of its two containers
+// covers the dashboard preview and the "View all" full list.
+function wireDeptBarListClicks(id) {
   const el = document.getElementById(id);
   el.addEventListener('click', (e) => {
-    const row = e.target.closest('[data-' + filterKey + ']');
+    const row = e.target.closest('[data-department]');
     if (!row) return;
-    applyFiltersAndShowDirectory({ status: 'ACTIVE', [filterKey]: row.dataset[filterKey] });
+    applyFiltersAndShowDirectory({ status: 'ACTIVE', department: row.dataset.department });
   });
   el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const row = e.target.closest('[data-' + filterKey + ']');
+    const row = e.target.closest('[data-department]');
     if (!row) return;
     e.preventDefault();
     row.click();
   });
 }
-wireBarListClicks('deptBarList', 'department');
-wireBarListClicks('departmentFullBarList', 'department');
-wireBarListClicks('locationBarList', 'location');
-wireBarListClicks('locationFullBarList', 'location');
+wireDeptBarListClicks('deptBarList');
+wireDeptBarListClicks('departmentFullBarList');
+
+function renderLocationDonut(rows) {
+  const c = chartColors();
+  const palette = [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted];
+  const top = rows.slice(0, 6);
+  const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
+
+  destroyChart('locationDonut');
+  const ctx = document.getElementById('locationDonut');
+  charts.locationDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: top.map((r) => r.name),
+      datasets: [{ data: top.map((r) => r.count), backgroundColor: top.map((_, i) => palette[i % palette.length]), borderWidth: 0 }]
+    },
+    options: { cutout: '68%', plugins: { legend: { display: false } } }
+  });
+
+  document.getElementById('locationLegend').innerHTML = top.length
+    ? top.map((r, i) => legendRow(palette[i % palette.length], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('')
+    : '<li class="empty">No location data</li>';
+}
 
 const joiningValueLabelsPlugin = {
   id: 'joiningValueLabels',
