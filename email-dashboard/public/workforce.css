@@ -336,6 +336,57 @@ body {
   color: var(--ink);
 }
 
+/* ---------- Workforce Movement (icon-boxed panel heads, pill trend
+   tabs, tinted stat cards) - scoped to #movementView so no other page's
+   panels/tabs/kpi-cards are affected ---------- */
+
+.wf-panel-head--icon { align-items: flex-start; justify-content: flex-start; }
+.wf-panel-head--icon .wf-panel-icon { margin-top: 1px; }
+.wf-panel-head--icon .wf-note { margin: 3px 0 0; }
+
+.wf-panel-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+#movementTrendTabs {
+  display: flex;
+  gap: 4px;
+  background: var(--other-bg);
+  border-radius: 12px;
+  padding: 4px;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+#movementTrendTabs .wf-subtab {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  border-radius: 9px;
+  border-bottom: none;
+  margin-bottom: 0;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+#movementTrendTabs .wf-subtab[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+#movementView .kpi-card { border: none; }
+#movementView .kpi-card.tone-accent { background: var(--accent-bg); }
+#movementView .kpi-card.tone-active { background: var(--resolved-bg); }
+#movementView .kpi-card.tone-inactive { background: var(--important-bg); }
+#movementView .kpi-card.tone-probation { background: var(--candidate-bg); }
+#movementView .kpi-card .kpi-icon { background: var(--surface); }
+
 .wf-link-btn {
   background: none;
   border: none;

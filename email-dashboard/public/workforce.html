@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=41" />
+  <link rel="stylesheet" href="workforce.css?v=42" />
 </head>
 <body>
   <div class="wf-shell">
@@ -306,7 +306,7 @@
       </div>
 
       <div class="wf-panel">
-        <div class="wf-subtabs" id="movementTrendTabs" style="margin-bottom:0; border-bottom:none;">
+        <div class="wf-subtabs" id="movementTrendTabs">
           <button class="wf-subtab" data-mtab="monthly" aria-pressed="true">Monthly</button>
           <button class="wf-subtab" data-mtab="quarterly" aria-pressed="false">Quarterly</button>
           <button class="wf-subtab" data-mtab="yearly" aria-pressed="false">Yearly</button>
@@ -314,10 +314,15 @@
       </div>
 
       <div class="wf-panel">
-        <div class="wf-panel-head">
-          <h3 id="movementTrendTitle">Joining Trend (Monthly)</h3>
+        <div class="wf-panel-head wf-panel-head--icon">
+          <span class="wf-panel-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 6"/><polyline points="14 6 21 6 21 13"/></svg>
+          </span>
+          <span>
+            <h3 id="movementTrendTitle">Joining Trend (Monthly)</h3>
+            <p class="wf-note">Total joining count over the selected period</p>
+          </span>
         </div>
-        <p class="wf-note" style="margin-top:-10px; margin-bottom:10px;">Total joining count over the selected period</p>
         <div class="wf-canvas-wrap wf-canvas-wrap--line"><canvas id="movementTrendChart"></canvas></div>
       </div>
 
@@ -326,10 +331,15 @@
       </div>
 
       <div class="wf-panel">
-        <div class="wf-panel-head">
-          <h3>Employee Movements</h3>
+        <div class="wf-panel-head wf-panel-head--icon">
+          <span class="wf-panel-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </span>
+          <span>
+            <h3>Employee Movements</h3>
+            <p class="wf-note">Movements during the selected period</p>
+          </span>
         </div>
-        <p class="wf-note" style="margin-top:-10px; margin-bottom:14px;">Movements during the selected period</p>
         <div class="kpi-grid" id="movementBreakdownGrid">
           <div class="loading"><div class="spinner"></div></div>
         </div>
@@ -547,6 +557,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=66"></script>
+  <script src="workforce.js?v=67"></script>
 </body>
 </html>

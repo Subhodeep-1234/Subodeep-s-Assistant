@@ -836,7 +836,7 @@ function renderMovementBreakdown() {
     kpiCard({ key: 'transfers', label: 'Inter-Department Transfers', value: null, tone: 'accent', icon: 'transfer', clickable: false }) +
     kpiCard({ key: 'promotions', label: 'Promotions', value: null, tone: 'active', icon: 'star', clickable: false }) +
     kpiCard({ key: 'exit', label: 'Exit', value: null, tone: 'inactive', icon: 'exitDoor', clickable: false }) +
-    kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'accent', icon: 'location', clickable: false });
+    kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'probation', icon: 'location', clickable: false });
 }
 
 function renderMovementTab(tab) {
@@ -874,7 +874,7 @@ function renderMovementTab(tab) {
       delta: pctChange === null ? null : { direction: pctChange >= 0 ? 'up' : 'down', text: Math.abs(pctChange) + '%' },
       deltaSub: pctChange === null ? null : 'vs previous 12 months'
     }) +
-    kpiCard({ key: 'avgPerMonth', label: 'Avg. Per Month', value: avgPerMonth, tone: 'confirmed', icon: 'monitor', clickable: false, deltaSub: 'per month' }) +
+    kpiCard({ key: 'avgPerMonth', label: 'Avg. Per Month', value: avgPerMonth, tone: 'probation', icon: 'monitor', clickable: false, deltaSub: 'per month' }) +
     kpiCard({ key: 'highestMonth', label: 'Highest Month', value: highest.count, tone: 'active', icon: 'star', clickable: false, deltaSub: highest.label }) +
     kpiCard({ key: 'lowestMonth', label: 'Lowest Month', value: lowest.count, tone: 'inactive', icon: 'inactive', clickable: false, deltaSub: lowest.label });
 }
