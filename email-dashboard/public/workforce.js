@@ -417,6 +417,20 @@ statusLegendEl.addEventListener('keydown', (e) => {
   row.click();
 });
 
+const locationLegendEl = document.getElementById('locationLegend');
+locationLegendEl.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-location]');
+  if (!row) return;
+  applyFiltersAndShowDirectory({ status: 'ACTIVE', location: row.dataset.location });
+});
+locationLegendEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-location]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
 const employmentTypeStatsEl = document.getElementById('employmentTypeStats');
 employmentTypeStatsEl.addEventListener('click', (e) => {
   const block = e.target.closest('[data-status]');
@@ -482,12 +496,15 @@ function renderStatusDonut(overview) {
 
 function legendRow(color, label, value, pct, sub, filter) {
   const classes = [sub ? 'sub' : null, filter ? 'clickable' : null].filter(Boolean).join(' ');
-  const attrs =
-    (classes ? ' class="' + classes + '"' : '') +
-    (filter
-      ? ' tabindex="0" role="button" data-status="' + escapeHtml(filter.status) + '"' +
-        (filter.employmentType ? ' data-employment-type="' + escapeHtml(filter.employmentType) + '"' : '')
-      : '');
+  let attrs = classes ? ' class="' + classes + '"' : '';
+  if (filter) {
+    attrs += ' tabindex="0" role="button"';
+    Object.entries(filter).forEach(([key, filterValue]) => {
+      if (!filterValue) return;
+      const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      attrs += ' data-' + attrName + '="' + escapeHtml(filterValue) + '"';
+    });
+  }
   return (
     '<li' + attrs + '>' +
       '<span class="wf-legend-dot' + (sub ? ' outline' : '') + '" style="' + (sub ? 'color:' + color : 'background:' + color) + '"></span>' +
@@ -689,7 +706,7 @@ function renderLocationDonut(rows) {
   });
 
   document.getElementById('locationLegend').innerHTML = top.length
-    ? top.map((r, i) => legendRow(palette[i], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('')
+    ? top.map((r, i) => legendRow(palette[i], r.name, r.count, Math.round((r.count / total) * 1000) / 10, false, { status: 'ACTIVE', location: r.name })).join('')
     : '<li class="empty">No location data</li>';
 }
 
