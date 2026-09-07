@@ -666,12 +666,15 @@ function generateCategoricalPalette(count) {
 }
 
 function renderLocationDonut(rows) {
-  // Dashboard preview only, matching Department Wise Headcount's own
-  // pattern - shows the top 6 locations; the full list lives on "View
-  // all" (loadLocationFullView). Percentages are still computed against
-  // the true grand total (all locations), not just these 6.
+  // The donut itself draws every location as its own wedge/color (a true,
+  // fully-accurate breakdown of the whole Active headcount) - only the
+  // text legend beneath it stays capped at the top 6, matching Department
+  // Wise Headcount's own pattern so the dashboard doesn't get overwhelmed
+  // with 19 rows of text. The full named list lives on "View all"
+  // (loadLocationFullView). generateCategoricalPalette is index-based, so
+  // the legend's 6 colors are the same as the chart's first 6 wedges.
+  const palette = generateCategoricalPalette(rows.length);
   const top = rows.slice(0, 6);
-  const palette = generateCategoricalPalette(top.length);
   const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
 
   destroyChart('locationDonut');
@@ -679,8 +682,8 @@ function renderLocationDonut(rows) {
   charts.locationDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: top.map((r) => r.name),
-      datasets: [{ data: top.map((r) => r.count), backgroundColor: palette, borderWidth: 0 }]
+      labels: rows.map((r) => r.name),
+      datasets: [{ data: rows.map((r) => r.count), backgroundColor: palette, borderWidth: 0 }]
     },
     options: { cutout: '68%', plugins: { legend: { display: false } } }
   });
