@@ -620,39 +620,61 @@ wireBarListClicks('deptBarList', 'department');
 wireBarListClicks('departmentFullBarList', 'department');
 wireBarListClicks('locationFullBarList', 'location');
 
-function renderLocationDonut(rows) {
-  const c = chartColors();
-  const palette = [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted];
-  const OTHERS_COLOR = '#9aa5a2'; // distinct from the 6-color palette above, so "Others" never looks like a real location's slice
-  const top = rows.slice(0, 6);
-  const others = rows.slice(6);
-  const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
-  const othersCount = others.reduce((sum, r) => sum + r.count, 0);
+function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = (x) => Math.round(255 * x).toString(16).padStart(2, '0');
+  return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+}
 
-  // The chart only has 6 colors to work with, but there can be far more
-  // than 6 locations (e.g. 19) - without an "Others" slice the donut would
-  // silently drop everyone past the top 6 and make it look like those 6
-  // locations were the entire Active headcount.
-  const chartLabels = top.map((r) => r.name).concat(othersCount > 0 ? ['Others'] : []);
-  const chartData = top.map((r) => r.count).concat(othersCount > 0 ? [othersCount] : []);
-  const chartColorsList = top.map((_, i) => palette[i % palette.length]).concat(othersCount > 0 ? [OTHERS_COLOR] : []);
+// Generates `count` visually distinct categorical colors via golden-angle
+// hue rotation (avoids similar hues landing next to each other in
+// sequence), with per-hue-range lightness/saturation correction for hue
+// bands that otherwise read too light or too washed-out in sRGB
+// (yellow-green, cyan, blue). Used so every location gets its own color
+// on the dashboard donut, with none folded into a generic "Others" slice.
+// Validated with the dataviz skill's palette checker up to 19 colors -
+// passes lightness/chroma/normal-vision floors; CVD separation lands in
+// the legal warn band, which is fine here since every color is paired
+// with a name+count in the legend text (identity never relies on color
+// alone).
+const GOLDEN_ANGLE = 137.508;
+function generateCategoricalPalette(count) {
+  const colors = [];
+  for (let i = 0; i < count; i++) {
+    const hue = Math.round((GOLDEN_ANGLE * i) % 360);
+    let lightness = i % 2 === 0 ? 40 : 47;
+    let sat = 66;
+    if (hue >= 170 && hue <= 220) { sat = 100; lightness -= 4; }
+    if (hue >= 175 && hue <= 195) { lightness -= 5; }
+    if (hue >= 225 && hue <= 260) { lightness += 6; }
+    if (hue >= 60 && hue <= 110) { lightness -= 10; sat = 75; }
+    if (hue >= 150 && hue < 170) { lightness -= 6; }
+    colors.push(hslToHex(hue, sat, lightness));
+  }
+  return colors;
+}
+
+function renderLocationDonut(rows) {
+  const palette = generateCategoricalPalette(rows.length);
+  const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
 
   destroyChart('locationDonut');
   const ctx = document.getElementById('locationDonut');
   charts.locationDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: chartLabels,
-      datasets: [{ data: chartData, backgroundColor: chartColorsList, borderWidth: 0 }]
+      labels: rows.map((r) => r.name),
+      datasets: [{ data: rows.map((r) => r.count), backgroundColor: palette, borderWidth: 0 }]
     },
     options: { cutout: '68%', plugins: { legend: { display: false } } }
   });
 
-  document.getElementById('locationLegend').innerHTML = top.length
-    ? top.map((r, i) => legendRow(palette[i % palette.length], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('') +
-      (othersCount > 0
-        ? legendRow(OTHERS_COLOR, others.length + ' other location' + (others.length === 1 ? '' : 's'), othersCount, Math.round((othersCount / total) * 1000) / 10)
-        : '')
+  document.getElementById('locationLegend').innerHTML = rows.length
+    ? rows.map((r, i) => legendRow(palette[i], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('')
     : '<li class="empty">No location data</li>';
 }
 
