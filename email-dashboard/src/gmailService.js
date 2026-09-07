@@ -218,7 +218,43 @@ async function getMessagesByCategory(category, { search = '' } = {}) {
   return { category, total, truncated, items };
 }
 
+// This fetches up to JOININGS_SEARCH_CAP messages with format:'full' (the
+// most expensive Gmail API read) on every call - with no cache, repeat
+// views (a page refresh, multiple people opening the Joining tab) burn
+// through Gmail's "Total Query Cost per minute per user" quota and start
+// failing with a 500. A short TTL cache plus in-flight collapsing (same
+// pattern as employeeService's Sheets cache) means only one real fetch
+// happens per window no matter how many requests land.
+const JOININGS_CACHE_TTL_MS = 5 * 60 * 1000;
+let joiningsCache = { data: null, fetchedAt: 0 };
+let joiningsInFlight = null;
+
 async function getUpcomingJoinings() {
+  const now = Date.now();
+  if (joiningsCache.data && now - joiningsCache.fetchedAt < JOININGS_CACHE_TTL_MS) {
+    return joiningsCache.data;
+  }
+  if (joiningsInFlight) return joiningsInFlight;
+
+  joiningsInFlight = fetchUpcomingJoinings()
+    .then((result) => {
+      joiningsCache = { data: result, fetchedAt: Date.now() };
+      return result;
+    })
+    .catch((err) => {
+      // A transient Gmail quota/API error shouldn't blank out a screen that
+      // had good data a moment ago - fall back to the last successful
+      // fetch (however stale) rather than surfacing the error.
+      if (joiningsCache.data) return joiningsCache.data;
+      throw err;
+    })
+    .finally(() => {
+      joiningsInFlight = null;
+    });
+  return joiningsInFlight;
+}
+
+async function fetchUpcomingJoinings() {
   const client = gmail();
   // Not scoped to in:sent — most originals are sent by HR colleagues
   // (e.g. Ayan Das) and only reach this mailbox as a CC'd copy in Inbox.
