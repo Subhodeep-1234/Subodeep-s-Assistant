@@ -1151,7 +1151,7 @@ document.getElementById('empDetailBackBtn').addEventListener('click', () => {
 // ---------- Joining tab ----------
 // "Upcoming" is Gmail-sourced (confirmed new hires not yet in the HR sheet -
 // same data as the Mail Management "Upcoming Joinings" widget). "Recent" is
-// real Employee_Master data: whoever's DOJ falls in the last 60 days.
+// real Employee_Master data: whoever's DOJ falls in the last 1 month.
 
 let joiningActiveTab = 'upcoming';
 const joiningCache = {};
@@ -1214,7 +1214,8 @@ async function fetchJoiningTab(tab) {
       : '<li class="empty">No upcoming joinings found</li>';
   }
   const today = new Date();
-  const from = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const from = new Date(today);
+  from.setMonth(from.getMonth() - 1);
   const params = new URLSearchParams({
     dateFrom: from.toISOString().slice(0, 10),
     dateTo: today.toISOString().slice(0, 10)
@@ -1223,7 +1224,7 @@ async function fetchJoiningTab(tab) {
   const items = data.items.slice().sort((a, b) => new Date(b.doj) - new Date(a.doj));
   return items.length
     ? items.map((it) => joinRow(it.name, it.designation, it.department, it.doj, false)).join('')
-    : '<li class="empty">No recent joiners in the last 60 days</li>';
+    : '<li class="empty">No recent joiners in the last month</li>';
 }
 
 async function renderJoiningTab(tab) {
