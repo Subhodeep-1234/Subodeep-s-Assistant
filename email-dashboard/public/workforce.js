@@ -623,22 +623,36 @@ wireBarListClicks('locationFullBarList', 'location');
 function renderLocationDonut(rows) {
   const c = chartColors();
   const palette = [c.accent, c.resolved, c.warning, c.candidate, c.important, c.muted];
+  const OTHERS_COLOR = '#9aa5a2'; // distinct from the 6-color palette above, so "Others" never looks like a real location's slice
   const top = rows.slice(0, 6);
+  const others = rows.slice(6);
   const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
+  const othersCount = others.reduce((sum, r) => sum + r.count, 0);
+
+  // The chart only has 6 colors to work with, but there can be far more
+  // than 6 locations (e.g. 19) - without an "Others" slice the donut would
+  // silently drop everyone past the top 6 and make it look like those 6
+  // locations were the entire Active headcount.
+  const chartLabels = top.map((r) => r.name).concat(othersCount > 0 ? ['Others'] : []);
+  const chartData = top.map((r) => r.count).concat(othersCount > 0 ? [othersCount] : []);
+  const chartColorsList = top.map((_, i) => palette[i % palette.length]).concat(othersCount > 0 ? [OTHERS_COLOR] : []);
 
   destroyChart('locationDonut');
   const ctx = document.getElementById('locationDonut');
   charts.locationDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: top.map((r) => r.name),
-      datasets: [{ data: top.map((r) => r.count), backgroundColor: top.map((_, i) => palette[i % palette.length]), borderWidth: 0 }]
+      labels: chartLabels,
+      datasets: [{ data: chartData, backgroundColor: chartColorsList, borderWidth: 0 }]
     },
     options: { cutout: '68%', plugins: { legend: { display: false } } }
   });
 
   document.getElementById('locationLegend').innerHTML = top.length
-    ? top.map((r, i) => legendRow(palette[i % palette.length], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('')
+    ? top.map((r, i) => legendRow(palette[i % palette.length], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('') +
+      (othersCount > 0
+        ? legendRow(OTHERS_COLOR, others.length + ' other location' + (others.length === 1 ? '' : 's'), othersCount, Math.round((othersCount / total) * 1000) / 10)
+        : '')
     : '<li class="empty">No location data</li>';
 }
 
