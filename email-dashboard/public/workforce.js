@@ -659,7 +659,12 @@ function generateCategoricalPalette(count) {
 }
 
 function renderLocationDonut(rows) {
-  const palette = generateCategoricalPalette(rows.length);
+  // Dashboard preview only, matching Department Wise Headcount's own
+  // pattern - shows the top 6 locations; the full list lives on "View
+  // all" (loadLocationFullView). Percentages are still computed against
+  // the true grand total (all locations), not just these 6.
+  const top = rows.slice(0, 6);
+  const palette = generateCategoricalPalette(top.length);
   const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
 
   destroyChart('locationDonut');
@@ -667,14 +672,14 @@ function renderLocationDonut(rows) {
   charts.locationDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: rows.map((r) => r.name),
-      datasets: [{ data: rows.map((r) => r.count), backgroundColor: palette, borderWidth: 0 }]
+      labels: top.map((r) => r.name),
+      datasets: [{ data: top.map((r) => r.count), backgroundColor: palette, borderWidth: 0 }]
     },
     options: { cutout: '68%', plugins: { legend: { display: false } } }
   });
 
-  document.getElementById('locationLegend').innerHTML = rows.length
-    ? rows.map((r, i) => legendRow(palette[i], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('')
+  document.getElementById('locationLegend').innerHTML = top.length
+    ? top.map((r, i) => legendRow(palette[i], r.name, r.count, Math.round((r.count / total) * 1000) / 10)).join('')
     : '<li class="empty">No location data</li>';
 }
 
