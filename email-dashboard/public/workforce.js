@@ -122,7 +122,10 @@ const ICONS = {
   tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
   building: '<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/><path d="M9 6h1M14 6h1M9 10h1M14 10h1M9 14h1M14 14h1"/>',
   box: '<path d="M12.89 1.45l8 4A2 2 0 0 1 22 7.24v9.53a2 2 0 0 1-1.11 1.79l-8 4a2 2 0 0 1-1.79 0l-8-4a2 2 0 0 1-1.11-1.79V7.24a2 2 0 0 1 1.11-1.79l8-4a2 2 0 0 1 1.79 0z"/><path d="M2.32 6.16L12 11l9.68-4.84"/><path d="M12 22.5V11"/>',
-  leaf: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>'
+  leaf: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
+  transfer: '<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  star: '<polygon points="12 2 15 8.5 22 9.5 17 14.5 18.5 21.5 12 18 5.5 21.5 7 14.5 2 9.5 9 8.5 12 2"/>',
+  exitDoor: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'
 };
 
 // Real department names come straight off the sheet (e.g. "MEP DEPT.",
@@ -285,8 +288,8 @@ function loadView(view, forceRefresh) {
   if (view === 'mailReplies') return loadMailReplies();
   if (view === 'mailJoinings') return loadMailJoinings();
   if (view === 'profile') return loadProfile();
-  // exit / attrition / movement are static "not available" panels —
-  // nothing to fetch.
+  if (view === 'movement') return loadMovementView();
+  // exit / attrition are static "not available" panels — nothing to fetch.
   return Promise.resolve();
 }
 
@@ -343,9 +346,17 @@ async function loadProfile() {
 
 // ---------- Overview ----------
 
-function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live }) {
+function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, delta, deltaSub }) {
   const isNa = value === null || value === undefined;
   const displayValue = isNa ? 'N/A' : value;
+  const deltaLine =
+    (delta
+      ? '<span class="kpi-delta ' + (delta.direction || 'flat') + '">' +
+          (delta.direction === 'up' ? '↑' : delta.direction === 'down' ? '↓' : '') +
+          ' ' + escapeHtml(delta.text) +
+        '</span>'
+      : '') +
+    (deltaSub ? (delta ? ' ' : '') + '<span class="kpi-delta-sub">' + escapeHtml(deltaSub) + '</span>' : '');
   return (
     '<button class="kpi-card' + (tone ? ' tone-' + tone : '') + '" data-kpi="' + key + '"' +
       (clickable === false || isNa ? ' disabled' : '') +
@@ -357,6 +368,7 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
           (live ? '<span class="live-dot" title="Live"></span>' : '') +
         '</span>' +
         '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue + '</span>' +
+        (deltaLine ? '<span class="kpi-delta-row">' + deltaLine + '</span>' : '') +
       '</span>' +
     '</button>'
   );
@@ -768,6 +780,110 @@ function renderJoiningLine(canvasId, buckets) {
     plugins: [joiningValueLabelsPlugin]
   });
 }
+
+// ---------- Workforce Movement ----------
+// Joining Trend is real data (DOJ dates from Employee_Master, same
+// /api/workforce/joining-trend endpoint the Dashboard preview uses).
+// Transfers/Promotions/Exit/Location Transfers would need historical
+// change-dated records (who moved from what to what, and when) that the
+// sheet doesn't have - it only holds each employee's current state - so
+// those render as honest N/A tiles instead of invented numbers.
+
+let movementTrendBuckets = null;
+let movementActiveTab = 'monthly';
+
+function aggregateQuarterly(buckets) {
+  const byQuarter = new Map();
+  buckets.forEach((b) => {
+    const [year, month] = b.key.split('-').map(Number);
+    const q = Math.floor((month - 1) / 3) + 1;
+    const qKey = year + '-Q' + q;
+    const entry = byQuarter.get(qKey) || { year, q, count: 0 };
+    entry.count += b.count;
+    byQuarter.set(qKey, entry);
+  });
+  return Array.from(byQuarter.values())
+    .sort((a, b) => a.year - b.year || a.q - b.q)
+    .map((e) => ({ label: 'Q' + e.q + " '" + String(e.year).slice(-2), count: e.count }));
+}
+
+function aggregateYearly(buckets) {
+  const byYear = new Map();
+  buckets.forEach((b) => {
+    const year = b.key.split('-')[0];
+    byYear.set(year, (byYear.get(year) || 0) + b.count);
+  });
+  return Array.from(byYear.entries())
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([year, count]) => ({ label: year, count }));
+}
+
+async function loadMovementView() {
+  const statsGrid = document.getElementById('movementStatsGrid');
+  statsGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  renderMovementBreakdown();
+  try {
+    const trend = await fetchJson('/api/workforce/joining-trend?months=24');
+    movementTrendBuckets = trend.buckets;
+    renderMovementTab(movementActiveTab);
+  } catch (err) {
+    statsGrid.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderMovementBreakdown() {
+  document.getElementById('movementBreakdownGrid').innerHTML =
+    kpiCard({ key: 'transfers', label: 'Inter-Department Transfers', value: null, tone: 'accent', icon: 'transfer', clickable: false }) +
+    kpiCard({ key: 'promotions', label: 'Promotions', value: null, tone: 'active', icon: 'star', clickable: false }) +
+    kpiCard({ key: 'exit', label: 'Exit', value: null, tone: 'inactive', icon: 'exitDoor', clickable: false }) +
+    kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'accent', icon: 'location', clickable: false });
+}
+
+function renderMovementTab(tab) {
+  if (!movementTrendBuckets) return;
+  movementActiveTab = tab;
+  document.querySelectorAll('#movementTrendTabs [data-mtab]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.mtab === tab));
+  });
+
+  const monthly = movementTrendBuckets.slice(-12);
+  let buckets;
+  let title;
+  if (tab === 'quarterly') { buckets = aggregateQuarterly(movementTrendBuckets); title = 'Joining Trend (Quarterly)'; }
+  else if (tab === 'yearly') { buckets = aggregateYearly(movementTrendBuckets); title = 'Joining Trend (Yearly)'; }
+  else { buckets = monthly; title = 'Joining Trend (Monthly)'; }
+
+  document.getElementById('movementTrendTitle').textContent = title;
+  renderJoiningLine('movementTrendChart', buckets);
+
+  // The 4 stat cards always summarize the trailing 12 months specifically,
+  // regardless of which trend tab is showing - that's the one comparison
+  // ("vs previous 12 months") that stays meaningful no matter the chart's
+  // current granularity.
+  const previous12 = movementTrendBuckets.slice(-24, -12);
+  const currentTotal = monthly.reduce((sum, b) => sum + b.count, 0);
+  const previousTotal = previous12.reduce((sum, b) => sum + b.count, 0);
+  const pctChange = previousTotal > 0 ? Math.round(((currentTotal - previousTotal) / previousTotal) * 1000) / 10 : null;
+  const avgPerMonth = monthly.length ? Math.round((currentTotal / monthly.length) * 10) / 10 : 0;
+  const highest = monthly.reduce((best, b) => (!best || b.count > best.count ? b : best), null) || { count: 0, label: '—' };
+  const lowest = monthly.reduce((worst, b) => (!worst || b.count < worst.count ? b : worst), null) || { count: 0, label: '—' };
+
+  document.getElementById('movementStatsGrid').innerHTML =
+    kpiCard({
+      key: 'totalJoins', label: 'Total Joins', value: currentTotal, tone: 'accent', icon: 'total', clickable: false,
+      delta: pctChange === null ? null : { direction: pctChange >= 0 ? 'up' : 'down', text: Math.abs(pctChange) + '%' },
+      deltaSub: pctChange === null ? null : 'vs previous 12 months'
+    }) +
+    kpiCard({ key: 'avgPerMonth', label: 'Avg. Per Month', value: avgPerMonth, tone: 'confirmed', icon: 'monitor', clickable: false, deltaSub: 'per month' }) +
+    kpiCard({ key: 'highestMonth', label: 'Highest Month', value: highest.count, tone: 'active', icon: 'star', clickable: false, deltaSub: highest.label }) +
+    kpiCard({ key: 'lowestMonth', label: 'Lowest Month', value: lowest.count, tone: 'inactive', icon: 'inactive', clickable: false, deltaSub: lowest.label });
+}
+
+document.getElementById('movementTrendTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-mtab]');
+  if (!btn || btn.dataset.mtab === movementActiveTab) return;
+  renderMovementTab(btn.dataset.mtab);
+});
 
 function renderInsightsPreview(insights) {
   const el = document.getElementById('insightsPreview');

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=40" />
+  <link rel="stylesheet" href="workforce.css?v=41" />
 </head>
 <body>
   <div class="wf-shell">
@@ -304,10 +304,38 @@
         </button>
         <h2>Workforce Movement</h2>
       </div>
-      <div class="wf-unavailable">
-        <h3>Workforce Movement — Data not available</h3>
-        <p>Movement (transfers, promotions, department changes over time) needs historical snapshots or change-dated
-          records, which aren't present in the current sheet structure.</p>
+
+      <div class="wf-panel">
+        <div class="wf-subtabs" id="movementTrendTabs" style="margin-bottom:0; border-bottom:none;">
+          <button class="wf-subtab" data-mtab="monthly" aria-pressed="true">Monthly</button>
+          <button class="wf-subtab" data-mtab="quarterly" aria-pressed="false">Quarterly</button>
+          <button class="wf-subtab" data-mtab="yearly" aria-pressed="false">Yearly</button>
+        </div>
+      </div>
+
+      <div class="wf-panel">
+        <div class="wf-panel-head">
+          <h3 id="movementTrendTitle">Joining Trend (Monthly)</h3>
+        </div>
+        <p class="wf-note" style="margin-top:-10px; margin-bottom:10px;">Total joining count over the selected period</p>
+        <div class="wf-canvas-wrap wf-canvas-wrap--line"><canvas id="movementTrendChart"></canvas></div>
+      </div>
+
+      <div class="kpi-grid" id="movementStatsGrid">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+
+      <div class="wf-panel">
+        <div class="wf-panel-head">
+          <h3>Employee Movements</h3>
+        </div>
+        <p class="wf-note" style="margin-top:-10px; margin-bottom:14px;">Movements during the selected period</p>
+        <div class="kpi-grid" id="movementBreakdownGrid">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <p class="wf-note">Transfers, promotions and exits need historical change-dated records (who moved from what
+          to what, and when) - the current sheet only holds each employee's present state, not a history of changes,
+          so these can't be calculated yet.</p>
       </div>
     </section>
 
@@ -519,6 +547,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=65"></script>
+  <script src="workforce.js?v=66"></script>
 </body>
 </html>

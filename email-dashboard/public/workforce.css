@@ -263,6 +263,13 @@ body {
 }
 .kpi-num.na { font-size: 1rem; color: var(--muted); }
 
+.kpi-delta-row { display: block; margin-top: 2px; font-size: 0.72rem; }
+.kpi-delta { font-weight: 700; }
+.kpi-delta.up { color: var(--resolved); }
+.kpi-delta.down { color: var(--important); }
+.kpi-delta.flat { color: var(--muted); }
+.kpi-delta-sub { color: var(--muted); font-weight: 500; }
+
 .kpi-card.tone-accent .kpi-icon { background: var(--accent-bg); color: var(--accent); }
 .kpi-card.tone-active .kpi-icon { background: var(--resolved-bg); color: var(--resolved); }
 .kpi-card.tone-notice .kpi-icon { background: var(--warning-bg); color: var(--warning); }
