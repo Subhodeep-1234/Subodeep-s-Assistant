@@ -567,8 +567,11 @@ async function loadLocationFullView() {
     const rows = breakdowns.locations;
     const max = rows.length ? rows[0].count : 1;
     const total = rows.reduce((sum, r) => sum + r.count, 0);
+    // Same index-based color generator as the dashboard donut (renderLocationDonut),
+    // so a row's icon here matches its chart slice color for the top 6 shown there.
+    const palette = generateCategoricalPalette(rows.length);
     listEl.innerHTML = rows.length
-      ? rows.map((r) => barListItem('location', r.name, r.count, max, overview.active, 'location')).join('') +
+      ? rows.map((r, i) => barListItem('location', r.name, r.count, max, overview.active, 'location', palette[i])).join('') +
         '<li class="wf-bar-total-row">' +
           '<span class="wf-bar-icon">' + icon('total', 18) + '</span>' +
           '<span class="wf-bar-main"><span class="wf-bar-name">Total</span></span>' +
@@ -581,13 +584,17 @@ async function loadLocationFullView() {
   }
 }
 
-function barListItem(iconName, name, count, max, shareTotal, filterKey) {
+function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));
   const share = shareTotal ? Math.round((count / shareTotal) * 1000) / 10 : null;
   const filterAttr = filterKey ? ' data-' + filterKey + '="' + escapeHtml(name) + '"' : '';
+  // When an explicit color is given (the location "View all" list matches
+  // its rows to the donut chart's palette), tint the icon's background and
+  // recolor the icon itself so a row is visually tied to its chart slice.
+  const iconStyle = iconColor ? ' style="background:' + iconColor + '1a; color:' + iconColor + '"' : '';
   return (
     '<li class="clickable" tabindex="0" role="button"' + filterAttr + '>' +
-      '<span class="wf-bar-icon">' + icon(iconName, 18) + '</span>' +
+      '<span class="wf-bar-icon"' + iconStyle + '>' + icon(iconName, 18) + '</span>' +
       '<span class="wf-bar-main">' +
         '<span class="wf-bar-name">' + escapeHtml(name) + '</span>' +
         '<span class="wf-bar-track"><span class="wf-bar-fill" style="width:' + pct + '%"></span></span>' +
