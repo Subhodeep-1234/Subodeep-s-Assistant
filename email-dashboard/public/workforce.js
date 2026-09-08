@@ -833,12 +833,31 @@ async function loadMovementView() {
   }
 }
 
-function renderMovementBreakdown() {
+async function renderMovementBreakdown() {
   document.getElementById('movementBreakdownGrid').innerHTML =
     kpiCard({ key: 'transfers', label: 'Inter-Department Transfers', value: null, tone: 'move-blue', icon: 'transfer', clickable: false }) +
     kpiCard({ key: 'promotions', label: 'Promotions', value: null, tone: 'move-green', icon: 'star', clickable: false }) +
     kpiCard({ key: 'exit', label: 'Exit', value: null, tone: 'move-red', icon: 'exitDoor', clickable: false }) +
     kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'move-purple', icon: 'location', clickable: false });
+
+  // Inter-Department Transfers is the one real metric here, backed by a
+  // daily snapshot log (src/movementTracker.js) kept in its own separate
+  // spreadsheet - Google's own revision history for the HR sheet only goes
+  // back ~8 days, so this starts at 0 from whenever the tracker first ran
+  // rather than showing any backdated count. Promotions/Exit/Location
+  // Transfers stay honest N/A tiles since there's no data source for them.
+  try {
+    const data = await fetchJson('/api/workforce/dept-transfers?days=365');
+    const card = document.querySelector('#movementBreakdownGrid [data-kpi="transfers"]');
+    if (card) {
+      card.outerHTML = kpiCard({
+        key: 'transfers', label: 'Inter-Department Transfers', value: data.total, tone: 'move-blue', icon: 'transfer', clickable: false,
+        deltaSub: 'in the last 12 months'
+      });
+    }
+  } catch (err) {
+    // Leave the N/A tile in place - a tracker fetch hiccup shouldn't break the rest of the page.
+  }
 }
 
 function renderMovementTab(tab) {

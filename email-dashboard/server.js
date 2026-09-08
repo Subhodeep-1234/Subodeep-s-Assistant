@@ -6,6 +6,7 @@ const gmailService = require('./src/gmailService');
 const workforceRoutes = require('./src/workforceRoutes');
 const hrAuth = require('./src/hrAuth');
 const emailService = require('./src/emailService');
+const movementTracker = require('./src/movementTracker');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -180,6 +181,25 @@ app.get('/api/hr/upcoming-joinings', hrAuth.requireHrAuth, async (req, res) => {
   try {
     const data = await gmailService.getUpcomingJoinings();
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Vercel Cron hits this once a day (see vercel.json). Auth is via
+// CRON_SECRET - Vercel automatically sends it as a Bearer token when that
+// env var exists on the project. Deliberately NOT behind hrAuth: this
+// writes to the movement-tracker spreadsheet, so it must only ever be
+// reachable by the cron job itself, never by a logged-in HR session.
+app.get('/api/internal/snapshot-departments', async (req, res) => {
+  const expected = process.env.CRON_SECRET;
+  const provided = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+  if (!expected || provided !== expected) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const result = await movementTracker.runDailySnapshot();
+    res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

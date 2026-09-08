@@ -1,6 +1,7 @@
 const express = require('express');
 const employeeService = require('./employeeService');
 const analytics = require('./workforceAnalytics');
+const movementTracker = require('./movementTracker');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -237,6 +238,20 @@ router.get('/gender', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();
     res.json(analytics.genderAnalytics(employees));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Real transfer count from movementTracker's own daily-snapshot log (a
+// separate spreadsheet, isolated from Employee_Master) - starts at 0 from
+// whenever the daily snapshot cron first ran, since no backdated history
+// exists to reconstruct.
+router.get('/dept-transfers', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const data = await movementTracker.getTransfersInLastDays(days);
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

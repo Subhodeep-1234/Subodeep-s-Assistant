@@ -24,5 +24,8 @@
   ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/api/internal/snapshot-departments", "schedule": "0 20 * * *" }
   ]
 }
