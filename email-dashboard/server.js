@@ -205,6 +205,26 @@ app.get('/api/internal/snapshot-departments', async (req, res) => {
   }
 });
 
+// Instant counterpart to the daily cron above - the HR sheet's own onEdit
+// Apps Script trigger calls this the moment someone edits a Department
+// cell, so a transfer shows up immediately instead of waiting for the next
+// scheduled run. Same CRON_SECRET, same isolation rationale (writes to the
+// movement-tracker spreadsheet only, never reachable via hrAuth).
+app.post('/api/internal/department-check', async (req, res) => {
+  const expected = process.env.CRON_SECRET;
+  const provided = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+  if (!expected || provided !== expected) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const { employeeId, name, department } = req.body || {};
+    const result = await movementTracker.checkAndLogChange({ employeeId, name, department });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.use(
   '/vendor/chart.js',
   express.static(path.join(__dirname, 'node_modules', 'chart.js', 'dist'), { maxAge: '7d' })

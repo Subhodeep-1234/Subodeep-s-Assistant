@@ -88,6 +88,57 @@ async function runDailySnapshot() {
   return { checked: active.length, changesDetected: changeRows.length, isFirstRun: priorState.size === 0 };
 }
 
+// Called from the HR sheet's own onEdit Apps Script trigger (instant, not
+// batched) the moment someone edits an employee's Department cell. Looks
+// up that one employee's last-known department in Dept_State, logs a
+// change if it genuinely differs, then upserts their row (update in place
+// if found, append if this is the first time we've seen them - matches
+// runDailySnapshot's semantics but for a single employee instead of a
+// full sweep). The daily cron keeps running as a reconciliation backup in
+// case a webhook call is ever missed (script error, deploy downtime).
+async function checkAndLogChange({ employeeId, name, department }) {
+  if (!employeeId || !department) return { changed: false };
+  const sheets = getSheetsClient();
+  await ensureTabs(sheets);
+
+  const stateRes = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${STATE_TAB}'!A2:D` });
+  const rows = stateRes.data.values || [];
+  const rowIndex = rows.findIndex((r) => r[0] === employeeId);
+  const priorDept = rowIndex >= 0 ? rows[rowIndex][2] : null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const changed = Boolean(priorDept && priorDept !== department);
+
+  if (changed) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: TRACKER_SHEET_ID,
+      range: `'${LOG_TAB}'!A1`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [[today, employeeId, name || '', priorDept, department]] }
+    });
+  }
+
+  if (rowIndex >= 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: TRACKER_SHEET_ID,
+      range: `'${STATE_TAB}'!A${rowIndex + 2}:D${rowIndex + 2}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[employeeId, name || '', department, today]] }
+    });
+  } else {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: TRACKER_SHEET_ID,
+      range: `'${STATE_TAB}'!A1`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [[employeeId, name || '', department, today]] }
+    });
+  }
+
+  return { changed, priorDept: priorDept || null, department };
+}
+
 async function getTransfersInLastDays(days = 365) {
   const sheets = getSheetsClient();
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${LOG_TAB}'!A2:E` });
@@ -101,4 +152,4 @@ async function getTransfersInLastDays(days = 365) {
   return { total: inWindow.length, items: inWindow.map((r) => ({ date: r[0], employeeId: r[1], name: r[2], fromDept: r[3], toDept: r[4] })) };
 }
 
-module.exports = { runDailySnapshot, getTransfersInLastDays, TRACKER_SHEET_ID };
+module.exports = { runDailySnapshot, checkAndLogChange, getTransfersInLastDays, TRACKER_SHEET_ID };
