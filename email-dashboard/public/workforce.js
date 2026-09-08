@@ -125,7 +125,9 @@ const ICONS = {
   leaf: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
   transfer: '<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
   star: '<polygon points="12 2 15 8.5 22 9.5 17 14.5 18.5 21.5 12 18 5.5 21.5 7 14.5 2 9.5 9 8.5 12 2"/>',
-  exitDoor: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'
+  exitDoor: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  trendDown: '<line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/>'
 };
 
 // Real department names come straight off the sheet (e.g. "MEP DEPT.",
@@ -833,10 +835,10 @@ async function loadMovementView() {
 
 function renderMovementBreakdown() {
   document.getElementById('movementBreakdownGrid').innerHTML =
-    kpiCard({ key: 'transfers', label: 'Inter-Department Transfers', value: null, tone: 'accent', icon: 'transfer', clickable: false }) +
-    kpiCard({ key: 'promotions', label: 'Promotions', value: null, tone: 'active', icon: 'star', clickable: false }) +
-    kpiCard({ key: 'exit', label: 'Exit', value: null, tone: 'inactive', icon: 'exitDoor', clickable: false }) +
-    kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'probation', icon: 'location', clickable: false });
+    kpiCard({ key: 'transfers', label: 'Inter-Department Transfers', value: null, tone: 'move-blue', icon: 'transfer', clickable: false }) +
+    kpiCard({ key: 'promotions', label: 'Promotions', value: null, tone: 'move-green', icon: 'star', clickable: false }) +
+    kpiCard({ key: 'exit', label: 'Exit', value: null, tone: 'move-red', icon: 'exitDoor', clickable: false }) +
+    kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'move-purple', icon: 'location', clickable: false });
 }
 
 function renderMovementTab(tab) {
@@ -870,13 +872,13 @@ function renderMovementTab(tab) {
 
   document.getElementById('movementStatsGrid').innerHTML =
     kpiCard({
-      key: 'totalJoins', label: 'Total Joins', value: currentTotal, tone: 'accent', icon: 'total', clickable: false,
+      key: 'totalJoins', label: 'Total Joins', value: currentTotal, tone: 'move-blue', icon: 'total', clickable: false,
       delta: pctChange === null ? null : { direction: pctChange >= 0 ? 'up' : 'down', text: Math.abs(pctChange) + '%' },
       deltaSub: pctChange === null ? null : 'vs previous 12 months'
     }) +
-    kpiCard({ key: 'avgPerMonth', label: 'Avg. Per Month', value: avgPerMonth, tone: 'probation', icon: 'monitor', clickable: false, deltaSub: 'per month' }) +
-    kpiCard({ key: 'highestMonth', label: 'Highest Month', value: highest.count, tone: 'active', icon: 'star', clickable: false, deltaSub: highest.label }) +
-    kpiCard({ key: 'lowestMonth', label: 'Lowest Month', value: lowest.count, tone: 'inactive', icon: 'inactive', clickable: false, deltaSub: lowest.label });
+    kpiCard({ key: 'avgPerMonth', label: 'Avg. Per Month', value: avgPerMonth, tone: 'move-purple', icon: 'calendar', clickable: false, deltaSub: 'per month' }) +
+    kpiCard({ key: 'highestMonth', label: 'Highest Month', value: highest.count, tone: 'move-green', icon: 'star', clickable: false, deltaSub: highest.label }) +
+    kpiCard({ key: 'lowestMonth', label: 'Lowest Month', value: lowest.count, tone: 'move-red', icon: 'trendDown', clickable: false, deltaSub: lowest.label });
 }
 
 document.getElementById('movementTrendTabs').addEventListener('click', (e) => {

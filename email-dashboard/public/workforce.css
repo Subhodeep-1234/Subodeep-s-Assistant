@@ -6,6 +6,45 @@ body {
   padding-bottom: 0; /* no bottom-nav on this page anymore - the drawer replaces it */
 }
 
+/* Vivid 4-color set for Workforce Movement's cards only - the app's own
+   semantic tokens (accent/resolved/important/candidate) are deliberately
+   muted for everyday UI, but this page's mockup calls for a more
+   saturated blue/purple/green/red pastel-card look. Scoped as its own
+   tokens (not touching styles.css's shared theme) so no other page is
+   affected. */
+:root {
+  --move-blue: #2563eb;
+  --move-blue-bg: #dbeafe;
+  --move-purple: #7c3aed;
+  --move-purple-bg: #ede9fe;
+  --move-green: #16a34a;
+  --move-green-bg: #dcfce7;
+  --move-red: #dc2626;
+  --move-red-bg: #fee2e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --move-blue: #60a5fa;
+    --move-blue-bg: #1e3a5f;
+    --move-purple: #a78bfa;
+    --move-purple-bg: #3b2f63;
+    --move-green: #4ade80;
+    --move-green-bg: #1e3f2c;
+    --move-red: #f87171;
+    --move-red-bg: #4a1f1f;
+  }
+}
+:root[data-theme="dark"] {
+  --move-blue: #60a5fa;
+  --move-blue-bg: #1e3a5f;
+  --move-purple: #a78bfa;
+  --move-purple-bg: #3b2f63;
+  --move-green: #4ade80;
+  --move-green-bg: #1e3f2c;
+  --move-red: #f87171;
+  --move-red-bg: #4a1f1f;
+}
+
 .wf-shell {
   max-width: 1120px;
   margin: 0 auto;
@@ -381,10 +420,14 @@ body {
 }
 
 #movementView .kpi-card { border: none; }
-#movementView .kpi-card.tone-accent { background: var(--accent-bg); }
-#movementView .kpi-card.tone-active { background: var(--resolved-bg); }
-#movementView .kpi-card.tone-inactive { background: var(--important-bg); }
-#movementView .kpi-card.tone-probation { background: var(--candidate-bg); }
+#movementView .kpi-card.tone-move-blue { background: var(--move-blue-bg); }
+#movementView .kpi-card.tone-move-blue .kpi-icon { color: var(--move-blue); }
+#movementView .kpi-card.tone-move-purple { background: var(--move-purple-bg); }
+#movementView .kpi-card.tone-move-purple .kpi-icon { color: var(--move-purple); }
+#movementView .kpi-card.tone-move-green { background: var(--move-green-bg); }
+#movementView .kpi-card.tone-move-green .kpi-icon { color: var(--move-green); }
+#movementView .kpi-card.tone-move-red { background: var(--move-red-bg); }
+#movementView .kpi-card.tone-move-red .kpi-icon { color: var(--move-red); }
 #movementView .kpi-card .kpi-icon { background: var(--surface); }
 
 .wf-link-btn {
