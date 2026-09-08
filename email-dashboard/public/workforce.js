@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
+  'departmentFull', 'locationFull', 'deptTransfersDetail', 'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -285,6 +285,7 @@ function loadView(view, forceRefresh) {
   if (view === 'quality') return loadQualityView();
   if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'locationFull') return loadLocationFullView();
+  if (view === 'deptTransfersDetail') return loadDeptTransfersDetail();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'mailReplies') return loadMailReplies();
@@ -851,12 +852,53 @@ async function renderMovementBreakdown() {
     const card = document.querySelector('#movementBreakdownGrid [data-kpi="transfers"]');
     if (card) {
       card.outerHTML = kpiCard({
-        key: 'transfers', label: 'Inter-Department Transfers', value: data.total, tone: 'move-blue', icon: 'transfer', clickable: false,
+        key: 'transfers', label: 'Inter-Department Transfers', value: data.total, tone: 'move-blue', icon: 'transfer',
+        clickable: data.total > 0,
+        title: data.total > 0 ? 'View who transferred' : '',
         deltaSub: 'in the last 12 months'
       });
     }
   } catch (err) {
     // Leave the N/A tile in place - a tracker fetch hiccup shouldn't break the rest of the page.
+  }
+}
+
+document.getElementById('movementBreakdownGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('[data-kpi="transfers"]');
+  if (!card || card.disabled) return;
+  setView('deptTransfersDetail');
+});
+
+async function loadDeptTransfersDetail() {
+  const listEl = document.getElementById('deptTransfersList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  try {
+    const data = await fetchJson('/api/workforce/dept-transfers?days=365');
+    const items = data.items.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    document.getElementById('deptTransfersCount').textContent =
+      data.total + ' transfer' + (data.total === 1 ? '' : 's') + ' in the last 12 months';
+    listEl.innerHTML = items.length
+      ? items.map((it) => {
+          const badge = joinDateBadge(it.date);
+          return (
+            '<li>' +
+              '<span class="wf-join-badge-wrap">' +
+                '<span class="wf-join-badge"><b>' + badge.day + '</b><span>' + badge.month + '</span></span>' +
+              '</span>' +
+              '<span class="wf-join-main">' +
+                '<span class="wf-join-name">' + escapeHtml(it.name) + '</span>' +
+                '<span class="wf-join-sub wf-transfer-route">' +
+                  escapeHtml(it.fromDept) +
+                  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
+                  escapeHtml(it.toDept) +
+                '</span>' +
+              '</span>' +
+            '</li>'
+          );
+        }).join('')
+      : '<li class="empty">No inter-department transfers in the last 12 months</li>';
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }
 }
 

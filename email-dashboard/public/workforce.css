@@ -874,6 +874,9 @@ body {
 .wf-join-name { font-size: 0.85rem; font-weight: 700; color: var(--ink); }
 .wf-join-sub { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
 
+.wf-transfer-route { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.wf-transfer-route svg { flex-shrink: 0; color: var(--accent); }
+
 /* ---------- Employee list ---------- */
 
 .wf-emp-list { list-style: none; margin: 0; padding: 0; }
