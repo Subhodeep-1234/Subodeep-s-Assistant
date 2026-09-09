@@ -265,6 +265,10 @@ function setView(view) {
   if (view === 'directory') {
     document.getElementById('directoryDetailPanel').hidden = true;
     document.getElementById('directoryListPanel').hidden = false;
+    // Reached via the drawer or back button, not a filter click - the PDF
+    // export should use the default column layout. applyFiltersAndShowDirectory
+    // overrides this right after calling setView() when it has its own variant.
+    directoryReportVariant = 'default';
   }
   // All views live in the same scrolling document (sections are toggled via
   // [hidden], not real navigation), so the old scroll position otherwise
@@ -458,7 +462,13 @@ employmentTypeStatsEl.addEventListener('keydown', (e) => {
   block.click();
 });
 
-function applyFiltersAndShowDirectory(filters) {
+// Which Employee Data PDF column layout to use - 'default' everywhere
+// except when reached via a Workforce Movement chart/stat-card click,
+// which swaps Age out for Status. Reset on every navigation so it never
+// leaks into an unrelated export (e.g. clicking Department right after).
+let directoryReportVariant = 'default';
+
+function applyFiltersAndShowDirectory(filters, reportVariant) {
   activeFilters = filters;
   filterStatus.value = filters.status || '';
   filterEmploymentType.value = filters.employmentType || '';
@@ -471,7 +481,8 @@ function applyFiltersAndShowDirectory(filters) {
   // this session (see loadView's loadedViews cache) - force it here since
   // the filters just changed and the list must reflect the new KPI clicked.
   const alreadyLoaded = loadedViews.has('directory');
-  setView('directory');
+  setView('directory'); // resets directoryReportVariant to 'default' - set it after, not before
+  directoryReportVariant = reportVariant || 'default';
   if (alreadyLoaded) loadEmployees();
 }
 
@@ -1010,7 +1021,7 @@ function renderMovementTab(tab) {
   // silently show fewer people than the chart's own count implies.
   renderJoiningLine('movementTrendChart', buckets, (bucket) => {
     if (!bucket || !bucket.dateFrom) return;
-    applyFiltersAndShowDirectory({ dateFrom: bucket.dateFrom, dateTo: bucket.dateTo });
+    applyFiltersAndShowDirectory({ dateFrom: bucket.dateFrom, dateTo: bucket.dateTo }, 'workforceMovement');
   });
 
   // The 4 stat cards always summarize the trailing 12 months specifically,
@@ -1049,7 +1060,7 @@ function renderMovementTab(tab) {
 document.getElementById('movementStatsGrid').addEventListener('click', (e) => {
   const card = e.target.closest('[data-date-from]');
   if (!card || card.disabled) return;
-  applyFiltersAndShowDirectory({ dateFrom: card.dataset.dateFrom, dateTo: card.dataset.dateTo });
+  applyFiltersAndShowDirectory({ dateFrom: card.dataset.dateFrom, dateTo: card.dataset.dateTo }, 'workforceMovement');
 });
 
 document.getElementById('movementTrendTabs').addEventListener('click', (e) => {
@@ -1173,6 +1184,10 @@ function formatAgeYearsMonths(dobIso) {
   if (now.getDate() < dob.getDate()) months--;
   if (months < 0) { years--; months += 12; }
   return years + 'Y ' + months + 'M';
+}
+
+function titleCase(s) {
+  return String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 const PERSON_ICON = '<circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/>';
@@ -1305,8 +1320,13 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   document.getElementById('printReportSubtitle').textContent =
     (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
     sortedList.length + ' employee' + (sortedList.length === 1 ? '' : 's') + ' · ';
-  document.getElementById('printReportHead').innerHTML =
-    '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Age</th><th>Gender</th><th>Location</th><th>DOJ</th>';
+  // Only the Workforce Movement report swaps Age out for Status - every
+  // other section's export (Department/Location/Age/Gender/KPI clicks,
+  // manual filters) keeps the original Age column, unchanged.
+  const isWorkforceMovementReport = directoryReportVariant === 'workforceMovement';
+  document.getElementById('printReportHead').innerHTML = isWorkforceMovementReport
+    ? '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th><th>Status</th>'
+    : '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Age</th><th>Gender</th><th>Location</th><th>DOJ</th>';
   document.getElementById('printReportDate').textContent =
     new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   let lastGroupHeading = null;
@@ -1319,6 +1339,9 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
             sectionRow = '<tr class="print-section-row"><td colspan="9">' + escapeHtml(heading) + '</td></tr>';
             lastGroupHeading = heading;
           }
+          const lastCol = isWorkforceMovementReport
+            ? '<td>' + escapeHtml(titleCase(e.status) || '—') + '</td>'
+            : '<td>' + formatAgeYearsMonths(e.dob) + '</td>';
           return sectionRow + (
           '<tr>' +
             '<td>' + escapeHtml(e.employeeId) + '</td>' +
@@ -1326,10 +1349,11 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
             '<td>' + escapeHtml(e.designation || '—') + '</td>' +
             '<td>' + escapeHtml(e.department || '—') + '</td>' +
             '<td>' + escapeHtml(e.groupD || '—') + '</td>' +
-            '<td>' + formatAgeYearsMonths(e.dob) + '</td>' +
+            (isWorkforceMovementReport ? '' : lastCol) +
             '<td>' + escapeHtml(e.gender || '—') + '</td>' +
             '<td>' + escapeHtml(e.location || '—') + '</td>' +
             '<td>' + formatDate(e.doj) + '</td>' +
+            (isWorkforceMovementReport ? lastCol : '') +
           '</tr>'
           );
         })
