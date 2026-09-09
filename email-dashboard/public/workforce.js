@@ -810,6 +810,24 @@ function fyPeriod(year, month) {
   return { fyStartYear: year - 1, q: 4 };
 }
 
+function fyStartYearOf(now) {
+  return fyPeriod(now.getUTCFullYear(), now.getUTCMonth() + 1).fyStartYear;
+}
+
+// Quarterly/Yearly need every month of whatever FY they're summarizing, or
+// a bar undercounts (e.g. "FY 2025-26" showing 72 instead of the real 224,
+// because only the back half of that FY - Oct'25 onward - fell inside a
+// plain trailing-12-months window). Keeps exactly the current FY-to-date
+// plus the one immediately before it - not the full 36-month fetch - so
+// Yearly still shows just 2 bars, not a wall of history.
+function filterToLastTwoFYs(buckets, now = new Date()) {
+  const earliestFYStart = fyStartYearOf(now) - 1;
+  return buckets.filter((b) => {
+    const [year, month] = b.key.split('-').map(Number);
+    return fyPeriod(year, month).fyStartYear >= earliestFYStart;
+  });
+}
+
 // "YYYY-MM" (1-indexed month) -> the calendar-day range that bucket covers,
 // so a chart click / stat-card click can filter Employee Data to exactly
 // who joined in that period.
@@ -877,7 +895,12 @@ async function loadMovementView() {
   statsGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   renderMovementBreakdown();
   try {
-    const trend = await fetchJson('/api/workforce/joining-trend?months=24');
+    // 36 months comfortably covers "current FY to date + the full previous
+    // FY" no matter what month it is right now (worst case, e.g. today
+    // being March, needs 24) - filterToLastTwoFYs then trims this down to
+    // just those 2 FYs for Quarterly/Yearly, so the extra history fetched
+    // here never actually reaches the chart.
+    const trend = await fetchJson('/api/workforce/joining-trend?months=36');
     movementTrendBuckets = trend.buckets;
     renderMovementTab(movementActiveTab);
   } catch (err) {
@@ -960,16 +983,17 @@ function renderMovementTab(tab) {
     b.setAttribute('aria-pressed', String(b.dataset.mtab === tab));
   });
 
-  // All three tabs stay within the trailing 12 months from today - only the
-  // "vs previous 12 months" delta below reaches into the older half of the
-  // 24-month fetch. Quarterly/Yearly used to aggregate the full 24 months,
-  // which pulled in a second year of history the chart was never meant to
-  // show.
+  // Monthly still shows exactly the trailing 12 real months. Quarterly/
+  // Yearly aggregate the current-FY-to-date + full previous FY instead
+  // (filterToLastTwoFYs) - a plain trailing-12-months slice can cut a
+  // financial year in half and undercount it (verified: "FY 2025-26" was
+  // showing 72 instead of the real 224, since only Oct'25-Mar'26 of that
+  // FY fell inside the old 12-month window).
   const monthly = movementTrendBuckets.slice(-12).map((b) => ({ ...b, ...monthKeyToRange(b.key) }));
   let buckets;
   let title;
-  if (tab === 'quarterly') { buckets = aggregateQuarterly(monthly); title = 'Joining Trend (Quarterly)'; }
-  else if (tab === 'yearly') { buckets = aggregateYearly(monthly); title = 'Joining Trend (Yearly)'; }
+  if (tab === 'quarterly') { buckets = aggregateQuarterly(filterToLastTwoFYs(movementTrendBuckets)); title = 'Joining Trend (Quarterly)'; }
+  else if (tab === 'yearly') { buckets = aggregateYearly(filterToLastTwoFYs(movementTrendBuckets)); title = 'Joining Trend (Yearly)'; }
   else { buckets = monthly; title = 'Joining Trend (Monthly)'; }
 
   document.getElementById('movementTrendTitle').textContent = title;
