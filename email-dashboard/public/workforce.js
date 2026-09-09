@@ -367,7 +367,16 @@ async function loadOverview(forceRefresh) {
     renderEmploymentTypeStats(overview);
     renderDeptBarList(activeBreakdowns.departments.slice(0, 6), overview.active);
     renderLocationDonut(activeBreakdowns.locations);
-    renderJoiningLine('joiningLineChart', trend.buckets);
+    // Same click-to-filter logic as Workforce Movement's chart: a point
+    // jumps to Employee Data filtered to that month, no status filter
+    // (this trend counts everyone regardless of Active/Notice/Inactive),
+    // and the exported PDF gets the same Status-instead-of-Age column
+    // swap since it's the same "who joined" report.
+    renderJoiningLine('joiningLineChart', trend.buckets, (bucket) => {
+      if (!bucket || !bucket.key) return;
+      const range = monthKeyToRange(bucket.key);
+      applyFiltersAndShowDirectory({ dateFrom: range.dateFrom, dateTo: range.dateTo }, 'workforceMovement');
+    });
     renderInsightsPreview(insights.insights);
   } catch (err) {
     kpiGrid.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
