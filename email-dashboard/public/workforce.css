@@ -1241,7 +1241,7 @@ body {
      made the previous shared dark-teal style look washed-out/grey here. */
   #printReport tbody tr.print-doer-dept-row { break-after: avoid; }
   #printReport tbody tr.print-doer-dept-row td {
-    background: #7a1f3d;
+    background: #1f3a5f;
     color: #fff;
     font-weight: 700;
     font-size: 0.74rem;
