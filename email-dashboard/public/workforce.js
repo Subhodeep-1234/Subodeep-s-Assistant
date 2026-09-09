@@ -1597,7 +1597,7 @@ document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => 
       if (count > hodCount) { hodName = name; hodCount = count; }
     });
     const deptHeading = deptName + (hodName ? ' — HOD: ' + hodName : '');
-    bodyHtml += '<tr class="print-section-row"><td colspan="7">' + escapeHtml(deptHeading) + '</td></tr>';
+    bodyHtml += '<tr class="print-doer-dept-row"><td colspan="7">' + escapeHtml(deptHeading) + '</td></tr>';
 
     const sortedEmps = emps.slice().sort((a, b) => {
       const collarDiff = collarRank(a.groupD) - collarRank(b.groupD);

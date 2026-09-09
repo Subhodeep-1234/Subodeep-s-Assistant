@@ -1233,10 +1233,29 @@ body {
   }
   #printReport thead { display: table-header-group; }
 
+  /* Doer Breakup report only: its own Department + HOD heading style,
+     separate from print-section-row (used elsewhere for Collar headers) so
+     this change doesn't touch any other report. print-color-adjust is set
+     explicitly because browsers otherwise auto-lighten ("ink-saving mode")
+     saturated background colors when printing/saving as PDF, which is what
+     made the previous shared dark-teal style look washed-out/grey here. */
+  #printReport tbody tr.print-doer-dept-row { break-after: avoid; }
+  #printReport tbody tr.print-doer-dept-row td {
+    background: #7a1f3d;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 7px 9px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* Doer Breakup report only: a second, lighter heading level nested under
-     each print-section-row (Department + HOD) - one per Collar group within
-     that department, tinted per collar type so the two heading levels stay
-     visually distinct at a glance. */
+     each print-doer-dept-row (Department + HOD) - one per Collar group
+     within that department, tinted per collar type so the two heading
+     levels stay visually distinct at a glance. */
   #printReport tbody tr.print-subsection-row { break-after: avoid; }
   #printReport tbody tr.print-subsection-row td {
     font-weight: 700;
@@ -1244,6 +1263,8 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     padding: 5px 9px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   #printReport tbody tr.print-subsection-white td { background: #dce9f7; color: #1d4e8f; }
   #printReport tbody tr.print-subsection-blue td { background: #d8eef0; color: #1d5c63; }
