@@ -84,6 +84,7 @@ function parseRow(row, index) {
     locationKey: normalizeKey(location),
     company: cleanValue(row[COLS.company]),
     reportingDoer: cleanValue(row[COLS.reportingDoer]),
+    reportingDoerKey: normalizeKey(cleanValue(row[COLS.reportingDoer])),
     reportingManager: cleanValue(row[COLS.reportingManager]),
     reportingManagerKey: normalizeKey(cleanValue(row[COLS.reportingManager])),
     doj: parseSheetDate(row[COLS.doj]),
@@ -136,7 +137,8 @@ let cache = {
   fetchedAt: 0,
   departmentNames: new Map(),
   locationNames: new Map(),
-  reportingManagerNames: new Map()
+  reportingManagerNames: new Map(),
+  doerNames: new Map()
 };
 let inFlight = null;
 
@@ -164,7 +166,8 @@ function refreshCache() {
       fetchedAt: Date.now(),
       departmentNames: buildDisplayNames(employees, 'department'),
       locationNames: buildDisplayNames(employees, 'location'),
-      reportingManagerNames: buildDisplayNames(employees, 'reportingManager')
+      reportingManagerNames: buildDisplayNames(employees, 'reportingManager'),
+      doerNames: buildDisplayNames(employees, 'reportingDoer')
     };
     return cache;
   })();

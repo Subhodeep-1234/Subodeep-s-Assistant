@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -289,6 +289,7 @@ function loadView(view, forceRefresh) {
   if (view === 'quality') return loadQualityView();
   if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'locationFull') return loadLocationFullView();
+  if (view === 'doerManagement') return loadDoerManagementView();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'profile') return loadProfile();
@@ -631,10 +632,39 @@ async function loadLocationFullView() {
   }
 }
 
+async function loadDoerManagementView() {
+  const listEl = document.getElementById('doerManagementBarList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  try {
+    const [overview, breakdowns] = await Promise.all([
+      fetchJson('/api/workforce/overview'),
+      fetchJson('/api/workforce/breakdowns?status=ACTIVE')
+    ]);
+    const rows = breakdowns.doers;
+    const max = rows.length ? rows[0].count : 1;
+    const total = rows.reduce((sum, r) => sum + r.count, 0);
+    listEl.innerHTML = rows.length
+      ? rows.map((r) => barListItem('user', r.name, r.count, max, overview.active, 'reportingDoer')).join('') +
+        '<li class="wf-bar-total-row">' +
+          '<span class="wf-bar-icon">' + icon('total', 18) + '</span>' +
+          '<span class="wf-bar-main"><span class="wf-bar-name">Total</span></span>' +
+          '<span class="wf-bar-count">' + total + '</span>' +
+          '<span class="wf-bar-pct">100%</span>' +
+        '</li>'
+      : '<li class="empty">No Reporting DOER data</li>';
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));
   const share = shareTotal ? Math.round((count / shareTotal) * 1000) / 10 : null;
-  const filterAttr = filterKey ? ' data-' + filterKey + '="' + escapeHtml(name) + '"' : '';
+  // Kebab-case the filterKey for the HTML attribute name - needed for
+  // multi-word keys like "reportingDoer" (HTML lowercases attribute names,
+  // so an un-kebabbed "data-reportingDoer" would become "data-reportingdoer"
+  // on parse, which the dataset API can no longer match back to reportingDoer).
+  const filterAttr = filterKey ? ' data-' + filterKey.replace(/([A-Z])/g, '-$1').toLowerCase() + '="' + escapeHtml(name) + '"' : '';
   // When an explicit color is given (the location "View all" list matches
   // its rows to the donut chart's palette), tint the icon's background and
   // recolor the icon itself so a row is visually tied to its chart slice.
@@ -656,15 +686,16 @@ function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColo
 // "View all") and, now, the location "View all" full list only - the
 // dashboard's location preview keeps its own separate donut+legend markup.
 function wireBarListClicks(id, filterKey) {
+  const attrName = filterKey.replace(/([A-Z])/g, '-$1').toLowerCase();
   const el = document.getElementById(id);
   el.addEventListener('click', (e) => {
-    const row = e.target.closest('[data-' + filterKey + ']');
+    const row = e.target.closest('[data-' + attrName + ']');
     if (!row) return;
     applyFiltersAndShowDirectory({ status: 'ACTIVE', [filterKey]: row.dataset[filterKey] });
   });
   el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const row = e.target.closest('[data-' + filterKey + ']');
+    const row = e.target.closest('[data-' + attrName + ']');
     if (!row) return;
     e.preventDefault();
     row.click();
@@ -673,6 +704,7 @@ function wireBarListClicks(id, filterKey) {
 wireBarListClicks('deptBarList', 'department');
 wireBarListClicks('departmentFullBarList', 'department');
 wireBarListClicks('locationFullBarList', 'location');
+wireBarListClicks('doerManagementBarList', 'reportingDoer');
 
 function hslToHex(h, s, l) {
   s /= 100;

@@ -103,6 +103,7 @@ function matchesFilters(emp, query, normalizeKey) {
   if (query.reportingManager && emp.reportingManagerKey !== normalizeKey(query.reportingManager)) return false;
   if (query.collar && formatCollar(emp.groupD).toLowerCase() !== String(query.collar).toLowerCase()) return false;
   if (query.gender && (emp.gender || '').toLowerCase() !== String(query.gender).toLowerCase()) return false;
+  if (query.reportingDoer && emp.reportingDoerKey !== normalizeKey(query.reportingDoer)) return false;
   if (query.employmentType && emp.employmentType.toLowerCase() !== String(query.employmentType).toLowerCase()) {
     return false;
   }
@@ -173,13 +174,14 @@ router.get('/employees', async (req, res) => {
 
 router.get('/breakdowns', async (req, res) => {
   try {
-    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+    const { employees, departmentNames, locationNames, doerNames } = await employeeService.getEmployeeData();
     const statusFilter = req.query.status
       ? (e) => e.status === String(req.query.status).toUpperCase()
       : null;
     res.json({
       departments: analytics.departmentBreakdown(employees, departmentNames, statusFilter),
-      locations: analytics.locationBreakdown(employees, locationNames, statusFilter)
+      locations: analytics.locationBreakdown(employees, locationNames, statusFilter),
+      doers: analytics.doerBreakdown(employees, doerNames, statusFilter)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

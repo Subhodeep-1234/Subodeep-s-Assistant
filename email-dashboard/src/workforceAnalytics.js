@@ -25,6 +25,10 @@ function locationBreakdown(employees, locationNames, filterFn) {
   return groupCount(employees, 'locationKey', locationNames, filterFn);
 }
 
+function doerBreakdown(employees, doerNames, filterFn) {
+  return groupCount(employees, 'reportingDoerKey', doerNames, filterFn);
+}
+
 function monthKey(date) {
   return date.getUTCFullYear() + '-' + String(date.getUTCMonth() + 1).padStart(2, '0');
 }
@@ -259,6 +263,7 @@ function dataQualityReport(employees) {
 module.exports = {
   departmentBreakdown,
   locationBreakdown,
+  doerBreakdown,
   joiningTrend,
   buildInsights,
   probationCompletingThisMonth,
