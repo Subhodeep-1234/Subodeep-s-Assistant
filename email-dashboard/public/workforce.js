@@ -1069,6 +1069,18 @@ function formatDate(iso) {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function formatAgeYearsMonths(dobIso) {
+  if (!dobIso) return '—';
+  const dob = new Date(dobIso);
+  if (isNaN(dob.getTime())) return '—';
+  const now = new Date();
+  let years = now.getFullYear() - dob.getFullYear();
+  let months = now.getMonth() - dob.getMonth();
+  if (now.getDate() < dob.getDate()) months--;
+  if (months < 0) { years--; months += 12; }
+  return years + 'Y ' + months + 'M';
+}
+
 const PERSON_ICON = '<circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/>';
 
 function renderEmployees(data) {
@@ -1186,6 +1198,8 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   const sortedList = lastEmployeeList.slice().sort((a, b) => {
     const collarDiff = collarRank(a.groupD) - collarRank(b.groupD);
     if (collarDiff !== 0) return collarDiff;
+    const deptDiff = (a.department || '').localeCompare(b.department || '');
+    if (deptDiff !== 0) return deptDiff;
     const rankDiff = designationRank(a.designation) - designationRank(b.designation);
     if (rankDiff !== 0) return rankDiff;
     const desigDiff = (a.designation || '').localeCompare(b.designation || '');
@@ -1198,7 +1212,7 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
     (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
     sortedList.length + ' employee' + (sortedList.length === 1 ? '' : 's') + ' · ';
   document.getElementById('printReportHead').innerHTML =
-    '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th>';
+    '<th>Employee Code</th><th>Name</th><th>Age</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th>';
   document.getElementById('printReportDate').textContent =
     new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   let lastGroupHeading = null;
@@ -1208,13 +1222,14 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
           const heading = e.groupD || 'Unspecified Collar';
           let sectionRow = '';
           if (heading !== lastGroupHeading) {
-            sectionRow = '<tr class="print-section-row"><td colspan="8">' + escapeHtml(heading) + '</td></tr>';
+            sectionRow = '<tr class="print-section-row"><td colspan="9">' + escapeHtml(heading) + '</td></tr>';
             lastGroupHeading = heading;
           }
           return sectionRow + (
           '<tr>' +
             '<td>' + escapeHtml(e.employeeId) + '</td>' +
             '<td>' + escapeHtml(e.name) + '</td>' +
+            '<td>' + formatAgeYearsMonths(e.dob) + '</td>' +
             '<td>' + escapeHtml(e.designation || '—') + '</td>' +
             '<td>' + escapeHtml(e.department || '—') + '</td>' +
             '<td>' + escapeHtml(e.groupD || '—') + '</td>' +
@@ -1225,7 +1240,7 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
           );
         })
         .join('')
-    : '<tr><td colspan="8">No employees match these filters</td></tr>';
+    : '<tr><td colspan="9">No employees match these filters</td></tr>';
   window.print();
 });
 
