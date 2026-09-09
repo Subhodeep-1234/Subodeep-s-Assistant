@@ -14,6 +14,7 @@ const COLS = {
   groupD: 5,             // Group - D
   gender: 6,
   location: 7,
+  company: 8,            // Company - used to detect Company Transfers (see movementTracker.js)
   reportingDoer: 11,     // Reporting DOER (there are 4 other manager-ish columns in the
                          // sheet - Reporting Manager x2, HOD-1, DEPT HOD - this is the
                          // one actually requested for the dashboard)
@@ -81,6 +82,7 @@ function parseRow(row, index) {
     gender: cleanValue(row[COLS.gender]),
     location,
     locationKey: normalizeKey(location),
+    company: cleanValue(row[COLS.company]),
     reportingDoer: cleanValue(row[COLS.reportingDoer]),
     reportingManager: cleanValue(row[COLS.reportingManager]),
     reportingManagerKey: normalizeKey(cleanValue(row[COLS.reportingManager])),

@@ -26,6 +26,6 @@
     { "source": "/(.*)", "destination": "/api/index" }
   ],
   "crons": [
-    { "path": "/api/internal/snapshot-departments", "schedule": "0 20 * * *" }
+    { "path": "/api/internal/snapshot-movement", "schedule": "0 20 * * *" }
   ]
 }

@@ -186,12 +186,13 @@ app.get('/api/hr/upcoming-joinings', hrAuth.requireHrAuth, async (req, res) => {
   }
 });
 
-// Vercel Cron hits this once a day (see vercel.json). Auth is via
-// CRON_SECRET - Vercel automatically sends it as a Bearer token when that
-// env var exists on the project. Deliberately NOT behind hrAuth: this
-// writes to the movement-tracker spreadsheet, so it must only ever be
+// Vercel Cron hits this once a day (see vercel.json). Sweeps all four
+// tracked columns (Department, Designation, Company, Location) in one run.
+// Auth is via CRON_SECRET - Vercel automatically sends it as a Bearer token
+// when that env var exists on the project. Deliberately NOT behind hrAuth:
+// this writes to the movement-tracker spreadsheet, so it must only ever be
 // reachable by the cron job itself, never by a logged-in HR session.
-app.get('/api/internal/snapshot-departments', async (req, res) => {
+app.get('/api/internal/snapshot-movement', async (req, res) => {
   const expected = process.env.CRON_SECRET;
   const provided = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
   if (!expected || provided !== expected) {
@@ -219,6 +220,54 @@ app.post('/api/internal/department-check', async (req, res) => {
   try {
     const { employeeId, name, department } = req.body || {};
     const result = await movementTracker.checkAndLogChange({ employeeId, name, department });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Same instant-webhook pattern as department-check above, one per tracked
+// column - the HR sheet's Apps Script trigger calls whichever of these
+// matches the column just edited.
+app.post('/api/internal/designation-check', async (req, res) => {
+  const expected = process.env.CRON_SECRET;
+  const provided = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+  if (!expected || provided !== expected) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const { employeeId, name, designation } = req.body || {};
+    const result = await movementTracker.checkAndLogDesignationChange({ employeeId, name, designation });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/internal/company-check', async (req, res) => {
+  const expected = process.env.CRON_SECRET;
+  const provided = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+  if (!expected || provided !== expected) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const { employeeId, name, company } = req.body || {};
+    const result = await movementTracker.checkAndLogCompanyChange({ employeeId, name, company });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/internal/location-check', async (req, res) => {
+  const expected = process.env.CRON_SECRET;
+  const provided = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+  if (!expected || provided !== expected) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const { employeeId, name, location } = req.body || {};
+    const result = await movementTracker.checkAndLogLocationChange({ employeeId, name, location });
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });

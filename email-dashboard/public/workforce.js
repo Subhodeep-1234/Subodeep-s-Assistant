@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'deptTransfersDetail', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -289,7 +289,6 @@ function loadView(view, forceRefresh) {
   if (view === 'quality') return loadQualityView();
   if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'locationFull') return loadLocationFullView();
-  if (view === 'deptTransfersDetail') return loadDeptTransfersDetail();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'profile') return loadProfile();
@@ -936,48 +935,80 @@ async function loadMovementView() {
   }
 }
 
-async function renderMovementBreakdown() {
-  document.getElementById('movementBreakdownGrid').innerHTML =
-    kpiCard({ key: 'transfers', label: 'Inter-Department Transfers', value: null, tone: 'move-blue', icon: 'transfer', clickable: false }) +
-    kpiCard({ key: 'promotions', label: 'Promotions', value: null, tone: 'move-green', icon: 'star', clickable: false }) +
-    kpiCard({ key: 'exit', label: 'Company Transfers', value: null, tone: 'move-red', icon: 'transfer', clickable: false }) +
-    kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'move-purple', icon: 'location', clickable: false });
-
-  // Inter-Department Transfers is the one real metric here, backed by a
-  // daily snapshot log (src/movementTracker.js) kept in its own separate
-  // spreadsheet - Google's own revision history for the HR sheet only goes
-  // back ~8 days, so this starts at 0 from whenever the tracker first ran
-  // rather than showing any backdated count. Promotions/Exit/Location
-  // Transfers stay honest N/A tiles since there's no data source for them.
-  try {
-    const data = await fetchJson('/api/workforce/dept-transfers?days=365');
-    const card = document.querySelector('#movementBreakdownGrid [data-kpi="transfers"]');
-    if (card) {
-      card.outerHTML = kpiCard({
-        key: 'transfers', label: 'Inter-Department Transfers', value: data.total, tone: 'move-blue', icon: 'transfer',
-        clickable: data.total > 0,
-        title: data.total > 0 ? 'View who transferred' : ''
-      });
-    }
-  } catch (err) {
-    // Leave the N/A tile in place - a tracker fetch hiccup shouldn't break the rest of the page.
+// One entry per Employee Movements card - each is backed by movementTracker's
+// own daily-snapshot + instant-webhook log (a separate spreadsheet, isolated
+// from Employee_Master) watching one HR-sheet column. Editing that column
+// directly drives that card's count, same mechanism for all four.
+const MOVEMENT_TYPES = {
+  department: {
+    kpiKey: 'transfers', label: 'Inter-Department Transfers', tone: 'move-blue', icon: 'transfer',
+    endpoint: '/api/workforce/dept-transfers', fromKey: 'fromDept', toKey: 'toDept',
+    noun: 'transfer', clickTitle: 'View who transferred', emptyText: 'No inter-department transfers in the last 12 months'
+  },
+  designation: {
+    kpiKey: 'promotions', label: 'Promotions', tone: 'move-green', icon: 'star',
+    endpoint: '/api/workforce/promotions', fromKey: 'fromDesignation', toKey: 'toDesignation',
+    noun: 'change', clickTitle: 'View who changed designation', emptyText: 'No designation changes in the last 12 months'
+  },
+  company: {
+    kpiKey: 'exit', label: 'Company Transfers', tone: 'move-red', icon: 'transfer',
+    endpoint: '/api/workforce/company-transfers', fromKey: 'fromCompany', toKey: 'toCompany',
+    noun: 'transfer', clickTitle: 'View who transferred companies', emptyText: 'No company transfers in the last 12 months'
+  },
+  location: {
+    kpiKey: 'locationTransfers', label: 'Location Transfers', tone: 'move-purple', icon: 'location',
+    endpoint: '/api/workforce/location-transfers', fromKey: 'fromLocation', toKey: 'toLocation',
+    noun: 'transfer', clickTitle: 'View who relocated', emptyText: 'No location transfers in the last 12 months'
   }
+};
+
+async function renderMovementBreakdown() {
+  document.getElementById('movementBreakdownGrid').innerHTML = Object.entries(MOVEMENT_TYPES)
+    .map(([type, m]) => kpiCard({ key: m.kpiKey, label: m.label, value: null, tone: m.tone, icon: m.icon, clickable: false, data: { movementType: type } }))
+    .join('');
+
+  await Promise.all(Object.entries(MOVEMENT_TYPES).map(async ([type, m]) => {
+    try {
+      const data = await fetchJson(m.endpoint + '?days=365');
+      const card = document.querySelector('#movementBreakdownGrid [data-kpi="' + m.kpiKey + '"]');
+      if (card) {
+        card.outerHTML = kpiCard({
+          key: m.kpiKey, label: m.label, value: data.total, tone: m.tone, icon: m.icon,
+          clickable: data.total > 0,
+          title: data.total > 0 ? m.clickTitle : '',
+          data: { movementType: type }
+        });
+      }
+    } catch (err) {
+      // Leave that one N/A tile in place - a tracker fetch hiccup for one column shouldn't affect the other three.
+    }
+  }));
 }
 
 document.getElementById('movementBreakdownGrid').addEventListener('click', (e) => {
-  const card = e.target.closest('[data-kpi="transfers"]');
+  const card = e.target.closest('[data-movement-type]');
   if (!card || card.disabled) return;
-  setView('deptTransfersDetail');
+  openMovementDetail(card.dataset.movementType);
 });
 
-async function loadDeptTransfersDetail() {
-  const listEl = document.getElementById('deptTransfersList');
+let movementDetailType = 'department';
+
+function openMovementDetail(type) {
+  movementDetailType = type;
+  setView('movementDetail');
+  loadMovementDetail();
+}
+
+async function loadMovementDetail() {
+  const meta = MOVEMENT_TYPES[movementDetailType];
+  document.getElementById('movementDetailTitle').textContent = meta.label;
+  const listEl = document.getElementById('movementDetailList');
   listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
   try {
-    const data = await fetchJson('/api/workforce/dept-transfers?days=365');
+    const data = await fetchJson(meta.endpoint + '?days=365');
     const items = data.items.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-    document.getElementById('deptTransfersCount').textContent =
-      data.total + ' transfer' + (data.total === 1 ? '' : 's') + ' in the last 12 months';
+    document.getElementById('movementDetailCount').textContent =
+      data.total + ' ' + meta.noun + (data.total === 1 ? '' : 's') + ' in the last 12 months';
     listEl.innerHTML = items.length
       ? items.map((it) => {
           const badge = joinDateBadge(it.date);
@@ -989,15 +1020,15 @@ async function loadDeptTransfersDetail() {
               '<span class="wf-join-main">' +
                 '<span class="wf-join-name">' + escapeHtml(it.name) + '</span>' +
                 '<span class="wf-join-sub wf-transfer-route">' +
-                  escapeHtml(it.fromDept) +
+                  escapeHtml(it[meta.fromKey]) +
                   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
-                  escapeHtml(it.toDept) +
+                  escapeHtml(it[meta.toKey]) +
                 '</span>' +
               '</span>' +
             '</li>'
           );
         }).join('')
-      : '<li class="empty">No inter-department transfers in the last 12 months</li>';
+      : '<li class="empty">' + meta.emptyText + '</li>';
   } catch (err) {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }

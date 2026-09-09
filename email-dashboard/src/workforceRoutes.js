@@ -250,14 +250,44 @@ router.get('/gender', async (req, res) => {
   }
 });
 
-// Real transfer count from movementTracker's own daily-snapshot log (a
-// separate spreadsheet, isolated from Employee_Master) - starts at 0 from
-// whenever the daily snapshot cron first ran, since no backdated history
-// exists to reconstruct.
+// Real change counts from movementTracker's own daily-snapshot logs (a
+// separate spreadsheet, isolated from Employee_Master) - each starts at 0
+// from whenever its tracker first ran, since no backdated history exists
+// to reconstruct.
 router.get('/dept-transfers', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
     const data = await movementTracker.getTransfersInLastDays(days);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/promotions', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const data = await movementTracker.getPromotionsInLastDays(days);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/company-transfers', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const data = await movementTracker.getCompanyTransfersInLastDays(days);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/location-transfers', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const data = await movementTracker.getLocationTransfersInLastDays(days);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

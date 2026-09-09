@@ -337,23 +337,26 @@
         <div class="kpi-grid" id="movementBreakdownGrid">
           <div class="loading"><div class="spinner"></div></div>
         </div>
-        <p class="wf-note">Inter-Department Transfers is tracked live from Department changes in the HR sheet.
-          Promotions, Company Transfers, and Location Transfers need historical change-dated records the sheet
-          doesn't hold yet, so they can't be calculated.</p>
+        <p class="wf-note">All four are tracked live from changes to the Designation, Department, Company, and
+          Location columns in the HR sheet. Each metric starts counting from when its tracker began recording -
+          changes made before that aren't included. Promotions counts any Designation change, since the sheet
+          has no seniority/grade column to tell a promotion apart from a lateral move or demotion.</p>
       </div>
     </section>
 
-    <!-- Inter-Department Transfers detail -->
-    <section id="deptTransfersDetailView" class="wf-view" hidden>
+    <!-- Employee Movements detail - shared by Inter-Department Transfers,
+         Promotions, Company Transfers, and Location Transfers; which one is
+         showing is decided in JS (movementDetailType) before this opens. -->
+    <section id="movementDetailView" class="wf-view" hidden>
       <div class="wf-page-head">
         <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
-        <h2>Inter-Department Transfers</h2>
+        <h2 id="movementDetailTitle">Inter-Department Transfers</h2>
       </div>
       <div class="wf-panel">
-        <p class="wf-note" id="deptTransfersCount" style="margin-top:0; margin-bottom:10px;"></p>
-        <ul class="wf-join-list" id="deptTransfersList">
+        <p class="wf-note" id="movementDetailCount" style="margin-top:0; margin-bottom:10px;"></p>
+        <ul class="wf-join-list" id="movementDetailList">
           <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
         </ul>
       </div>
@@ -532,6 +535,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=85"></script>
+  <script src="workforce.js?v=86"></script>
 </body>
 </html>
