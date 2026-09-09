@@ -640,6 +640,8 @@ const DOER_DISPLAY_ORDER = [
   'saurabh baid', 'aakriti shroff', 'r & d', 'association', 'common'
 ];
 
+let lastDoerRows = [];
+
 async function loadDoerManagementView() {
   const listEl = document.getElementById('doerManagementBarList');
   listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
@@ -657,6 +659,7 @@ async function loadDoerManagementView() {
       if (bi === -1) return -1;
       return ai - bi;
     });
+    lastDoerRows = rows;
     const total = rows.reduce((sum, r) => sum + r.count, 0);
     listEl.innerHTML = rows.length
       ? rows.map((r) => barListItem('user', r.name, r.count, max, overview.active, 'reportingDoer')).join('') +
@@ -671,6 +674,30 @@ async function loadDoerManagementView() {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }
 }
+
+document.getElementById('exportDoerManagementPdf').addEventListener('click', () => {
+  const total = lastDoerRows.reduce((sum, r) => sum + r.count, 0) || 1;
+  document.getElementById('printReportTitle').textContent = 'Reporting DOER Wise Headcount Report';
+  document.getElementById('printReportSubtitle').textContent =
+    'Active · ' + lastDoerRows.length + ' DOER' + (lastDoerRows.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Reporting Doer</th><th>Employees</th><th>% of Total</th>';
+  document.getElementById('printReportBody').innerHTML = lastDoerRows.length
+    ? lastDoerRows
+        .map((r) => (
+          '<tr>' +
+            '<td>' + escapeHtml(r.name) + '</td>' +
+            '<td>' + r.count + '</td>' +
+            '<td>' + (Math.round((r.count / total) * 1000) / 10) + '%</td>' +
+          '</tr>'
+        ))
+        .join('') +
+      '<tr><td><b>Total</b></td><td><b>' + total + '</b></td><td><b>100%</b></td></tr>'
+    : '<tr><td colspan="3">No Reporting DOER data</td></tr>';
+  window.print();
+});
 
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));
