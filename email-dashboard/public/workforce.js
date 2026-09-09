@@ -643,14 +643,13 @@ const DOER_DISPLAY_ORDER = [
 let lastDoerRows = [];
 
 async function loadDoerManagementView() {
-  const listEl = document.getElementById('doerManagementBarList');
-  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  const rowsEl = document.getElementById('doerRows');
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const [overview, breakdowns] = await Promise.all([
       fetchJson('/api/workforce/overview'),
       fetchJson('/api/workforce/breakdowns?status=ACTIVE')
     ]);
-    const max = breakdowns.doers.length ? Math.max(...breakdowns.doers.map((r) => r.count)) : 1;
     const rows = breakdowns.doers.slice().sort((a, b) => {
       const ai = DOER_DISPLAY_ORDER.indexOf(a.name.toLowerCase().trim());
       const bi = DOER_DISPLAY_ORDER.indexOf(b.name.toLowerCase().trim());
@@ -660,20 +659,73 @@ async function loadDoerManagementView() {
       return ai - bi;
     });
     lastDoerRows = rows;
-    const total = rows.reduce((sum, r) => sum + r.count, 0);
-    listEl.innerHTML = rows.length
-      ? rows.map((r) => barListItem('user', r.name, r.count, max, overview.active, 'reportingDoer')).join('') +
-        '<li class="wf-bar-total-row">' +
-          '<span class="wf-bar-icon">' + icon('total', 18) + '</span>' +
-          '<span class="wf-bar-main"><span class="wf-bar-name">Total</span></span>' +
-          '<span class="wf-bar-count">' + total + '</span>' +
-          '<span class="wf-bar-pct">100%</span>' +
-        '</li>'
-      : '<li class="empty">No Reporting DOER data</li>';
+    // A dedicated hue-per-row palette (same generator as the Location "View
+    // all" list) rather than the 8-color distributionPalette used by Age/
+    // Gender/Tenure - those are fixed small bucket sets, but DOER count can
+    // exceed 8 and grow over time, which would otherwise force color reuse.
+    const palette = generateCategoricalPalette(rows.length);
+    const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
+    document.getElementById('doerDonutTotal').textContent = total.toLocaleString();
+
+    rowsEl.innerHTML = rows.length
+      ? '<div class="wf-dist-row wf-dist-header">' +
+          '<span class="wf-dist-label-col">Reporting DOER</span>' +
+          '<span class="wf-dist-num-col">Employees</span>' +
+          '<span class="wf-dist-num-col">% of Total</span>' +
+        '</div>' +
+        rows.map((r, i) => (
+          '<div class="wf-dist-row clickable" tabindex="0" role="button" data-reporting-doer="' + escapeHtml(r.name) + '">' +
+            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i] + '"></span>' + escapeHtml(r.name) + '</span>' +
+            '<span class="wf-dist-num-col">' + r.count + '</span>' +
+            '<span class="wf-dist-num-col">' + (Math.round((r.count / total) * 1000) / 10) + '%</span>' +
+          '</div>'
+        )).join('') +
+        '<div class="wf-dist-row wf-dist-total-row">' +
+          '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+          '<span class="wf-dist-num-col">' + total + '</span>' +
+          '<span class="wf-dist-num-col">100%</span>' +
+        '</div>'
+      : '<div class="empty">No Reporting DOER data</div>';
+
+    const missing = overview.active - total;
+    document.getElementById('doerNote').textContent =
+      missing > 0
+        ? total + ' of ' + overview.active + ' Active employees shown — ' + missing +
+          (missing === 1 ? ' is' : ' are') + ' missing a Reporting DOER.'
+        : '';
+
+    renderDoerDonut(rows, palette);
   } catch (err) {
-    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
+
+function renderDoerDonut(rows, palette) {
+  destroyChart('doerDonut');
+  const ctx = document.getElementById('doerDonut');
+  charts.doerDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: rows.map((r) => r.name),
+      datasets: [{ data: rows.map((r) => r.count), backgroundColor: palette, borderWidth: 2, borderColor: chartColors().surface }]
+    },
+    options: { cutout: '62%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+  });
+}
+
+const doerRowsEl = document.getElementById('doerRows');
+doerRowsEl.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-reporting-doer]');
+  if (!row) return;
+  applyFiltersAndShowDirectory({ status: 'ACTIVE', reportingDoer: row.dataset.reportingDoer });
+});
+doerRowsEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-reporting-doer]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
 
 document.getElementById('exportDoerManagementPdf').addEventListener('click', () => {
   const total = lastDoerRows.reduce((sum, r) => sum + r.count, 0) || 1;
@@ -746,7 +798,6 @@ function wireBarListClicks(id, filterKey) {
 wireBarListClicks('deptBarList', 'department');
 wireBarListClicks('departmentFullBarList', 'department');
 wireBarListClicks('locationFullBarList', 'location');
-wireBarListClicks('doerManagementBarList', 'reportingDoer');
 
 function hslToHex(h, s, l) {
   s /= 100;

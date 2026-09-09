@@ -476,9 +476,19 @@
           <h3>Reporting DOER Wise Headcount (Active)</h3>
           <button class="wf-link-btn" id="exportDoerManagementPdf" type="button">⬇ Export PDF</button>
         </div>
-        <ul class="wf-bar-list" id="doerManagementBarList">
-          <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
-        </ul>
+        <div class="wf-dist-table" id="doerRows">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <p class="wf-note" id="doerNote"></p>
+      </div>
+      <div class="wf-panel" style="display:flex; justify-content:center;">
+        <div class="wf-canvas-wrap wf-canvas-wrap--donut wf-canvas-wrap--donut-lg" style="width:220px; height:220px;">
+          <canvas id="doerDonut"></canvas>
+          <div class="wf-donut-center">
+            <b id="doerDonutTotal">—</b>
+            <span>Total</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -553,6 +563,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=91"></script>
+  <script src="workforce.js?v=92"></script>
 </body>
 </html>
