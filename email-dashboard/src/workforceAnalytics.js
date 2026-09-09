@@ -168,7 +168,7 @@ const AGE_BUCKETS = [
   { key: '36to40', label: '36 - 40 years', maxAge: 40 },
   { key: '41to50', label: '41 - 50 years', maxAge: 50 },
   { key: '51to58', label: '51 - 58 years', maxAge: 58 },
-  { key: 'gt58', label: '58+ years', maxAge: Infinity }
+  { key: 'gt58', label: '>=58 years', maxAge: Infinity }
 ];
 
 function calcAge(dob, now) {
