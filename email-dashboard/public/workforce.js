@@ -763,6 +763,9 @@ function renderJoiningLine(canvasId, buckets, onPointClick) {
         pointBorderWidth: 1.5,
         pointRadius: 4,
         pointHoverRadius: 6,
+        // A much bigger invisible tap target than the 4px visible dot -
+        // Chart.js's default hit area is tiny and hard to land a finger on.
+        pointHitRadius: onPointClick ? 16 : 1,
         borderWidth: 2,
         fill: true,
         tension: 0.35
@@ -771,6 +774,11 @@ function renderJoiningLine(canvasId, buckets, onPointClick) {
     options: {
       layout: { padding: { top: 22 } },
       plugins: { legend: { display: false }, tooltip: { enabled: true } },
+      // 'index' + intersect:false means a tap anywhere along that month's
+      // vertical column registers, not just a pixel-precise hit on the
+      // point itself - the default ('nearest' + intersect:true) is what
+      // made this feel unclickable on a phone.
+      interaction: onPointClick ? { mode: 'index', intersect: false } : undefined,
       scales: {
         x: { grid: { display: false }, ticks: { color: c.muted, font: { size: 10 } } },
         y: { beginAtZero: true, grid: { color: c.line }, ticks: { color: c.muted, font: { size: 10 } } }
