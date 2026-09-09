@@ -1033,25 +1033,41 @@ function renderMovementTab(tab) {
     applyFiltersAndShowDirectory({ dateFrom: bucket.dateFrom, dateTo: bucket.dateTo }, 'workforceMovement');
   });
 
-  // The 4 stat cards always summarize the trailing 12 months specifically,
-  // regardless of which trend tab is showing - that's the one comparison
-  // ("vs previous 12 months") that stays meaningful no matter the chart's
-  // current granularity.
-  const previous12 = movementTrendBuckets.slice(-24, -12);
+  // Avg/Highest/Lowest still summarize the trailing 12 real months,
+  // regardless of which trend tab is showing. Total Joins is a separate,
+  // FY-scoped comparison instead: current FY-to-date as the headline
+  // number, against the full previous FY as the baseline - a trailing-
+  // 12-vs-previous-12 split doesn't line up with how the business actually
+  // reviews joining numbers (financial year over financial year).
+  const currentFYStart = fyStartYearOf(new Date());
+  const previousFYStart = currentFYStart - 1;
+  const currentFYMonths = movementTrendBuckets
+    .filter((b) => {
+      const [year, month] = b.key.split('-').map(Number);
+      return fyPeriod(year, month).fyStartYear === currentFYStart;
+    })
+    .map((b) => ({ ...b, ...monthKeyToRange(b.key) }));
+  const previousFYMonths = movementTrendBuckets.filter((b) => {
+    const [year, month] = b.key.split('-').map(Number);
+    return fyPeriod(year, month).fyStartYear === previousFYStart;
+  });
+  const currentFYTotal = currentFYMonths.reduce((sum, b) => sum + b.count, 0);
+  const previousFYTotal = previousFYMonths.reduce((sum, b) => sum + b.count, 0);
+  const fyPctChange = previousFYTotal > 0 ? Math.round(((currentFYTotal - previousFYTotal) / previousFYTotal) * 1000) / 10 : null;
+  const previousFYLabel = 'FY ' + previousFYStart + '-' + String(previousFYStart + 1).slice(-2);
+
   const currentTotal = monthly.reduce((sum, b) => sum + b.count, 0);
-  const previousTotal = previous12.reduce((sum, b) => sum + b.count, 0);
-  const pctChange = previousTotal > 0 ? Math.round(((currentTotal - previousTotal) / previousTotal) * 1000) / 10 : null;
   const avgPerMonth = monthly.length ? Math.round((currentTotal / monthly.length) * 10) / 10 : 0;
   const highest = monthly.reduce((best, b) => (!best || b.count > best.count ? b : best), null) || { count: 0, label: '—' };
   const lowest = monthly.reduce((worst, b) => (!worst || b.count < worst.count ? b : worst), null) || { count: 0, label: '—' };
 
   document.getElementById('movementStatsGrid').innerHTML =
     kpiCard({
-      key: 'totalJoins', label: 'Total Joins', value: currentTotal, tone: 'move-blue', icon: 'total',
-      clickable: currentTotal > 0,
-      data: monthly.length ? { dateFrom: monthly[0].dateFrom, dateTo: monthly[monthly.length - 1].dateTo } : null,
-      delta: pctChange === null ? null : { direction: pctChange >= 0 ? 'up' : 'down', text: Math.abs(pctChange) + '%' },
-      deltaSub: pctChange === null ? null : 'vs previous 12 months'
+      key: 'totalJoins', label: 'Total Joins', value: currentFYTotal, tone: 'move-blue', icon: 'total',
+      clickable: currentFYTotal > 0,
+      data: currentFYMonths.length ? { dateFrom: currentFYMonths[0].dateFrom, dateTo: currentFYMonths[currentFYMonths.length - 1].dateTo } : null,
+      delta: fyPctChange === null ? null : { direction: fyPctChange >= 0 ? 'up' : 'down', text: Math.abs(fyPctChange) + '%' },
+      deltaSub: fyPctChange === null ? null : 'Previous ' + previousFYLabel + ': ' + previousFYTotal
     }) +
     kpiCard({ key: 'avgPerMonth', label: 'Avg. Per Month', value: avgPerMonth, tone: 'move-purple', icon: 'calendar', clickable: false, deltaSub: 'per month' }) +
     kpiCard({
