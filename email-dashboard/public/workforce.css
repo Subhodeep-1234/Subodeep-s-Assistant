@@ -711,36 +711,12 @@ body {
 
 /* ---------- Insights ---------- */
 
-.wf-insights-panel {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.wf-insights-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--warning-bg);
-  color: var(--warning);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.wf-insights-body { flex: 1; min-width: 220px; }
-.wf-insights-body h3 { margin: 0 0 8px; font-size: 0.95rem; font-weight: 700; color: var(--ink); }
-
-.wf-insights-body ul,
 .wf-insights-full {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.wf-insights-body li,
 .wf-insights-full li {
   position: relative;
   padding-left: 16px;
@@ -748,7 +724,6 @@ body {
   color: var(--ink);
   line-height: 1.6;
 }
-.wf-insights-body li::before,
 .wf-insights-full li::before {
   content: "•";
   position: absolute;
@@ -758,8 +733,6 @@ body {
 }
 .wf-insights-full li { padding: 6px 0 6px 16px; border-bottom: 1px solid var(--line); }
 .wf-insights-full li:last-child { border-bottom: none; }
-
-.wf-insights-panel > .wf-link-btn { align-self: center; }
 
 /* ---------- Filter bar (Employee Data) ---------- */
 

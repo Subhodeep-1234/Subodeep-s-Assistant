@@ -351,11 +351,10 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
 async function loadOverview(forceRefresh) {
   kpiGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const [overview, activeBreakdowns, trend, insights] = await Promise.all([
+    const [overview, activeBreakdowns, trend] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
       fetchJson('/api/workforce/breakdowns?status=ACTIVE'),
-      fetchJson('/api/workforce/joining-trend?months=12'),
-      fetchJson('/api/workforce/insights')
+      fetchJson('/api/workforce/joining-trend?months=12')
     ]);
 
     kpiGrid.innerHTML =
@@ -378,7 +377,6 @@ async function loadOverview(forceRefresh) {
       const range = monthKeyToRange(bucket.key);
       applyFiltersAndShowDirectory({ dateFrom: range.dateFrom, dateTo: range.dateTo }, 'workforceMovement');
     });
-    renderInsightsPreview(insights.insights);
   } catch (err) {
     kpiGrid.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
@@ -1257,13 +1255,6 @@ document.getElementById('movementTrendTabs').addEventListener('click', (e) => {
   if (!btn || btn.dataset.mtab === movementActiveTab) return;
   renderMovementTab(btn.dataset.mtab);
 });
-
-function renderInsightsPreview(insights) {
-  const el = document.getElementById('insightsPreview');
-  el.innerHTML = insights.length
-    ? insights.slice(0, 4).map((i) => '<li>' + escapeHtml(i.text) + '</li>').join('')
-    : '<li class="empty">No insights yet</li>';
-}
 
 // ---------- Employee Data ----------
 
