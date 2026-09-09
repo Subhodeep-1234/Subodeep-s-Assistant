@@ -783,30 +783,39 @@ function renderJoiningLine(canvasId, buckets) {
 let movementTrendBuckets = null;
 let movementActiveTab = 'monthly';
 
+// Indian financial year: April-March. A calendar (year, 1-12 month) pair
+// maps to whichever FY it actually falls in - Jan/Feb/Mar belong to the FY
+// that started the *previous* calendar year.
+function fyPeriod(year, month) {
+  if (month >= 4) return { fyStartYear: year, q: Math.floor((month - 4) / 3) + 1 };
+  return { fyStartYear: year - 1, q: 4 };
+}
+
 function aggregateQuarterly(buckets) {
   const byQuarter = new Map();
   buckets.forEach((b) => {
     const [year, month] = b.key.split('-').map(Number);
-    const q = Math.floor((month - 1) / 3) + 1;
-    const qKey = year + '-Q' + q;
-    const entry = byQuarter.get(qKey) || { year, q, count: 0 };
+    const { fyStartYear, q } = fyPeriod(year, month);
+    const qKey = fyStartYear + '-Q' + q;
+    const entry = byQuarter.get(qKey) || { fyStartYear, q, count: 0 };
     entry.count += b.count;
     byQuarter.set(qKey, entry);
   });
   return Array.from(byQuarter.values())
-    .sort((a, b) => a.year - b.year || a.q - b.q)
-    .map((e) => ({ label: 'Q' + e.q + " '" + String(e.year).slice(-2), count: e.count }));
+    .sort((a, b) => a.fyStartYear - b.fyStartYear || a.q - b.q)
+    .map((e) => ({ label: 'Q' + e.q + ' FY' + String(e.fyStartYear).slice(-2), count: e.count }));
 }
 
 function aggregateYearly(buckets) {
-  const byYear = new Map();
+  const byFY = new Map();
   buckets.forEach((b) => {
-    const year = b.key.split('-')[0];
-    byYear.set(year, (byYear.get(year) || 0) + b.count);
+    const [year, month] = b.key.split('-').map(Number);
+    const { fyStartYear } = fyPeriod(year, month);
+    byFY.set(fyStartYear, (byFY.get(fyStartYear) || 0) + b.count);
   });
-  return Array.from(byYear.entries())
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([year, count]) => ({ label: year, count }));
+  return Array.from(byFY.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([fyStartYear, count]) => ({ label: 'FY ' + fyStartYear + '-' + String(fyStartYear + 1).slice(-2), count }));
 }
 
 async function loadMovementView() {
