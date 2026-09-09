@@ -269,6 +269,7 @@ function setView(view) {
     // export should use the default column layout. applyFiltersAndShowDirectory
     // overrides this right after calling setView() when it has its own variant.
     directoryReportVariant = 'default';
+    syncDoerBreakupButton();
   }
   // All views live in the same scrolling document (sections are toggled via
   // [hidden], not real navigation), so the old scroll position otherwise
@@ -473,9 +474,16 @@ employmentTypeStatsEl.addEventListener('keydown', (e) => {
 
 // Which Employee Data PDF column layout to use - 'default' everywhere
 // except when reached via a Workforce Movement chart/stat-card click,
-// which swaps Age out for Status. Reset on every navigation so it never
-// leaks into an unrelated export (e.g. clicking Department right after).
+// which swaps Age out for Status, or a Doer Management row click, which
+// unlocks the extra "Export DOER Breakup" report below. Reset on every
+// navigation so it never leaks into an unrelated export (e.g. clicking
+// Department right after).
 let directoryReportVariant = 'default';
+
+function syncDoerBreakupButton() {
+  const btn = document.getElementById('exportDoerBreakupPdf');
+  if (btn) btn.hidden = directoryReportVariant !== 'doerManagement';
+}
 
 function applyFiltersAndShowDirectory(filters, reportVariant) {
   activeFilters = filters;
@@ -492,6 +500,7 @@ function applyFiltersAndShowDirectory(filters, reportVariant) {
   const alreadyLoaded = loadedViews.has('directory');
   setView('directory'); // resets directoryReportVariant to 'default' - set it after, not before
   directoryReportVariant = reportVariant || 'default';
+  syncDoerBreakupButton();
   if (alreadyLoaded) loadEmployees();
 }
 
@@ -717,7 +726,7 @@ const doerRowsEl = document.getElementById('doerRows');
 doerRowsEl.addEventListener('click', (e) => {
   const row = e.target.closest('[data-reporting-doer]');
   if (!row) return;
-  applyFiltersAndShowDirectory({ status: 'ACTIVE', reportingDoer: row.dataset.reportingDoer });
+  applyFiltersAndShowDirectory({ status: 'ACTIVE', reportingDoer: row.dataset.reportingDoer }, 'doerManagement');
 });
 doerRowsEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -1539,6 +1548,87 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
         })
         .join('')
     : '<tr><td colspan="9">No employees match these filters</td></tr>';
+  window.print();
+});
+
+function collarSlug(collar) {
+  const c = String(collar || '').toLowerCase();
+  if (c === 'white') return 'white';
+  if (c === 'blue') return 'blue';
+  if (c === 'group-d') return 'groupd';
+  return 'other';
+}
+
+// Only available when Employee Data was reached via a Doer Management row
+// click (see doerRowsEl's applyFiltersAndShowDirectory call, 'doerManagement'
+// variant) - a second, differently structured report on top of the regular
+// Export PDF: the DOER's own name as the report heading, then a Department
+// > Collar breakdown of their team instead of one flat list, each
+// department carrying its own most-common HOD as a sub-label.
+document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => {
+  const byDept = new Map();
+  lastEmployeeList.forEach((e) => {
+    const dept = e.department || 'Unspecified Department';
+    if (!byDept.has(dept)) byDept.set(dept, []);
+    byDept.get(dept).push(e);
+  });
+  const deptNames = Array.from(byDept.keys()).sort((a, b) => a.localeCompare(b));
+
+  const doerName = titleCase(activeFilters.reportingDoer || '') || 'Reporting DOER Report';
+  document.getElementById('printReportTitle').textContent = doerName;
+  document.getElementById('printReportSubtitle').textContent =
+    'Reporting DOER · ' + lastEmployeeList.length + ' employee' + (lastEmployeeList.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Age</th><th>Gender</th><th>Location</th><th>DOJ</th>';
+
+  let bodyHtml = '';
+  deptNames.forEach((deptName) => {
+    const emps = byDept.get(deptName);
+    // Same "most common HOD among the filtered list" technique as the
+    // single-department export above, computed per department here since
+    // a DOER's team can span many departments, each with its own HOD.
+    const managerCounts = {};
+    emps.forEach((e) => { if (e.reportingManager) managerCounts[e.reportingManager] = (managerCounts[e.reportingManager] || 0) + 1; });
+    let hodName = null;
+    let hodCount = 0;
+    Object.entries(managerCounts).forEach(([name, count]) => {
+      if (count > hodCount) { hodName = name; hodCount = count; }
+    });
+    const deptHeading = deptName + (hodName ? ' — HOD: ' + hodName : '');
+    bodyHtml += '<tr class="print-section-row"><td colspan="7">' + escapeHtml(deptHeading) + '</td></tr>';
+
+    const sortedEmps = emps.slice().sort((a, b) => {
+      const collarDiff = collarRank(a.groupD) - collarRank(b.groupD);
+      if (collarDiff !== 0) return collarDiff;
+      const rankDiff = designationRank(a.designation) - designationRank(b.designation);
+      if (rankDiff !== 0) return rankDiff;
+      const desigDiff = (a.designation || '').localeCompare(b.designation || '');
+      if (desigDiff !== 0) return desigDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    let lastCollar = null;
+    sortedEmps.forEach((e) => {
+      const collarHeading = e.groupD || 'Unspecified Collar';
+      if (collarHeading !== lastCollar) {
+        bodyHtml += '<tr class="print-subsection-row print-subsection-' + collarSlug(e.groupD) + '"><td colspan="7">' + escapeHtml(collarHeading) + '</td></tr>';
+        lastCollar = collarHeading;
+      }
+      bodyHtml +=
+        '<tr>' +
+          '<td>' + escapeHtml(e.employeeId) + '</td>' +
+          '<td>' + escapeHtml(e.name) + '</td>' +
+          '<td>' + escapeHtml(e.designation || '—') + '</td>' +
+          '<td>' + formatAgeYearsMonths(e.dob) + '</td>' +
+          '<td>' + escapeHtml(e.gender || '—') + '</td>' +
+          '<td>' + escapeHtml(e.location || '—') + '</td>' +
+          '<td>' + formatDate(e.doj) + '</td>' +
+        '</tr>';
+    });
+  });
+  document.getElementById('printReportBody').innerHTML = bodyHtml || '<tr><td colspan="7">No employees match these filters</td></tr>';
   window.print();
 });
 

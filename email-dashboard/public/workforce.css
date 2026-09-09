@@ -1232,4 +1232,21 @@ body {
     padding: 6px 9px;
   }
   #printReport thead { display: table-header-group; }
+
+  /* Doer Breakup report only: a second, lighter heading level nested under
+     each print-section-row (Department + HOD) - one per Collar group within
+     that department, tinted per collar type so the two heading levels stay
+     visually distinct at a glance. */
+  #printReport tbody tr.print-subsection-row { break-after: avoid; }
+  #printReport tbody tr.print-subsection-row td {
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 5px 9px;
+  }
+  #printReport tbody tr.print-subsection-white td { background: #dce9f7; color: #1d4e8f; }
+  #printReport tbody tr.print-subsection-blue td { background: #d8eef0; color: #1d5c63; }
+  #printReport tbody tr.print-subsection-groupd td { background: #ece0f3; color: #6b3a8f; }
+  #printReport tbody tr.print-subsection-other td { background: #eef0ed; color: #4a4a4a; }
 }

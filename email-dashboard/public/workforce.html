@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=46" />
+  <link rel="stylesheet" href="workforce.css?v=47" />
 </head>
 <body>
   <div class="wf-shell">
@@ -206,9 +206,12 @@
           <button class="wf-clear-btn" id="clearFilters">Clear filters</button>
         </div>
 
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
           <div class="wf-result-summary" id="resultSummary"></div>
-          <button class="wf-link-btn" id="exportEmployeesPdf" type="button">⬇ Export PDF</button>
+          <span style="display:flex; gap:14px;">
+            <button class="wf-link-btn" id="exportDoerBreakupPdf" type="button" hidden>⬇ Export DOER Breakup</button>
+            <button class="wf-link-btn" id="exportEmployeesPdf" type="button">⬇ Export PDF</button>
+          </span>
         </div>
 
         <ul class="wf-emp-list" id="employeeList"></ul>
@@ -563,6 +566,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=92"></script>
+  <script src="workforce.js?v=93"></script>
 </body>
 </html>
