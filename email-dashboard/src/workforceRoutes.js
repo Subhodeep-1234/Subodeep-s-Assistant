@@ -149,6 +149,7 @@ router.get('/employees', async (req, res) => {
       reportingManager: reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager,
       doj: e.doj ? e.doj.toISOString() : null,
       tenure: e.tenure,
+      totalExperience: e.totalExperience,
       dob: e.dob ? e.dob.toISOString() : null,
       uan: e.uan,
       esiNumber: e.esiNumber,

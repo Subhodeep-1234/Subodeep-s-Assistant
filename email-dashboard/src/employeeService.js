@@ -22,6 +22,7 @@ const COLS = {
                          // "Reporting Manager" heading per user request
   doj: 12,
   tenure: 14,            // sheet computes this itself, taken as-is
+  totalExperience: 15,   // Total Yrs. of Exp. - total career experience, distinct from Tenure (time at this company)
   dob: 16,
   uan: 21,
   esiNumber: 23,
@@ -89,6 +90,7 @@ function parseRow(row, index) {
     reportingManagerKey: normalizeKey(cleanValue(row[COLS.reportingManager])),
     doj: parseSheetDate(row[COLS.doj]),
     tenure: cleanValue(row[COLS.tenure]),
+    totalExperience: cleanValue(row[COLS.totalExperience]),
     dob: parseSheetDate(row[COLS.dob]),
     uan: cleanValue(row[COLS.uan]),
     esiNumber: cleanValue(row[COLS.esiNumber]),
