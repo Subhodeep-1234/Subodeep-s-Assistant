@@ -940,7 +940,7 @@ async function renderMovementBreakdown() {
   document.getElementById('movementBreakdownGrid').innerHTML =
     kpiCard({ key: 'transfers', label: 'Inter-Department Transfers', value: null, tone: 'move-blue', icon: 'transfer', clickable: false }) +
     kpiCard({ key: 'promotions', label: 'Promotions', value: null, tone: 'move-green', icon: 'star', clickable: false }) +
-    kpiCard({ key: 'exit', label: 'Exit', value: null, tone: 'move-red', icon: 'exitDoor', clickable: false }) +
+    kpiCard({ key: 'exit', label: 'Company Transfers', value: null, tone: 'move-red', icon: 'transfer', clickable: false }) +
     kpiCard({ key: 'locationTransfers', label: 'Location Transfers', value: null, tone: 'move-purple', icon: 'location', clickable: false });
 
   // Inter-Department Transfers is the one real metric here, backed by a

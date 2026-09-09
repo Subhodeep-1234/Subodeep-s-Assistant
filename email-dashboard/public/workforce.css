@@ -429,6 +429,12 @@ body {
 #movementView .kpi-card.tone-move-red { background: var(--move-red-bg); }
 #movementView .kpi-card.tone-move-red .kpi-icon { color: var(--move-red); }
 #movementView .kpi-card .kpi-icon { background: var(--surface); }
+/* Employee Movements' labels ("Inter-Department Transfers") are longer than
+   any other kpi-card in the app - the shared .kpi-label is nowrap, which
+   let long labels push the card past the screen edge instead of wrapping.
+   Scoped to just this grid so every other kpi-card's single-line labels
+   elsewhere stay exactly as they are. */
+#movementBreakdownGrid .kpi-label { white-space: normal; line-height: 1.25; }
 
 .wf-link-btn {
   background: none;
