@@ -1212,7 +1212,7 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
     (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
     sortedList.length + ' employee' + (sortedList.length === 1 ? '' : 's') + ' · ';
   document.getElementById('printReportHead').innerHTML =
-    '<th>Employee Code</th><th>Name</th><th>Age</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th>';
+    '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Age</th><th>Gender</th><th>Location</th><th>DOJ</th>';
   document.getElementById('printReportDate').textContent =
     new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   let lastGroupHeading = null;
@@ -1229,10 +1229,10 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
           '<tr>' +
             '<td>' + escapeHtml(e.employeeId) + '</td>' +
             '<td>' + escapeHtml(e.name) + '</td>' +
-            '<td>' + formatAgeYearsMonths(e.dob) + '</td>' +
             '<td>' + escapeHtml(e.designation || '—') + '</td>' +
             '<td>' + escapeHtml(e.department || '—') + '</td>' +
             '<td>' + escapeHtml(e.groupD || '—') + '</td>' +
+            '<td>' + formatAgeYearsMonths(e.dob) + '</td>' +
             '<td>' + escapeHtml(e.gender || '—') + '</td>' +
             '<td>' + escapeHtml(e.location || '—') + '</td>' +
             '<td>' + formatDate(e.doj) + '</td>' +
