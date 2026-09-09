@@ -307,7 +307,7 @@ async function loadProfile() {
 
 // ---------- Overview ----------
 
-function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, delta, deltaSub }) {
+function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, delta, deltaSub, data }) {
   const isNa = value === null || value === undefined;
   const displayValue = isNa ? 'N/A' : value;
   const deltaLine =
@@ -318,8 +318,16 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
         '</span>'
       : '') +
     (deltaSub ? (delta ? ' ' : '') + '<span class="kpi-delta-sub">' + escapeHtml(deltaSub) + '</span>' : '');
+  let dataAttrs = '';
+  if (data) {
+    Object.entries(data).forEach(([k, v]) => {
+      if (v === undefined || v === null) return;
+      const attrName = k.replace(/([A-Z])/g, '-$1').toLowerCase();
+      dataAttrs += ' data-' + attrName + '="' + escapeHtml(String(v)) + '"';
+    });
+  }
   return (
-    '<button class="kpi-card' + (tone ? ' tone-' + tone : '') + '" data-kpi="' + key + '"' +
+    '<button class="kpi-card' + (tone ? ' tone-' + tone : '') + '" data-kpi="' + key + '"' + dataAttrs +
       (clickable === false || isNa ? ' disabled' : '') +
       (title ? ' title="' + escapeHtml(title) + '"' : '') +
     '>' +
@@ -733,7 +741,7 @@ const joiningValueLabelsPlugin = {
   }
 };
 
-function renderJoiningLine(canvasId, buckets) {
+function renderJoiningLine(canvasId, buckets, onPointClick) {
   const c = chartColors();
   destroyChart(canvasId);
   const canvas = document.getElementById(canvasId);
@@ -766,7 +774,18 @@ function renderJoiningLine(canvasId, buckets) {
       scales: {
         x: { grid: { display: false }, ticks: { color: c.muted, font: { size: 10 } } },
         y: { beginAtZero: true, grid: { color: c.line }, ticks: { color: c.muted, font: { size: 10 } } }
-      }
+      },
+      onClick: onPointClick
+        ? (evt, elements) => {
+            if (!elements.length) return;
+            onPointClick(buckets[elements[0].index]);
+          }
+        : undefined,
+      onHover: onPointClick
+        ? (evt, elements) => {
+            evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+          }
+        : undefined
     },
     plugins: [joiningValueLabelsPlugin]
   });
@@ -791,19 +810,38 @@ function fyPeriod(year, month) {
   return { fyStartYear: year - 1, q: 4 };
 }
 
+// "YYYY-MM" (1-indexed month) -> the calendar-day range that bucket covers,
+// so a chart click / stat-card click can filter Employee Data to exactly
+// who joined in that period.
+function monthKeyToRange(key) {
+  const [year, month] = key.split('-').map(Number);
+  const from = new Date(Date.UTC(year, month - 1, 1));
+  const to = new Date(Date.UTC(year, month, 0)); // day 0 of next month = last day of this one
+  return { dateFrom: from.toISOString().slice(0, 10), dateTo: to.toISOString().slice(0, 10) };
+}
+
 function aggregateQuarterly(buckets) {
   const byQuarter = new Map();
   buckets.forEach((b) => {
     const [year, month] = b.key.split('-').map(Number);
     const { fyStartYear, q } = fyPeriod(year, month);
     const qKey = fyStartYear + '-Q' + q;
-    const entry = byQuarter.get(qKey) || { fyStartYear, q, count: 0 };
+    const entry = byQuarter.get(qKey) || { fyStartYear, q, count: 0, monthKeys: [] };
     entry.count += b.count;
+    entry.monthKeys.push(b.key);
     byQuarter.set(qKey, entry);
   });
   return Array.from(byQuarter.values())
     .sort((a, b) => a.fyStartYear - b.fyStartYear || a.q - b.q)
-    .map((e) => ({ label: 'Q' + e.q + ' FY' + String(e.fyStartYear).slice(-2), count: e.count }));
+    .map((e) => {
+      const sortedKeys = e.monthKeys.slice().sort();
+      return {
+        label: 'Q' + e.q + ' FY' + String(e.fyStartYear).slice(-2),
+        count: e.count,
+        dateFrom: monthKeyToRange(sortedKeys[0]).dateFrom,
+        dateTo: monthKeyToRange(sortedKeys[sortedKeys.length - 1]).dateTo
+      };
+    });
 }
 
 function aggregateYearly(buckets) {
@@ -811,11 +849,27 @@ function aggregateYearly(buckets) {
   buckets.forEach((b) => {
     const [year, month] = b.key.split('-').map(Number);
     const { fyStartYear } = fyPeriod(year, month);
-    byFY.set(fyStartYear, (byFY.get(fyStartYear) || 0) + b.count);
+    const entry = byFY.get(fyStartYear) || { fyStartYear, count: 0, monthKeys: [] };
+    entry.count += b.count;
+    entry.monthKeys.push(b.key);
+    byFY.set(fyStartYear, entry);
   });
-  return Array.from(byFY.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([fyStartYear, count]) => ({ label: 'FY ' + fyStartYear + '-' + String(fyStartYear + 1).slice(-2), count }));
+  // dateFrom/dateTo span only the months that actually landed in this FY
+  // bucket, not the full Apr-Mar calendar range - the trailing-12-months
+  // window usually only covers part of the oldest/newest FY it touches, so
+  // using the full FY range here would filter in employees the bar's own
+  // count never included (clicking "72" would silently show ~224).
+  return Array.from(byFY.values())
+    .sort((a, b) => a.fyStartYear - b.fyStartYear)
+    .map((e) => {
+      const sortedKeys = e.monthKeys.slice().sort();
+      return {
+        label: 'FY ' + e.fyStartYear + '-' + String(e.fyStartYear + 1).slice(-2),
+        count: e.count,
+        dateFrom: monthKeyToRange(sortedKeys[0]).dateFrom,
+        dateTo: monthKeyToRange(sortedKeys[sortedKeys.length - 1]).dateTo
+      };
+    });
 }
 
 async function loadMovementView() {
@@ -911,7 +965,7 @@ function renderMovementTab(tab) {
   // 24-month fetch. Quarterly/Yearly used to aggregate the full 24 months,
   // which pulled in a second year of history the chart was never meant to
   // show.
-  const monthly = movementTrendBuckets.slice(-12);
+  const monthly = movementTrendBuckets.slice(-12).map((b) => ({ ...b, ...monthKeyToRange(b.key) }));
   let buckets;
   let title;
   if (tab === 'quarterly') { buckets = aggregateQuarterly(monthly); title = 'Joining Trend (Quarterly)'; }
@@ -919,7 +973,13 @@ function renderMovementTab(tab) {
   else { buckets = monthly; title = 'Joining Trend (Monthly)'; }
 
   document.getElementById('movementTrendTitle').textContent = title;
-  renderJoiningLine('movementTrendChart', buckets);
+  // The chart counts everyone regardless of status (Active/Notice/
+  // Inactive), so clicking a point must not add a status filter - it would
+  // silently show fewer people than the chart's own count implies.
+  renderJoiningLine('movementTrendChart', buckets, (bucket) => {
+    if (!bucket || !bucket.dateFrom) return;
+    applyFiltersAndShowDirectory({ dateFrom: bucket.dateFrom, dateTo: bucket.dateTo });
+  });
 
   // The 4 stat cards always summarize the trailing 12 months specifically,
   // regardless of which trend tab is showing - that's the one comparison
@@ -935,14 +995,30 @@ function renderMovementTab(tab) {
 
   document.getElementById('movementStatsGrid').innerHTML =
     kpiCard({
-      key: 'totalJoins', label: 'Total Joins', value: currentTotal, tone: 'move-blue', icon: 'total', clickable: false,
+      key: 'totalJoins', label: 'Total Joins', value: currentTotal, tone: 'move-blue', icon: 'total',
+      clickable: currentTotal > 0,
+      data: monthly.length ? { dateFrom: monthly[0].dateFrom, dateTo: monthly[monthly.length - 1].dateTo } : null,
       delta: pctChange === null ? null : { direction: pctChange >= 0 ? 'up' : 'down', text: Math.abs(pctChange) + '%' },
       deltaSub: pctChange === null ? null : 'vs previous 12 months'
     }) +
     kpiCard({ key: 'avgPerMonth', label: 'Avg. Per Month', value: avgPerMonth, tone: 'move-purple', icon: 'calendar', clickable: false, deltaSub: 'per month' }) +
-    kpiCard({ key: 'highestMonth', label: 'Highest Month', value: highest.count, tone: 'move-green', icon: 'star', clickable: false, deltaSub: highest.label }) +
-    kpiCard({ key: 'lowestMonth', label: 'Lowest Month', value: lowest.count, tone: 'move-red', icon: 'trendDown', clickable: false, deltaSub: lowest.label });
+    kpiCard({
+      key: 'highestMonth', label: 'Highest Month', value: highest.count, tone: 'move-green', icon: 'star',
+      clickable: highest.count > 0, data: highest.count > 0 ? { dateFrom: highest.dateFrom, dateTo: highest.dateTo } : null,
+      deltaSub: highest.label
+    }) +
+    kpiCard({
+      key: 'lowestMonth', label: 'Lowest Month', value: lowest.count, tone: 'move-red', icon: 'trendDown',
+      clickable: lowest.count > 0, data: lowest.count > 0 ? { dateFrom: lowest.dateFrom, dateTo: lowest.dateTo } : null,
+      deltaSub: lowest.label
+    });
 }
+
+document.getElementById('movementStatsGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('[data-date-from]');
+  if (!card || card.disabled) return;
+  applyFiltersAndShowDirectory({ dateFrom: card.dataset.dateFrom, dateTo: card.dataset.dateTo });
+});
 
 document.getElementById('movementTrendTabs').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-mtab]');
