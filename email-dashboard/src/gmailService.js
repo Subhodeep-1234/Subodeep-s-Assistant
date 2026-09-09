@@ -39,8 +39,17 @@ const CATEGORY_QUERIES = {
   candidates: `in:inbox ${CANDIDATE_KEYWORDS} ${CONSULTANT_EXCLUSIONS}`
 };
 
-const JOININGS_WINDOW_DAYS = 365;
-const JOININGS_SEARCH_CAP = 300;
+// fetchUpcomingJoinings only ever keeps confirmation emails whose DOJ falls
+// within [today, +3 months] - a confirmation sent much earlier than that
+// essentially never has a still-upcoming DOJ, so scanning a full year (the
+// previous window) mostly fetched messages that got thrown away, at the
+// cost of one full-format Gmail read (the API's most expensive kind) per
+// message. 120 days keeps a comfortable ~1-month safety margin before the
+// earliest DOJ this can ever surface, while cutting the per-request Gmail
+// quota cost roughly 3x - this endpoint was hitting Gmail's per-minute
+// quota limit under normal repeat use.
+const JOININGS_WINDOW_DAYS = 120;
+const JOININGS_SEARCH_CAP = 150;
 
 const MONTHS = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
