@@ -480,6 +480,17 @@ body {
   font-size: 0.82rem;
 }
 .wf-dist-row:last-of-type { border-bottom: none; }
+
+.wf-dist-row.clickable {
+  cursor: pointer;
+  margin: 0 -8px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.wf-dist-row.clickable:hover,
+.wf-dist-row.clickable:focus-visible { background: var(--accent-bg); }
+.wf-dist-row.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .wf-dist-header { font-weight: 700; color: var(--ink); font-size: 0.78rem; padding-bottom: 12px; }
 .wf-dist-label-col { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); font-weight: 600; }
 .wf-dist-header .wf-dist-label-col { color: var(--muted); font-weight: 700; }

@@ -120,6 +120,12 @@ function matchesFilters(emp, query, normalizeKey) {
       .toLowerCase();
     if (!haystack.includes(needle)) return false;
   }
+  if (query.ageMin || query.ageMax) {
+    if (!emp.dob) return false;
+    const age = analytics.calcAge(emp.dob, new Date());
+    if (query.ageMin && age < Number(query.ageMin)) return false;
+    if (query.ageMax && age > Number(query.ageMax)) return false;
+  }
   return true;
 }
 

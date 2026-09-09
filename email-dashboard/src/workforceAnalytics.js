@@ -161,14 +161,14 @@ function tenureAnalytics(employees, now = new Date()) {
 // (see turning58ThisMonth in the insights below), so it's kept as its own
 // boundary rather than folded into a generic "55+" bucket.
 const AGE_BUCKETS = [
-  { key: 'lt18', label: '< 18 years', maxAge: 17 },
-  { key: '18to25', label: '18 - 25 years', maxAge: 25 },
-  { key: '26to30', label: '26 - 30 years', maxAge: 30 },
-  { key: '31to35', label: '31 - 35 years', maxAge: 35 },
-  { key: '36to40', label: '36 - 40 years', maxAge: 40 },
-  { key: '41to50', label: '41 - 50 years', maxAge: 50 },
-  { key: '51to58', label: '51 - 58 years', maxAge: 58 },
-  { key: 'gt58', label: '>=58 years', maxAge: Infinity }
+  { key: 'lt18', label: '< 18 years', minAge: 0, maxAge: 17 },
+  { key: '18to25', label: '18 - 25 years', minAge: 18, maxAge: 25 },
+  { key: '26to30', label: '26 - 30 years', minAge: 26, maxAge: 30 },
+  { key: '31to35', label: '31 - 35 years', minAge: 31, maxAge: 35 },
+  { key: '36to40', label: '36 - 40 years', minAge: 36, maxAge: 40 },
+  { key: '41to50', label: '41 - 50 years', minAge: 41, maxAge: 50 },
+  { key: '51to58', label: '51 - 58 years', minAge: 51, maxAge: 58 },
+  { key: 'gt58', label: '>=58 years', minAge: 59, maxAge: Infinity }
 ];
 
 function calcAge(dob, now) {
@@ -201,7 +201,9 @@ function ageAnalytics(employees, now = new Date()) {
     activeCount: activeEmployees.length,
     missingDobCount: activeEmployees.length - eligible.length,
     averageAge: averageAge === null ? null : Math.round(averageAge * 10) / 10,
-    buckets: buckets.map(({ key, label, count }) => ({ key, label, count }))
+    buckets: buckets.map(({ key, label, count, minAge, maxAge }) => ({
+      key, label, count, minAge, maxAge: maxAge === Infinity ? null : maxAge
+    }))
   };
 }
 
@@ -265,5 +267,6 @@ module.exports = {
   ageAnalytics,
   genderAnalytics,
   dataQualityReport,
-  isProbation
+  isProbation,
+  calcAge
 };

@@ -446,6 +446,22 @@ locationLegendEl.addEventListener('keydown', (e) => {
   row.click();
 });
 
+const ageRowsEl = document.getElementById('ageRows');
+ageRowsEl.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-age-min]');
+  if (!row) return;
+  const filters = { status: 'ACTIVE', ageMin: row.dataset.ageMin };
+  if (row.dataset.ageMax) filters.ageMax = row.dataset.ageMax;
+  applyFiltersAndShowDirectory(filters);
+});
+ageRowsEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-age-min]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
 const employmentTypeStatsEl = document.getElementById('employmentTypeStats');
 employmentTypeStatsEl.addEventListener('click', (e) => {
   const block = e.target.closest('[data-status]');
@@ -1544,7 +1560,8 @@ async function loadAgeDistributionView() {
       '</div>' +
       data.buckets
         .map((b, i) => (
-          '<div class="wf-dist-row">' +
+          '<div class="wf-dist-row clickable" tabindex="0" role="button" data-age-min="' + b.minAge + '"' +
+            (b.maxAge !== null && b.maxAge !== undefined ? ' data-age-max="' + b.maxAge + '"' : '') + '>' +
             '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
             '<span class="wf-dist-num-col">' + b.count + '</span>' +
             '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
