@@ -1514,7 +1514,7 @@ function showEmployeeDetail(e) {
       fieldRow(FIELD_ICONS.users, 'Reporting DOER', e.reportingDoer) +
       fieldRow(FIELD_ICONS.calendar, 'DOJ', formatDate(e.doj)) +
       fieldRow(FIELD_ICONS.clock, 'Tenure', e.tenure) +
-      fieldRow(FIELD_ICONS.clock, 'Total Years of Experience', e.totalExperience) +
+      fieldRow(FIELD_ICONS.clock, 'Total Years of Exp.', e.totalExperience) +
       fieldRow(FIELD_ICONS.calendar, 'Date of Birth', formatDate(e.dob)) +
     '</div>' +
 
