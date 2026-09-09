@@ -956,8 +956,7 @@ async function renderMovementBreakdown() {
       card.outerHTML = kpiCard({
         key: 'transfers', label: 'Inter-Department Transfers', value: data.total, tone: 'move-blue', icon: 'transfer',
         clickable: data.total > 0,
-        title: data.total > 0 ? 'View who transferred' : '',
-        deltaSub: 'in the last 12 months'
+        title: data.total > 0 ? 'View who transferred' : ''
       });
     }
   } catch (err) {
