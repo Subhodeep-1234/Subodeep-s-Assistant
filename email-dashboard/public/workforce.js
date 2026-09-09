@@ -632,6 +632,14 @@ async function loadLocationFullView() {
   }
 }
 
+// Fixed display order requested for Doer Management, independent of
+// headcount - any DOER not in this list (a new one added to the sheet
+// later) falls back to count order at the end instead of disappearing.
+const DOER_DISPLAY_ORDER = [
+  'amar nath shroff', 'ajay kumar shroff', 'archana shroff', 'yashaswi shroff',
+  'saurabh baid', 'aakriti shroff', 'r & d', 'association', 'common'
+];
+
 async function loadDoerManagementView() {
   const listEl = document.getElementById('doerManagementBarList');
   listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
@@ -640,8 +648,15 @@ async function loadDoerManagementView() {
       fetchJson('/api/workforce/overview'),
       fetchJson('/api/workforce/breakdowns?status=ACTIVE')
     ]);
-    const rows = breakdowns.doers;
-    const max = rows.length ? rows[0].count : 1;
+    const max = breakdowns.doers.length ? Math.max(...breakdowns.doers.map((r) => r.count)) : 1;
+    const rows = breakdowns.doers.slice().sort((a, b) => {
+      const ai = DOER_DISPLAY_ORDER.indexOf(a.name.toLowerCase().trim());
+      const bi = DOER_DISPLAY_ORDER.indexOf(b.name.toLowerCase().trim());
+      if (ai === -1 && bi === -1) return b.count - a.count;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
     const total = rows.reduce((sum, r) => sum + r.count, 0);
     listEl.innerHTML = rows.length
       ? rows.map((r) => barListItem('user', r.name, r.count, max, overview.active, 'reportingDoer')).join('') +
