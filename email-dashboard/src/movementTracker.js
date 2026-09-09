@@ -51,6 +51,19 @@ async function ensureTabs(sheets, config) {
   await ensureHeaderRow(sheets, config.logTab, logHeaders(config));
 }
 
+// ensureTabs costs 3 Sheets API round-trips (metadata + 2 header checks).
+// Once a field's tabs are confirmed to exist in this warm server instance,
+// there's no need to re-check on every request - every dashboard load was
+// paying that cost 4x over (one per Employee Movements card) before this
+// cache, which is what made the cards sit on N/A noticeably longer than
+// they needed to. Resets naturally on a cold start / new deploy.
+const ensuredTabs = new Set();
+async function ensureTabsOnce(sheets, config) {
+  if (ensuredTabs.has(config.logTab)) return;
+  await ensureTabs(sheets, config);
+  ensuredTabs.add(config.logTab);
+}
+
 // Compares today's Employee_Master value for the tracked field, per Active
 // employee, against yesterday's saved snapshot; any mismatch is a real
 // detected change, logged with today's date. Employees with no prior
@@ -58,7 +71,7 @@ async function ensureTabs(sheets, config) {
 // generating a false "change" - there's nothing to compare against yet.
 async function runFieldSnapshot(config, employees) {
   const sheets = getSheetsClient();
-  await ensureTabs(sheets, config);
+  await ensureTabsOnce(sheets, config);
 
   const active = employees.filter((e) => e.status === 'ACTIVE' && e.employeeId && e[config.employeeField]);
 
@@ -123,7 +136,7 @@ async function runDailySnapshot() {
 async function checkAndLogFieldChange(config, { employeeId, name, value }) {
   if (!employeeId || !value) return { changed: false };
   const sheets = getSheetsClient();
-  await ensureTabs(sheets, config);
+  await ensureTabsOnce(sheets, config);
 
   const stateRes = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${config.stateTab}'!A2:D` });
   const rows = stateRes.data.values || [];
@@ -182,7 +195,9 @@ async function getChangesInLastDays(config, days = 365) {
   // Self-healing: a brand-new field's tabs may not exist yet if neither the
   // daily cron nor a webhook has run since it was added - create them (empty)
   // rather than erroring, so the dashboard shows a clean 0 instead of failing.
-  await ensureTabs(sheets, config);
+  // Cached (ensureTabsOnce) so this only actually hits the Sheets API the
+  // first time in a warm instance, not on every dashboard load.
+  await ensureTabsOnce(sheets, config);
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${config.logTab}'!A2:E` });
   const rows = res.data.values || [];
   const cutoff = new Date();
