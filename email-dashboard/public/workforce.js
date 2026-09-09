@@ -462,6 +462,20 @@ ageRowsEl.addEventListener('keydown', (e) => {
   row.click();
 });
 
+const genderRowsEl = document.getElementById('genderRows');
+genderRowsEl.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-gender]');
+  if (!row) return;
+  applyFiltersAndShowDirectory({ status: 'ACTIVE', gender: row.dataset.gender });
+});
+genderRowsEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-gender]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
 const employmentTypeStatsEl = document.getElementById('employmentTypeStats');
 employmentTypeStatsEl.addEventListener('click', (e) => {
   const block = e.target.closest('[data-status]');
@@ -1630,7 +1644,7 @@ async function loadGenderDistributionView() {
         '<span class="wf-dist-num-col">% of Total</span>' +
       '</div>' +
       data.buckets.map((b, i) => (
-        '<div class="wf-dist-row">' +
+        '<div class="wf-dist-row clickable" tabindex="0" role="button" data-gender="' + escapeHtml(b.label) + '">' +
           '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
           '<span class="wf-dist-num-col">' + b.count + '</span>' +
           '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +

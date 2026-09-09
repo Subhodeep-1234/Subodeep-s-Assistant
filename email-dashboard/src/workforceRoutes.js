@@ -102,6 +102,7 @@ function matchesFilters(emp, query, normalizeKey) {
   if (query.location && emp.locationKey !== normalizeKey(query.location)) return false;
   if (query.reportingManager && emp.reportingManagerKey !== normalizeKey(query.reportingManager)) return false;
   if (query.collar && formatCollar(emp.groupD).toLowerCase() !== String(query.collar).toLowerCase()) return false;
+  if (query.gender && (emp.gender || '').toLowerCase() !== String(query.gender).toLowerCase()) return false;
   if (query.employmentType && emp.employmentType.toLowerCase() !== String(query.employmentType).toLowerCase()) {
     return false;
   }
