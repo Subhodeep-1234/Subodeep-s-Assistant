@@ -70,12 +70,6 @@
         <button class="wf-drawer-subitem" data-view="genderDistribution" aria-pressed="false">Gender Distribution</button>
       </div>
 
-      <button class="wf-drawer-item" data-view="mailReplies" aria-pressed="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/></svg>Job Application Auto Replies
-      </button>
-      <button class="wf-drawer-item" data-view="mailJoinings" aria-pressed="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/></svg>Upcoming Joinings (Mail)
-      </button>
       <button class="wf-drawer-item" data-view="profile" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>Profile
       </button>
@@ -517,41 +511,6 @@
       </div>
     </section>
 
-    <!-- Job Application Auto Replies (folded in from the old Mail Management page) -->
-    <section id="mailRepliesView" class="wf-view" hidden>
-      <div class="wf-page-head">
-        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </button>
-        <h2>Job Application Auto Replies</h2>
-      </div>
-      <div class="wf-panel">
-        <div class="wf-panel-head"><h3>Job Application Auto Replies</h3></div>
-        <ul class="wf-bar-list" id="mailRepliesList"><li class="empty">Loading…</li></ul>
-      </div>
-    </section>
-
-    <!-- Upcoming Joinings, mail-sourced (folded in from the old Mail Management page) -->
-    <section id="mailJoiningsView" class="wf-view" hidden>
-      <div class="wf-page-head">
-        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </button>
-        <h2>Upcoming Joinings</h2>
-      </div>
-      <div class="wf-panel">
-        <div class="wf-panel-head"><h3>Upcoming Joinings</h3></div>
-        <div class="table-wrap">
-          <table class="wf-table" id="mailJoiningsTable">
-            <thead>
-              <tr><th>Candidate</th><th>Designation</th><th>Company</th><th>DOJ</th></tr>
-            </thead>
-            <tbody id="mailJoiningsBody"><tr><td colspan="4"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
     <!-- Profile -->
     <section id="profileView" class="wf-view" hidden>
       <div class="wf-page-head">
@@ -573,6 +532,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=74"></script>
+  <script src="workforce.js?v=75"></script>
 </body>
 </html>

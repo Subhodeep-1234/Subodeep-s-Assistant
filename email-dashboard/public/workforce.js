@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'deptTransfersDetail', 'ageDistribution', 'genderDistribution', 'mailReplies', 'mailJoinings', 'profile'
+  'departmentFull', 'locationFull', 'deptTransfersDetail', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -288,52 +288,10 @@ function loadView(view, forceRefresh) {
   if (view === 'deptTransfersDetail') return loadDeptTransfersDetail();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
-  if (view === 'mailReplies') return loadMailReplies();
-  if (view === 'mailJoinings') return loadMailJoinings();
   if (view === 'profile') return loadProfile();
   if (view === 'movement') return loadMovementView();
   // exit / attrition are static "not available" panels — nothing to fetch.
   return Promise.resolve();
-}
-
-async function loadMailReplies() {
-  const el = document.getElementById('mailRepliesList');
-  el.innerHTML = '<li class="empty">Loading…</li>';
-  try {
-    const data = await fetchJson('/api/hr/job-applications');
-    el.innerHTML = data.items.length
-      ? data.items.map((item) => (
-          '<li>' +
-            '<span class="wf-bar-main">' +
-              '<span class="wf-bar-name">' + escapeHtml(item.subject || '(no subject)') + '</span>' +
-              '<span style="display:block; font-size:.74rem; color:var(--muted);">' + escapeHtml(item.from) + '</span>' +
-            '</span>' +
-          '</li>'
-        )).join('')
-      : '<li class="empty">No job application emails found</li>';
-  } catch (err) {
-    el.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
-  }
-}
-
-async function loadMailJoinings() {
-  const body = document.getElementById('mailJoiningsBody');
-  body.innerHTML = '<tr><td colspan="4"><div class="loading"><div class="spinner"></div></div></td></tr>';
-  try {
-    const data = await fetchJson('/api/hr/upcoming-joinings');
-    body.innerHTML = data.items.length
-      ? data.items.map((item) => (
-          '<tr>' +
-            '<td>' + escapeHtml(item.name) + '</td>' +
-            '<td>' + escapeHtml(item.designation || '—') + '</td>' +
-            '<td>' + escapeHtml(item.company || '—') + '</td>' +
-            '<td>' + formatDate(item.doj) + '</td>' +
-          '</tr>'
-        )).join('')
-      : '<tr><td colspan="4"><div class="empty">No joinings in the next 3 months</div></td></tr>';
-  } catch (err) {
-    body.innerHTML = '<tr><td colspan="4"><div class="error-banner">' + escapeHtml(err.message) + '</div></td></tr>';
-  }
 }
 
 async function loadProfile() {
