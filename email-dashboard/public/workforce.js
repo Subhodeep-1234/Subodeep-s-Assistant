@@ -897,11 +897,16 @@ function renderMovementTab(tab) {
     b.setAttribute('aria-pressed', String(b.dataset.mtab === tab));
   });
 
+  // All three tabs stay within the trailing 12 months from today - only the
+  // "vs previous 12 months" delta below reaches into the older half of the
+  // 24-month fetch. Quarterly/Yearly used to aggregate the full 24 months,
+  // which pulled in a second year of history the chart was never meant to
+  // show.
   const monthly = movementTrendBuckets.slice(-12);
   let buckets;
   let title;
-  if (tab === 'quarterly') { buckets = aggregateQuarterly(movementTrendBuckets); title = 'Joining Trend (Quarterly)'; }
-  else if (tab === 'yearly') { buckets = aggregateYearly(movementTrendBuckets); title = 'Joining Trend (Yearly)'; }
+  if (tab === 'quarterly') { buckets = aggregateQuarterly(monthly); title = 'Joining Trend (Quarterly)'; }
+  else if (tab === 'yearly') { buckets = aggregateYearly(monthly); title = 'Joining Trend (Yearly)'; }
   else { buckets = monthly; title = 'Joining Trend (Monthly)'; }
 
   document.getElementById('movementTrendTitle').textContent = title;
