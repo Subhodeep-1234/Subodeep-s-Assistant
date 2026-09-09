@@ -1574,7 +1574,7 @@ document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => 
   });
   const deptNames = Array.from(byDept.keys()).sort((a, b) => a.localeCompare(b));
 
-  const doerName = titleCase(activeFilters.reportingDoer || '') || 'Reporting DOER Report';
+  const doerName = String(activeFilters.reportingDoer || '').toUpperCase() || 'REPORTING DOER REPORT';
   document.getElementById('printReportTitle').textContent = doerName;
   document.getElementById('printReportSubtitle').textContent =
     'Reporting DOER · ' + lastEmployeeList.length + ' employee' + (lastEmployeeList.length === 1 ? '' : 's') + ' · ';
