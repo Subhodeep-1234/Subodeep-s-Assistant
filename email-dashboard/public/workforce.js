@@ -127,7 +127,10 @@ const ICONS = {
   star: '<polygon points="12 2 15 8.5 22 9.5 17 14.5 18.5 21.5 12 18 5.5 21.5 7 14.5 2 9.5 9 8.5 12 2"/>',
   exitDoor: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
-  trendDown: '<line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/>'
+  trendDown: '<line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/>',
+  money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+  scale: '<path d="M12 3v18"/><path d="M9 21h6"/><path d="M3 8h18"/><path d="M5 8l-3 6a4 4 0 0 0 8 0l-3-6z"/><path d="M19 8l-3 6a4 4 0 0 0 8 0l-3-6z"/>',
+  flask: '<path d="M9 3h6"/><path d="M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/><path d="M7.5 15h9"/>'
 };
 
 // Real department names come straight off the sheet (e.g. "MEP DEPT.",
@@ -140,13 +143,16 @@ const DEPARTMENT_ICON_RULES = [
   { test: /security/i, icon: 'shield' },
   { test: /health\s*safety|environment|quality/i, icon: 'shield' },
   { test: /\bmep\b|plant\s*&?\s*machinery|machinery|electrical|mechanical|plumbing/i, icon: 'tool' },
-  { test: /facade|civil|structure|architecture|surveyor|planning|scaffold|contracts?\b|qs\s*&\s*billing/i, icon: 'building' },
+  { test: /facade|civil|structure|architecture|surveyor|planning|scaffold|aluform|\bbbs\b|contracts?\b|qs\s*&\s*billing/i, icon: 'building' },
   { test: /horticulture/i, icon: 'leaf' },
   { test: /store|purchase|godown/i, icon: 'box' },
   { test: /sales|marketing|business development|branding|communication/i, icon: 'total' },
-  { test: /finance|accounts?|budget|banking/i, icon: 'department' },
+  { test: /finance|accounts?|budget|banking/i, icon: 'money' },
+  { test: /legal|\broc\b/i, icon: 'scale' },
+  { test: /\br\s*&\s*d\b|research/i, icon: 'flask' },
   { test: /\bhr\b|human resource/i, icon: 'confirmed' },
   { test: /information\s*&?\s*technology|\bit\b|digital|tech/i, icon: 'monitor' },
+  { test: /operations/i, icon: 'settings' },
   { test: /admin/i, icon: 'settings' },
   { test: /construction|site|project/i, icon: 'user' }
 ];
@@ -883,7 +889,7 @@ function renderOrgChartHtml(data) {
     '<div class="org-chart">' +
       '<div class="org-chart-top-row">' +
         '<div class="org-chart-banner">' +
-          '<span class="org-chart-banner-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M12 9v3M6 15v-3h12v3"/></svg></span>' +
+          '<span class="org-chart-banner-icon">' + icon(deptIconFor(data.department), 26) + '</span>' +
           '<span class="org-chart-banner-text">' +
             '<span class="org-chart-banner-title">' + escapeHtml(deptDisplay) + '</span>' +
             '<span class="org-chart-banner-subtitle">Organisation Chart</span>' +
