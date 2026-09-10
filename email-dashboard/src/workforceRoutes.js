@@ -189,6 +189,19 @@ router.get('/breakdowns', async (req, res) => {
   }
 });
 
+router.get('/org-chart', async (req, res) => {
+  try {
+    if (!req.query.department) {
+      return res.status(400).json({ error: 'department is required' });
+    }
+    const { employees, departmentNames } = await employeeService.getEmployeeData();
+    const targetKey = employeeService.normalizeKey(req.query.department);
+    res.json(analytics.buildOrgChart(employees, departmentNames, targetKey));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/joining-trend', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();

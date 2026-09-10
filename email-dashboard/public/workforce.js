@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -291,6 +291,7 @@ function loadView(view, forceRefresh) {
   if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'locationFull') return loadLocationFullView();
   if (view === 'doerManagement') return loadDoerManagementView();
+  if (view === 'orgChart') return loadOrgChartView();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'profile') return loadProfile();
@@ -759,6 +760,170 @@ document.getElementById('exportDoerManagementPdf').addEventListener('click', () 
       '<tr><td><b>Total</b></td><td><b>' + total + '</b></td><td><b>100%</b></td></tr>'
     : '<tr><td colspan="3">No Reporting DOER data</td></tr>';
   window.print();
+});
+
+// ---------- Organization Chart ----------
+
+// Cycled per designation card within a section (White Collar and Blue
+// Collar & Group D each restart from index 0) - color is what visually
+// tells cards apart since every department can have wildly different
+// designations, so a fixed per-designation icon set isn't practical.
+const ORG_CARD_PALETTE = [
+  { bg: '#16a34a', tint: '#e8f7ee' },
+  { bg: '#0d9488', tint: '#e6f6f4' },
+  { bg: '#7c3aed', tint: '#f1eafe' },
+  { bg: '#ea580c', tint: '#fef1e8' },
+  { bg: '#dc2626', tint: '#fdeaea' },
+  { bg: '#2563eb', tint: '#e9f0fe' },
+  { bg: '#0f766e', tint: '#e6f4f2' },
+  { bg: '#db2777', tint: '#fce9f2' },
+  { bg: '#0891b2', tint: '#e5f6fa' },
+  { bg: '#475569', tint: '#eef1f4' }
+];
+
+let lastOrgChartData = null;
+
+function loadOrgChartView() {
+  const select = document.getElementById('orgChartDeptSelect');
+  if (select.value) return loadOrgChartForDepartment(select.value);
+  document.getElementById('orgChartContent').innerHTML = '';
+  document.getElementById('exportOrgChartPdf').hidden = true;
+  return Promise.resolve();
+}
+
+async function loadOrgChartForDepartment(department) {
+  const content = document.getElementById('orgChartContent');
+  const exportBtn = document.getElementById('exportOrgChartPdf');
+  content.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  exportBtn.hidden = true;
+  try {
+    const data = await fetchJson('/api/workforce/org-chart?department=' + encodeURIComponent(department));
+    lastOrgChartData = data;
+    content.innerHTML = renderOrgChartHtml(data);
+    exportBtn.hidden = false;
+  } catch (err) {
+    content.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+document.getElementById('orgChartDeptSelect').addEventListener('change', (e) => {
+  if (!e.target.value) {
+    document.getElementById('orgChartContent').innerHTML = '';
+    document.getElementById('exportOrgChartPdf').hidden = true;
+    return;
+  }
+  loadOrgChartForDepartment(e.target.value);
+});
+
+function orgChartInfoRow(iconPath, label, value) {
+  return (
+    '<div class="org-chart-info-row">' +
+      '<span class="org-chart-info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + iconPath + '</svg></span>' +
+      '<span class="org-chart-info-label">' + escapeHtml(label) + '</span>' +
+      '<span class="org-chart-info-sep">:</span>' +
+      '<span class="org-chart-info-value">' + escapeHtml(value) + '</span>' +
+    '</div>'
+  );
+}
+
+function orgChartCardHtml(group, index, palette) {
+  const color = palette[index % palette.length];
+  return (
+    '<div class="org-chart-card" style="--card-color:' + color.bg + '; --card-tint:' + color.tint + '">' +
+      '<div class="org-chart-card-head">' + (index + 1) + '. ' + escapeHtml(titleCase(group.designation)) + ' (' + group.count + ')</div>' +
+      '<div class="org-chart-card-body">' +
+        group.employees.map((e) => (
+          '<div class="org-chart-card-emp">' +
+            '<span class="org-chart-card-emp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+            '<span class="org-chart-card-emp-text">' +
+              '<b>' + escapeHtml(e.name) + '</b>' +
+              (e.employeeId ? '<span>(' + escapeHtml(e.employeeId) + ')</span>' : '') +
+            '</span>' +
+          '</div>'
+        )).join('') +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function orgChartSectionHtml(title, groups) {
+  if (!groups.length) return '';
+  return (
+    '<div class="org-chart-connector-down"></div>' +
+    '<div class="org-chart-pill">' + escapeHtml(title) + '</div>' +
+    '<div class="org-chart-pill-connector"></div>' +
+    '<div class="org-chart-cards-row">' +
+      groups.map((g, i) => orgChartCardHtml(g, i, ORG_CARD_PALETTE)).join('') +
+    '</div>'
+  );
+}
+
+function renderOrgChartHtml(data) {
+  const deptDisplay = titleCase(data.department);
+  const generatedOn = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  const hodBox = data.hod
+    ? (
+        '<div class="org-chart-hod-box">' +
+          '<span class="org-chart-hod-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+          '<div class="org-chart-hod-title">HOD – ' + escapeHtml(deptDisplay) + '</div>' +
+          '<div class="org-chart-hod-name">' + escapeHtml(data.hod.name) + '</div>' +
+          (data.hod.employeeId ? '<div class="org-chart-hod-sub">(' + escapeHtml(data.hod.employeeId) + ')</div>' : '') +
+          (data.hod.designation ? '<div class="org-chart-hod-role">' + escapeHtml(titleCase(data.hod.designation)) + '</div>' : '') +
+        '</div>'
+      )
+    : (
+        '<div class="org-chart-hod-box">' +
+          '<span class="org-chart-hod-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+          '<div class="org-chart-hod-title">HOD – ' + escapeHtml(deptDisplay) + '</div>' +
+          '<div class="org-chart-hod-name">Not identified</div>' +
+        '</div>'
+      );
+
+  return (
+    '<div class="org-chart">' +
+      '<div class="org-chart-top-row">' +
+        '<div class="org-chart-banner">' +
+          '<span class="org-chart-banner-icon"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M12 9v3M6 15v-3h12v3"/></svg></span>' +
+          '<span class="org-chart-banner-text">' +
+            '<span class="org-chart-banner-title">' + escapeHtml(deptDisplay) + '</span>' +
+            '<span class="org-chart-banner-subtitle">Organisation Chart</span>' +
+            '<span class="org-chart-banner-tagline">Alcove Realty | ' + escapeHtml(deptDisplay) + '</span>' +
+          '</span>' +
+        '</div>' +
+        '<div class="org-chart-info-card">' +
+          orgChartInfoRow(FIELD_ICONS.users, 'Total Employees', String(data.totalEmployees)) +
+          orgChartInfoRow(FIELD_ICONS.building, 'Department', deptDisplay) +
+          orgChartInfoRow(FIELD_ICONS.badge, 'HOD', data.hod ? data.hod.name : '—') +
+          orgChartInfoRow(FIELD_ICONS.calendar, 'Generated On', generatedOn) +
+        '</div>' +
+      '</div>' +
+
+      '<div class="org-chart-tree">' +
+        hodBox +
+        orgChartSectionHtml('White Collar', data.whiteCollarGroups) +
+        orgChartSectionHtml('Blue Collar & Group D', data.blueGroupDGroups) +
+      '</div>' +
+
+      '<div class="org-chart-footer">' +
+        '<span class="org-chart-footer-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></span>' +
+        '<span>Alcove Realty | Excellence in Every Department</span>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+document.getElementById('exportOrgChartPdf').addEventListener('click', () => {
+  if (!lastOrgChartData) return;
+  document.body.classList.add('printing-org-chart');
+  const style = document.createElement('style');
+  style.textContent = '@page { size: landscape; }';
+  document.head.appendChild(style);
+  window.print();
+  window.addEventListener('afterprint', function cleanup() {
+    document.body.classList.remove('printing-org-chart');
+    style.remove();
+    window.removeEventListener('afterprint', cleanup);
+  });
 });
 
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
@@ -1274,6 +1439,8 @@ async function loadFilterOptions() {
     data.locations.forEach((l) => filterLocation.add(new Option(l, l)));
     data.reportingManagers.forEach((m) => filterReportingManager.add(new Option(m, m)));
     data.collars.forEach((c) => filterCollar.add(new Option(c, c)));
+    const orgChartSelect = document.getElementById('orgChartDeptSelect');
+    if (orgChartSelect) data.departments.forEach((d) => orgChartSelect.add(new Option(d, d)));
   } catch {
     // Filter dropdowns just stay at "All" — not fatal.
   }

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=51" />
+  <link rel="stylesheet" href="workforce.css?v=52" />
 </head>
 <body>
   <div class="wf-shell">
@@ -62,6 +62,9 @@
       </button>
       <button class="wf-drawer-item" data-view="doerManagement" aria-pressed="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>Doer Management
+      </button>
+      <button class="wf-drawer-item" data-view="orgChart" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M12 9v3M6 15v-3h12v3"/></svg>Organization Chart
       </button>
 
       <button class="wf-drawer-item wf-drawer-group" id="demographicsToggle" aria-expanded="false" aria-controls="demographicsSubmenu">
@@ -486,6 +489,25 @@
       </div>
     </section>
 
+    <!-- Organization Chart: department-wise, HOD + Collar-grouped designation cards -->
+    <section id="orgChartView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Organization Chart</h2>
+      </div>
+      <div class="wf-panel">
+        <div class="wf-panel-head" style="flex-wrap:wrap; gap:10px;">
+          <select id="orgChartDeptSelect" style="flex:1; min-width:200px;">
+            <option value="">Select a department…</option>
+          </select>
+          <button class="wf-link-btn" id="exportOrgChartPdf" type="button" hidden>⬇ Export PDF</button>
+        </div>
+      </div>
+      <div id="orgChartContent"></div>
+    </section>
+
     <!-- Age Distribution (Demographics) -->
     <section id="ageDistributionView" class="wf-view" hidden>
       <div class="wf-page-head">
@@ -557,6 +579,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=99"></script>
+  <script src="workforce.js?v=100"></script>
 </body>
 </html>

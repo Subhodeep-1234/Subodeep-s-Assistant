@@ -278,6 +278,103 @@ function dataQualityReport(employees) {
   return { total, missing, duplicateIds };
 }
 
+// ---------- Organization Chart ----------
+
+// "0" in the sheet's Group - D column means White collar (mirrors
+// workforceRoutes.js's own formatCollar - kept as a small local copy here
+// rather than importing across files for one line).
+function formatCollarForChart(value) {
+  return value === '0' ? 'White' : value;
+}
+
+// A best-effort seniority ordering for grouping designation cards top-to-
+// bottom within a collar section (Manager/HOD first, Helper/Labour last).
+// Covers common patterns across the company's actual designations rather
+// than an exhaustive list - unrecognized designations land in the middle
+// (rank 80) and fall back to alphabetical order among themselves.
+const ORG_DESIGNATION_TIERS = [
+  { rank: 10, test: /\b(HOD|HEAD|GENERAL MANAGER|MANAGER)\b/ },
+  { rank: 20, test: /\b(SR\.?|SENIOR)\s*(ENGINEER|EXECUTIVE|OFFICER)\b/ },
+  { rank: 30, test: /\b(ENGINEER|EXECUTIVE|OFFICER)\b/ },
+  { rank: 40, test: /\b(JR\.?|JUNIOR)\b/ },
+  { rank: 50, test: /\b(DATA ENTRY OPERATOR|DEO)\b/ },
+  { rank: 60, test: /\b(SUPERVISOR|FOREMAN)\b/ },
+  { rank: 70, test: /\b(SR\.?|SENIOR)\b/ },
+  { rank: 90, test: /\b(ASST\.?|ASSISTANT)\b/ },
+  { rank: 100, test: /\bOPERATOR\b/ },
+  { rank: 110, test: /\bTECHNICIAN\b/ },
+  { rank: 200, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER)\b/ }
+];
+const ORG_DESIGNATION_DEFAULT_RANK = 80;
+
+function orgDesignationRank(designation) {
+  const upper = String(designation || '').toUpperCase();
+  const tier = ORG_DESIGNATION_TIERS.find((t) => t.test.test(upper));
+  return tier ? tier.rank : ORG_DESIGNATION_DEFAULT_RANK;
+}
+
+function groupByDesignation(list) {
+  const byDesig = new Map();
+  list.forEach((e) => {
+    const key = e.designation || 'Unspecified';
+    if (!byDesig.has(key)) byDesig.set(key, []);
+    byDesig.get(key).push({ name: e.name, employeeId: e.employeeId });
+  });
+  return Array.from(byDesig.entries())
+    .map(([designation, emps]) => ({
+      designation,
+      count: emps.length,
+      employees: emps.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    }))
+    .sort((a, b) => {
+      const rankDiff = orgDesignationRank(a.designation) - orgDesignationRank(b.designation);
+      if (rankDiff !== 0) return rankDiff;
+      return a.designation.localeCompare(b.designation);
+    });
+}
+
+// Active-only, matching every other section's department breakdown
+// convention (Doer Management, Department Wise Headcount, etc).
+function buildOrgChart(employees, departmentNames, targetDepartmentKey) {
+  const deptEmployees = employees.filter((e) => e.status === 'ACTIVE' && e.departmentKey === targetDepartmentKey);
+  const departmentName =
+    departmentNames.get(targetDepartmentKey) || (deptEmployees[0] && deptEmployees[0].department) || '';
+
+  // HOD = whichever Reporting Manager (HOD-1) name is most common among
+  // this department's own employees - same "most common among the list"
+  // technique the Doer Breakup report uses per department.
+  const managerCounts = {};
+  deptEmployees.forEach((e) => {
+    if (e.reportingManager) managerCounts[e.reportingManager] = (managerCounts[e.reportingManager] || 0) + 1;
+  });
+  let hodName = null;
+  let hodCount = 0;
+  Object.entries(managerCounts).forEach(([name, count]) => {
+    if (count > hodCount) { hodName = name; hodCount = count; }
+  });
+
+  // The HOD is usually their own employee record somewhere in the company
+  // (not necessarily counted inside this department's own list) - look
+  // them up by name to show their real Employee ID and Designation.
+  let hod = null;
+  if (hodName) {
+    const hodKey = hodName.trim().toLowerCase();
+    const match = employees.find((e) => e.name && e.name.trim().toLowerCase() === hodKey);
+    hod = { name: hodName, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
+  }
+
+  const whiteCollar = deptEmployees.filter((e) => formatCollarForChart(e.groupD) === 'White');
+  const blueGroupD = deptEmployees.filter((e) => formatCollarForChart(e.groupD) !== 'White');
+
+  return {
+    department: departmentName,
+    totalEmployees: deptEmployees.length,
+    hod,
+    whiteCollarGroups: groupByDesignation(whiteCollar),
+    blueGroupDGroups: groupByDesignation(blueGroupD)
+  };
+}
+
 module.exports = {
   departmentBreakdown,
   locationBreakdown,
@@ -293,5 +390,6 @@ module.exports = {
   genderAnalytics,
   dataQualityReport,
   isProbation,
-  calcAge
+  calcAge,
+  buildOrgChart
 };

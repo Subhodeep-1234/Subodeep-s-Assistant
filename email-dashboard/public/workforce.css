@@ -1171,6 +1171,218 @@ body {
   .wf-legend-value, .wf-legend-pct { flex-shrink: 0; }
 }
 
+/* ---------- Organization Chart ---------- */
+
+#orgChartDeptSelect {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.org-chart {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.org-chart-top-row {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 16px 0;
+}
+
+.org-chart-banner {
+  flex: 1 1 320px;
+  background: linear-gradient(135deg, #1f3a5f, #2563eb);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  border-radius: 14px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.org-chart-banner-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.org-chart-banner-text { display: flex; flex-direction: column; gap: 2px; }
+.org-chart-banner-title { font-size: 1.3rem; font-weight: 800; line-height: 1.15; }
+.org-chart-banner-subtitle { font-size: 1.05rem; font-weight: 700; color: #bfdbfe; }
+.org-chart-banner-tagline { font-size: 0.78rem; color: rgba(255, 255, 255, 0.85); margin-top: 4px; }
+
+.org-chart-info-card {
+  flex: 0 1 300px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px var(--shadow);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  justify-content: center;
+}
+.org-chart-info-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+.org-chart-info-icon { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; }
+.org-chart-info-icon svg { width: 100%; height: 100%; }
+.org-chart-info-label { color: var(--muted); min-width: 110px; }
+.org-chart-info-sep { color: var(--muted); }
+.org-chart-info-value { font-weight: 700; color: var(--ink); }
+
+.org-chart-tree {
+  padding: 26px 20px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.org-chart-hod-box {
+  background: #1f3a5f;
+  color: #fff;
+  border-radius: 14px;
+  padding: 16px 28px;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(31, 58, 95, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 300px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.org-chart-hod-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.org-chart-hod-avatar svg { width: 22px; height: 22px; }
+.org-chart-hod-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #bfdbfe; font-weight: 700; }
+.org-chart-hod-name { font-size: 1.05rem; font-weight: 800; }
+.org-chart-hod-sub { font-size: 0.78rem; color: #bfdbfe; }
+.org-chart-hod-role { font-size: 0.78rem; color: #bfdbfe; font-weight: 600; margin-top: 2px; }
+
+.org-chart-connector-down { width: 2px; height: 26px; background: var(--line); }
+.org-chart-pill-connector { width: 2px; height: 20px; background: var(--line); }
+
+.org-chart-pill {
+  background: #dbeafe;
+  color: #1e3a5f;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 8px 24px;
+  border-radius: 999px;
+  text-align: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.org-chart-cards-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 26px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+.org-chart-cards-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  background: var(--line);
+}
+
+.org-chart-card {
+  position: relative;
+  width: 210px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--card-tint, var(--surface));
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.org-chart-card::before {
+  content: "";
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 26px;
+  background: var(--line);
+}
+.org-chart-card-head {
+  background: var(--card-color, var(--accent));
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 9px 12px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.org-chart-card-body { padding: 9px 10px; display: flex; flex-direction: column; gap: 8px; }
+.org-chart-card-emp { display: flex; align-items: center; gap: 8px; }
+.org-chart-card-emp-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--card-color, var(--accent));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.org-chart-card-emp-icon svg { width: 12px; height: 12px; }
+.org-chart-card-emp-text { display: flex; flex-direction: column; font-size: 0.78rem; line-height: 1.3; }
+.org-chart-card-emp-text b { color: var(--ink); font-weight: 700; }
+.org-chart-card-emp-text span { color: var(--muted); font-size: 0.72rem; }
+
+.org-chart-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-style: italic;
+}
+.org-chart-footer-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
 /* ---------- Printable report (Upcoming Joinings) ---------- */
 
 #printReport { display: none; }
@@ -1248,4 +1460,32 @@ body {
      HOD's physical signature - every other report's columns are unaffected. */
   #printReport th.print-signature-col,
   #printReport td.print-signature-col { min-width: 170px; height: 46px; }
+}
+
+/* Organization Chart export prints the actual on-screen chart itself
+   (its real colors/cards/layout) rather than routing through the
+   #printReport table template every other export uses - toggled by adding
+   "printing-org-chart" to <body> right before window.print() and removing
+   it again on afterprint. #printReport is force-hidden here too (with
+   !important, since its own unconditional "#printReport { visibility:
+   visible }" rule above would otherwise outrank a plain class selector)
+   so a stale table from a previously-generated report can't leak into
+   this export. */
+@media print {
+  body.printing-org-chart * { visibility: hidden; }
+  body.printing-org-chart #printReport,
+  body.printing-org-chart #printReport * {
+    visibility: hidden !important;
+  }
+  body.printing-org-chart #orgChartContent,
+  body.printing-org-chart #orgChartContent * {
+    visibility: visible;
+  }
+  body.printing-org-chart #orgChartContent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 16px;
+  }
 }
