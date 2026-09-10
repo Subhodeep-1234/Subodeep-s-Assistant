@@ -1280,6 +1280,14 @@ body {
   margin-bottom: 6px;
 }
 .org-chart-hod-avatar svg { width: 22px; height: 22px; }
+
+/* Director (Reporting DOER) box - same shape as the HOD box beneath it,
+   but the banner's own gradient so it visually reads as the top of the
+   hierarchy rather than a second identical box. */
+.org-chart-director-box {
+  background: linear-gradient(135deg, #1f3a5f, #2563eb);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+}
 .org-chart-hod-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #bfdbfe; font-weight: 700; }
 .org-chart-hod-name { font-size: 1.05rem; font-weight: 800; }
 .org-chart-hod-sub { font-size: 0.78rem; color: #bfdbfe; }
@@ -1345,9 +1353,14 @@ body {
   font-weight: 700;
   font-size: 0.78rem;
   padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+.org-chart-card-head-icon { display: flex; flex-shrink: 0; opacity: 0.9; }
+.org-chart-card-head-icon svg { width: 13px; height: 13px; }
 .org-chart-card-body { padding: 9px 10px; display: flex; flex-direction: column; gap: 8px; }
 .org-chart-card-emp { display: flex; align-items: center; gap: 8px; }
 .org-chart-card-emp-icon {

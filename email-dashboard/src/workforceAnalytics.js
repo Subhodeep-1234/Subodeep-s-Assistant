@@ -333,6 +333,28 @@ function groupByDesignation(list) {
     });
 }
 
+// Finds whichever value of employeeField (e.g. "reportingManager" for HOD,
+// "reportingDoer" for the Director-level DOER) is most common among a
+// department's own employees, then looks that person up by name across
+// the WHOLE company (not just this department) for their real Employee ID
+// and Designation - they're usually their own employee record elsewhere,
+// not counted inside the department they oversee.
+function findMostCommonPerson(deptEmployees, allEmployees, employeeField) {
+  const counts = {};
+  deptEmployees.forEach((e) => {
+    if (e[employeeField]) counts[e[employeeField]] = (counts[e[employeeField]] || 0) + 1;
+  });
+  let name = null;
+  let bestCount = 0;
+  Object.entries(counts).forEach(([n, count]) => {
+    if (count > bestCount) { name = n; bestCount = count; }
+  });
+  if (!name) return null;
+  const key = name.trim().toLowerCase();
+  const match = allEmployees.find((e) => e.name && e.name.trim().toLowerCase() === key);
+  return { name, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
+}
+
 // Active-only, matching every other section's department breakdown
 // convention (Doer Management, Department Wise Headcount, etc).
 function buildOrgChart(employees, departmentNames, targetDepartmentKey) {
@@ -341,42 +363,25 @@ function buildOrgChart(employees, departmentNames, targetDepartmentKey) {
     departmentNames.get(targetDepartmentKey) || (deptEmployees[0] && deptEmployees[0].department) || '';
 
   // HOD = whichever Reporting Manager (HOD-1) name is most common among
-  // this department's own employees - same "most common among the list"
-  // technique the Doer Breakup report uses per department.
-  const managerCounts = {};
-  deptEmployees.forEach((e) => {
-    if (e.reportingManager) managerCounts[e.reportingManager] = (managerCounts[e.reportingManager] || 0) + 1;
-  });
-  let hodName = null;
-  let hodCount = 0;
-  Object.entries(managerCounts).forEach(([name, count]) => {
-    if (count > hodCount) { hodName = name; hodCount = count; }
-  });
+  // this department's own employees. Doer = same technique against
+  // Reporting DOER - shown as the Director-level box above the HOD, since
+  // that's the same real oversight hierarchy Doer Management already uses.
+  const hod = findMostCommonPerson(deptEmployees, employees, 'reportingManager');
+  const doer = findMostCommonPerson(deptEmployees, employees, 'reportingDoer');
 
-  // The HOD is usually their own employee record somewhere in the company
-  // (not necessarily counted inside this department's own list) - look
-  // them up by name to show their real Employee ID and Designation.
-  let hod = null;
-  if (hodName) {
-    const hodKey = hodName.trim().toLowerCase();
-    const match = employees.find((e) => e.name && e.name.trim().toLowerCase() === hodKey);
-    hod = { name: hodName, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
-  }
-
-  // The HOD already gets their own box up top - if they're also counted
-  // among this department's own employees (e.g. the department's Manager
-  // recorded under this same department), drop them from the card lists
+  // Both already get their own boxes up top - if either is also counted
+  // among this department's own employees, drop them from the card lists
   // below so their name/designation isn't shown a second time. totalEmployees
   // still counts them - they ARE part of the department's real headcount.
-  const cardEmployees = hod && hod.employeeId
-    ? deptEmployees.filter((e) => e.employeeId !== hod.employeeId)
-    : deptEmployees;
+  const excludeIds = new Set([hod && hod.employeeId, doer && doer.employeeId].filter(Boolean));
+  const cardEmployees = excludeIds.size ? deptEmployees.filter((e) => !excludeIds.has(e.employeeId)) : deptEmployees;
   const whiteCollar = cardEmployees.filter((e) => formatCollarForChart(e.groupD) === 'White');
   const blueGroupD = cardEmployees.filter((e) => formatCollarForChart(e.groupD) !== 'White');
 
   return {
     department: departmentName,
     totalEmployees: deptEmployees.length,
+    doer,
     hod,
     whiteCollarGroups: groupByDesignation(whiteCollar),
     blueGroupDGroups: groupByDesignation(blueGroupD)

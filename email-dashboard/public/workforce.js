@@ -130,8 +130,27 @@ const ICONS = {
   trendDown: '<line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/>',
   money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
   scale: '<path d="M12 3v18"/><path d="M9 21h6"/><path d="M3 8h18"/><path d="M5 8l-3 6a4 4 0 0 0 8 0l-3-6z"/><path d="M19 8l-3 6a4 4 0 0 0 8 0l-3-6z"/>',
-  flask: '<path d="M9 3h6"/><path d="M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/><path d="M7.5 15h9"/>'
+  flask: '<path d="M9 3h6"/><path d="M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/><path d="M7.5 15h9"/>',
+  briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>'
 };
+
+// Same keyword-matching approach as DEPARTMENT_ICON_RULES, but for the
+// small icon shown next to each designation card's count in the
+// Organization Chart - most-specific rule first, generic person icon as
+// the fallback for anything unmatched (a designation still represents
+// people, so that's always a reasonable default).
+const DESIGNATION_ICON_RULES = [
+  { test: /\b(HOD|HEAD|GENERAL MANAGER|MANAGER|DIRECTOR)\b/i, icon: 'briefcase' },
+  { test: /DATA ENTRY OPERATOR|\bDEO\b/i, icon: 'monitor' },
+  { test: /\b(SUPERVISOR|FOREMAN)\b/i, icon: 'shield' },
+  { test: /ENGINEER|ELECTRICIAN|TECHNICIAN|PLUMBER|MECHANIC|FITTER|WELDER|MASON/i, icon: 'tool' },
+  { test: /\bOPERATOR\b/i, icon: 'settings' },
+  { test: /EXECUTIVE|OFFICER/i, icon: 'confirmed' }
+];
+function designationIconFor(designation) {
+  const match = DESIGNATION_ICON_RULES.find((r) => r.test.test(designation || ''));
+  return match ? match.icon : 'user';
+}
 
 // Real department names come straight off the sheet (e.g. "MEP DEPT.",
 // "FACADE DEPT.", "FIRE", "ADMINISTRATION (HO)") rather than clean labels
@@ -836,7 +855,10 @@ function orgChartCardHtml(group, index, palette) {
   const color = palette[index % palette.length];
   return (
     '<div class="org-chart-card" style="--card-color:' + color.bg + '; --card-tint:' + color.tint + '">' +
-      '<div class="org-chart-card-head">' + (index + 1) + '. ' + escapeHtml(titleCase(group.designation)) + ' (' + group.count + ')</div>' +
+      '<div class="org-chart-card-head">' +
+        '<span class="org-chart-card-head-icon">' + icon(designationIconFor(group.designation), 13) + '</span>' +
+        escapeHtml(titleCase(group.designation)) + ' (' + group.count + ')' +
+      '</div>' +
       '<div class="org-chart-card-body">' +
         group.employees.map((e) => (
           '<div class="org-chart-card-emp">' +
@@ -864,26 +886,43 @@ function orgChartSectionHtml(title, groups) {
   );
 }
 
+// Shared by the Director (Reporting DOER) box and the HOD box below it -
+// same fields (name, Employee ID, Designation), same "Not identified"
+// fallback when no one could be matched, just a different title/class so
+// the Director box (boxClass includes org-chart-director-box) can be
+// styled more prominently as the top of the hierarchy.
+function orgChartLeaderBoxHtml(title, person, boxClass) {
+  const avatar = '<span class="org-chart-hod-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>';
+  if (!person) {
+    return (
+      '<div class="' + boxClass + '">' +
+        avatar +
+        '<div class="org-chart-hod-title">' + escapeHtml(title) + '</div>' +
+        '<div class="org-chart-hod-name">Not identified</div>' +
+      '</div>'
+    );
+  }
+  return (
+    '<div class="' + boxClass + '">' +
+      avatar +
+      '<div class="org-chart-hod-title">' + escapeHtml(title) + '</div>' +
+      '<div class="org-chart-hod-name">' + escapeHtml(person.name) + '</div>' +
+      (person.employeeId ? '<div class="org-chart-hod-sub">(' + escapeHtml(person.employeeId) + ')</div>' : '') +
+      (person.designation ? '<div class="org-chart-hod-role">' + escapeHtml(titleCase(person.designation)) + '</div>' : '') +
+    '</div>'
+  );
+}
+
 function renderOrgChartHtml(data) {
   const deptDisplay = titleCase(data.department);
   const generatedOn = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-  const hodBox = data.hod
-    ? (
-        '<div class="org-chart-hod-box">' +
-          '<span class="org-chart-hod-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
-          '<div class="org-chart-hod-title">HOD – ' + escapeHtml(deptDisplay) + '</div>' +
-          '<div class="org-chart-hod-name">' + escapeHtml(data.hod.name) + '</div>' +
-          (data.hod.employeeId ? '<div class="org-chart-hod-sub">(' + escapeHtml(data.hod.employeeId) + ')</div>' : '') +
-          (data.hod.designation ? '<div class="org-chart-hod-role">' + escapeHtml(titleCase(data.hod.designation)) + '</div>' : '') +
-        '</div>'
-      )
-    : (
-        '<div class="org-chart-hod-box">' +
-          '<span class="org-chart-hod-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
-          '<div class="org-chart-hod-title">HOD – ' + escapeHtml(deptDisplay) + '</div>' +
-          '<div class="org-chart-hod-name">Not identified</div>' +
-        '</div>'
-      );
+  // Reporting DOER names come off the sheet in ALL CAPS (unlike HOD/
+  // reportingManager, which is already properly cased) - title-case just
+  // this one for display so it doesn't look inconsistent next to the HOD
+  // box right below it.
+  const doerForDisplay = data.doer ? { ...data.doer, name: titleCase(data.doer.name) } : null;
+  const directorBox = orgChartLeaderBoxHtml('Director', doerForDisplay, 'org-chart-hod-box org-chart-director-box');
+  const hodBox = orgChartLeaderBoxHtml('HOD – ' + deptDisplay, data.hod, 'org-chart-hod-box');
 
   return (
     '<div class="org-chart">' +
@@ -905,6 +944,8 @@ function renderOrgChartHtml(data) {
       '</div>' +
 
       '<div class="org-chart-tree">' +
+        directorBox +
+        '<div class="org-chart-connector-down"></div>' +
         hodBox +
         orgChartSectionHtml('White Collar', data.whiteCollarGroups) +
         orgChartSectionHtml('Blue Collar & Group D', data.blueGroupDGroups) +
