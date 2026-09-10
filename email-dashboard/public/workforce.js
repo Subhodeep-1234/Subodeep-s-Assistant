@@ -891,13 +891,14 @@ function orgChartSectionHtml(title, groups) {
 // fallback when no one could be matched, just a different title/class so
 // the Director box (boxClass includes org-chart-director-box) can be
 // styled more prominently as the top of the hierarchy.
-function orgChartLeaderBoxHtml(title, person, boxClass) {
+function orgChartLeaderBoxHtml(title, person, boxClass, showEmployeeId) {
   const avatar = '<span class="org-chart-hod-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>';
+  const titleHtml = title ? '<div class="org-chart-hod-title">' + escapeHtml(title) + '</div>' : '';
   if (!person) {
     return (
       '<div class="' + boxClass + '">' +
         avatar +
-        '<div class="org-chart-hod-title">' + escapeHtml(title) + '</div>' +
+        titleHtml +
         '<div class="org-chart-hod-name">Not identified</div>' +
       '</div>'
     );
@@ -905,9 +906,9 @@ function orgChartLeaderBoxHtml(title, person, boxClass) {
   return (
     '<div class="' + boxClass + '">' +
       avatar +
-      '<div class="org-chart-hod-title">' + escapeHtml(title) + '</div>' +
+      titleHtml +
       '<div class="org-chart-hod-name">' + escapeHtml(person.name) + '</div>' +
-      (person.employeeId ? '<div class="org-chart-hod-sub">(' + escapeHtml(person.employeeId) + ')</div>' : '') +
+      (showEmployeeId && person.employeeId ? '<div class="org-chart-hod-sub">(' + escapeHtml(person.employeeId) + ')</div>' : '') +
       (person.designation ? '<div class="org-chart-hod-role">' + escapeHtml(titleCase(person.designation)) + '</div>' : '') +
     '</div>'
   );
@@ -921,8 +922,8 @@ function renderOrgChartHtml(data) {
   // this one for display so it doesn't look inconsistent next to the HOD
   // box right below it.
   const doerForDisplay = data.doer ? { ...data.doer, name: titleCase(data.doer.name) } : null;
-  const directorBox = orgChartLeaderBoxHtml('Director', doerForDisplay, 'org-chart-hod-box org-chart-director-box');
-  const hodBox = orgChartLeaderBoxHtml('HOD – ' + deptDisplay, data.hod, 'org-chart-hod-box');
+  const directorBox = orgChartLeaderBoxHtml('', doerForDisplay, 'org-chart-hod-box org-chart-director-box', false);
+  const hodBox = orgChartLeaderBoxHtml('HOD – ' + deptDisplay, data.hod, 'org-chart-hod-box', true);
 
   return (
     '<div class="org-chart">' +
