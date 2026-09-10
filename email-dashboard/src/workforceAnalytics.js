@@ -71,6 +71,24 @@ function probationCompletingThisMonth(employees, now = new Date()) {
   return employees.filter((e) => isCompletingProbationInMonth(e, now.getUTCFullYear(), now.getUTCMonth()));
 }
 
+// Same DOJ + 6 months math as isCompletingProbationInMonth, but without
+// requiring Employment Type to still say "Probation" - used by the Pending
+// Confirmations report, which needs the whole month's list (1st to last
+// day) regardless of what day it's generated on. Without this, anyone
+// whose confirmation date already passed earlier in the month - and who's
+// since been manually flipped to "Confirmed" in the sheet - would silently
+// drop off the list, making it look like only the still-upcoming ones
+// count instead of the full month.
+function isPendingConfirmationInMonth(emp, year, month) {
+  if (!emp.doj || emp.status === 'INACTIVE') return false;
+  const completion = probationCompletionDate(emp.doj);
+  return completion.getUTCFullYear() === year && completion.getUTCMonth() === month;
+}
+
+function pendingConfirmationsThisMonth(employees, now = new Date()) {
+  return employees.filter((e) => isPendingConfirmationInMonth(e, now.getUTCFullYear(), now.getUTCMonth()));
+}
+
 function turning58ThisMonth(employees, now = new Date()) {
   return employees.filter((e) => {
     if (!e.dob || e.status === 'INACTIVE') return false;
@@ -267,6 +285,7 @@ module.exports = {
   joiningTrend,
   buildInsights,
   probationCompletingThisMonth,
+  pendingConfirmationsThisMonth,
   probationCompletionDate,
   turning58ThisMonth,
   tenureAnalytics,

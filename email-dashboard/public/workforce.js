@@ -482,7 +482,7 @@ let directoryReportVariant = 'default';
 function syncVariantButtons() {
   const doerBtn = document.getElementById('exportDoerBreakupPdf');
   if (doerBtn) doerBtn.hidden = directoryReportVariant !== 'doerManagement';
-  const confirmationsBtn = document.getElementById('exportUpcomingConfirmationsPdf');
+  const confirmationsBtn = document.getElementById('exportPendingConfirmationsPdf');
   if (confirmationsBtn) confirmationsBtn.hidden = directoryReportVariant !== 'probation';
 }
 
@@ -1651,12 +1651,15 @@ document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => 
   window.print();
 });
 
-// Only this report prints landscape - injects a scoped @page override right
-// before printing and removes it again once the print dialog closes, so
-// every other (portrait) export is unaffected.
+// Only this report prints landscape - injects a top-level @page override
+// right before printing and removes it again once the print dialog closes,
+// so every other (portrait) export is unaffected. @page is deliberately
+// NOT nested inside @media print here - some browsers apply a nested
+// version inconsistently, and @page only ever takes effect for the print/
+// paged context anyway, so the wrapper was redundant.
 function printLandscape() {
   const style = document.createElement('style');
-  style.textContent = '@media print { @page { size: landscape; } }';
+  style.textContent = '@page { size: landscape; }';
   document.head.appendChild(style);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
@@ -1668,12 +1671,14 @@ function printLandscape() {
 // Only available when Employee Data was reached via the Dashboard's
 // Probation stat block (see employmentTypeStatsEl's applyFiltersAndShowDirectory
 // call, 'probation' variant). Independent of whatever's currently filtered
-// in Employee Data - always the real "confirmation due this calendar month"
-// list (DOJ + 6 months), same data as Insights' "Completing Probation This
-// Month" table, laid out for a physical HOD sign-off instead.
-document.getElementById('exportUpcomingConfirmationsPdf').addEventListener('click', async () => {
+// in Employee Data - always the whole current month's confirmation-due list
+// (DOJ + 6 months, 1st to last day), regardless of what day it's generated
+// on or whether an employee's Employment Type has already flipped to
+// Confirmed - see pendingConfirmationsThisMonth in workforceAnalytics.js.
+// Laid out for a physical HOD sign-off.
+document.getElementById('exportPendingConfirmationsPdf').addEventListener('click', async () => {
   try {
-    const data = await fetchJson('/api/workforce/probation-completing');
+    const data = await fetchJson('/api/workforce/pending-confirmations');
     const items = data.items.slice().sort((a, b) => {
       const dateDiff = new Date(a.confirmationDate) - new Date(b.confirmationDate);
       if (dateDiff !== 0) return dateDiff;
@@ -1681,7 +1686,7 @@ document.getElementById('exportUpcomingConfirmationsPdf').addEventListener('clic
     });
 
     const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-    document.getElementById('printReportTitle').textContent = 'Upcoming Confirmations Report';
+    document.getElementById('printReportTitle').textContent = 'Pending Confirmations Report';
     document.getElementById('printReportSubtitle').textContent =
       monthLabel + ' · ' + items.length + ' employee' + (items.length === 1 ? '' : 's') + ' · ';
     document.getElementById('printReportDate').textContent =

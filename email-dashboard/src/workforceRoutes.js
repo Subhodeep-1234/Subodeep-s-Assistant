@@ -228,6 +228,33 @@ router.get('/probation-completing', async (req, res) => {
   }
 });
 
+// Powers the Pending Confirmations report (Dashboard -> Probation ->
+// "Pending Confirmations") - the whole current month's confirmation-due
+// list (1st to last day), regardless of whether an employee's Employment
+// Type has already been updated to Confirmed by the time this is generated
+// later in the month. Deliberately a separate route from /probation-completing
+// so Insights' own "Completing Probation This Month" table (still
+// Probation-status-only) is unaffected.
+router.get('/pending-confirmations', async (req, res) => {
+  try {
+    const { employees, departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData();
+    const matches = analytics.pendingConfirmationsThisMonth(employees).map((e) => ({
+      employeeId: e.employeeId,
+      name: e.name,
+      department: departmentNames.get(e.departmentKey) || e.department,
+      designation: e.designation,
+      location: locationNames.get(e.locationKey) || e.location,
+      doj: e.doj ? e.doj.toISOString() : null,
+      confirmationDate: e.doj ? analytics.probationCompletionDate(e.doj).toISOString() : null,
+      reportingDoer: e.reportingDoer,
+      reportingManager: reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager
+    }));
+    res.json({ total: matches.length, items: matches });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/tenure', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();
