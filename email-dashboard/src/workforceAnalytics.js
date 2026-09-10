@@ -363,8 +363,16 @@ function buildOrgChart(employees, departmentNames, targetDepartmentKey) {
     hod = { name: hodName, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
   }
 
-  const whiteCollar = deptEmployees.filter((e) => formatCollarForChart(e.groupD) === 'White');
-  const blueGroupD = deptEmployees.filter((e) => formatCollarForChart(e.groupD) !== 'White');
+  // The HOD already gets their own box up top - if they're also counted
+  // among this department's own employees (e.g. the department's Manager
+  // recorded under this same department), drop them from the card lists
+  // below so their name/designation isn't shown a second time. totalEmployees
+  // still counts them - they ARE part of the department's real headcount.
+  const cardEmployees = hod && hod.employeeId
+    ? deptEmployees.filter((e) => e.employeeId !== hod.employeeId)
+    : deptEmployees;
+  const whiteCollar = cardEmployees.filter((e) => formatCollarForChart(e.groupD) === 'White');
+  const blueGroupD = cardEmployees.filter((e) => formatCollarForChart(e.groupD) !== 'White');
 
   return {
     department: departmentName,
