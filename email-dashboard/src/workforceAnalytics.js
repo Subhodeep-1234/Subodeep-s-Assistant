@@ -267,6 +267,7 @@ module.exports = {
   joiningTrend,
   buildInsights,
   probationCompletingThisMonth,
+  probationCompletionDate,
   turning58ThisMonth,
   tenureAnalytics,
   ageAnalytics,

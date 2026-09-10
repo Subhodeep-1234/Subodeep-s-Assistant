@@ -210,7 +210,7 @@ router.get('/insights', async (req, res) => {
 
 router.get('/probation-completing', async (req, res) => {
   try {
-    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+    const { employees, departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData();
     const matches = analytics.probationCompletingThisMonth(employees).map((e) => ({
       employeeId: e.employeeId,
       name: e.name,
@@ -218,7 +218,9 @@ router.get('/probation-completing', async (req, res) => {
       designation: e.designation,
       location: locationNames.get(e.locationKey) || e.location,
       doj: e.doj ? e.doj.toISOString() : null,
-      reportingDoer: e.reportingDoer
+      confirmationDate: e.doj ? analytics.probationCompletionDate(e.doj).toISOString() : null,
+      reportingDoer: e.reportingDoer,
+      reportingManager: reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager
     }));
     res.json({ total: matches.length, items: matches });
   } catch (err) {

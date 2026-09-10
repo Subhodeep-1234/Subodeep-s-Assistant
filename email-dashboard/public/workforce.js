@@ -269,7 +269,7 @@ function setView(view) {
     // export should use the default column layout. applyFiltersAndShowDirectory
     // overrides this right after calling setView() when it has its own variant.
     directoryReportVariant = 'default';
-    syncDoerBreakupButton();
+    syncVariantButtons();
   }
   // All views live in the same scrolling document (sections are toggled via
   // [hidden], not real navigation), so the old scroll position otherwise
@@ -460,7 +460,7 @@ employmentTypeStatsEl.addEventListener('click', (e) => {
   if (!block) return;
   const filters = { status: block.dataset.status };
   if (block.dataset.employmentType) filters.employmentType = block.dataset.employmentType;
-  applyFiltersAndShowDirectory(filters);
+  applyFiltersAndShowDirectory(filters, block.dataset.employmentType === 'Probation' ? 'probation' : undefined);
 });
 employmentTypeStatsEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -472,15 +472,18 @@ employmentTypeStatsEl.addEventListener('keydown', (e) => {
 
 // Which Employee Data PDF column layout to use - 'default' everywhere
 // except when reached via a Workforce Movement chart/stat-card click,
-// which swaps Age out for Status, or a Doer Management row click, which
-// unlocks the extra "Export DOER Breakup" report below. Reset on every
-// navigation so it never leaks into an unrelated export (e.g. clicking
-// Department right after).
+// which swaps Age out for Status; a Doer Management row click, which
+// unlocks the extra "Export DOER Breakup" report; or the Dashboard's
+// Probation stat block, which unlocks "Upcoming Confirmations". Reset on
+// every navigation so it never leaks into an unrelated export (e.g.
+// clicking Department right after).
 let directoryReportVariant = 'default';
 
-function syncDoerBreakupButton() {
-  const btn = document.getElementById('exportDoerBreakupPdf');
-  if (btn) btn.hidden = directoryReportVariant !== 'doerManagement';
+function syncVariantButtons() {
+  const doerBtn = document.getElementById('exportDoerBreakupPdf');
+  if (doerBtn) doerBtn.hidden = directoryReportVariant !== 'doerManagement';
+  const confirmationsBtn = document.getElementById('exportUpcomingConfirmationsPdf');
+  if (confirmationsBtn) confirmationsBtn.hidden = directoryReportVariant !== 'probation';
 }
 
 function applyFiltersAndShowDirectory(filters, reportVariant) {
@@ -498,7 +501,7 @@ function applyFiltersAndShowDirectory(filters, reportVariant) {
   const alreadyLoaded = loadedViews.has('directory');
   setView('directory'); // resets directoryReportVariant to 'default' - set it after, not before
   directoryReportVariant = reportVariant || 'default';
-  syncDoerBreakupButton();
+  syncVariantButtons();
   if (alreadyLoaded) loadEmployees();
 }
 
@@ -1646,6 +1649,66 @@ document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => 
   });
   document.getElementById('printReportBody').innerHTML = bodyHtml || '<tr><td colspan="7">No employees match these filters</td></tr>';
   window.print();
+});
+
+// Only this report prints landscape - injects a scoped @page override right
+// before printing and removes it again once the print dialog closes, so
+// every other (portrait) export is unaffected.
+function printLandscape() {
+  const style = document.createElement('style');
+  style.textContent = '@media print { @page { size: landscape; } }';
+  document.head.appendChild(style);
+  window.print();
+  window.addEventListener('afterprint', function cleanup() {
+    style.remove();
+    window.removeEventListener('afterprint', cleanup);
+  });
+}
+
+// Only available when Employee Data was reached via the Dashboard's
+// Probation stat block (see employmentTypeStatsEl's applyFiltersAndShowDirectory
+// call, 'probation' variant). Independent of whatever's currently filtered
+// in Employee Data - always the real "confirmation due this calendar month"
+// list (DOJ + 6 months), same data as Insights' "Completing Probation This
+// Month" table, laid out for a physical HOD sign-off instead.
+document.getElementById('exportUpcomingConfirmationsPdf').addEventListener('click', async () => {
+  try {
+    const data = await fetchJson('/api/workforce/probation-completing');
+    const items = data.items.slice().sort((a, b) => {
+      const dateDiff = new Date(a.confirmationDate) - new Date(b.confirmationDate);
+      if (dateDiff !== 0) return dateDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    document.getElementById('printReportTitle').textContent = 'Upcoming Confirmations Report';
+    document.getElementById('printReportSubtitle').textContent =
+      monthLabel + ' · ' + items.length + ' employee' + (items.length === 1 ? '' : 's') + ' · ';
+    document.getElementById('printReportDate').textContent =
+      new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    document.getElementById('printReportHead').innerHTML =
+      '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Location</th>' +
+      '<th>Confirmation Date</th><th>HOD Name</th><th class="print-signature-col">Signature</th>';
+    document.getElementById('printReportBody').innerHTML = items.length
+      ? items
+          .map((it) => (
+            '<tr>' +
+              '<td>' + escapeHtml(it.employeeId) + '</td>' +
+              '<td>' + escapeHtml(it.name) + '</td>' +
+              '<td>' + escapeHtml(it.designation || '—') + '</td>' +
+              '<td>' + escapeHtml(it.department || '—') + '</td>' +
+              '<td>' + escapeHtml(it.location || '—') + '</td>' +
+              '<td>' + formatDate(it.confirmationDate) + '</td>' +
+              '<td>' + escapeHtml(it.reportingManager || '—') + '</td>' +
+              '<td class="print-signature-col"></td>' +
+            '</tr>'
+          ))
+          .join('')
+      : '<tr><td colspan="8">No confirmations due this month</td></tr>';
+    printLandscape();
+  } catch (err) {
+    alert('Failed to generate Upcoming Confirmations report: ' + err.message);
+  }
 });
 
 document.getElementById('filterToggleBtn').addEventListener('click', () => {

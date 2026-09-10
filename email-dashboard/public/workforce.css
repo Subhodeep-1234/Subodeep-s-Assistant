@@ -1243,4 +1243,9 @@ body {
   #printReport tbody tr.print-subsection-blue td { background: #d8eef0; color: #1d5c63; }
   #printReport tbody tr.print-subsection-groupd td { background: #ece0f3; color: #6b3a8f; }
   #printReport tbody tr.print-subsection-other td { background: #eef0ed; color: #4a4a4a; }
+
+  /* Upcoming Confirmations report only: a wider, taller blank cell for the
+     HOD's physical signature - every other report's columns are unaffected. */
+  #printReport th.print-signature-col,
+  #printReport td.print-signature-col { min-width: 170px; height: 46px; }
 }
