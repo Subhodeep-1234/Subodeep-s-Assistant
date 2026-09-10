@@ -923,7 +923,7 @@ function renderOrgChartHtml(data) {
   // box right below it.
   const doerForDisplay = data.doer ? { ...data.doer, name: titleCase(data.doer.name) } : null;
   const directorBox = orgChartLeaderBoxHtml('', doerForDisplay, 'org-chart-hod-box org-chart-director-box', false);
-  const hodBox = orgChartLeaderBoxHtml('HOD – ' + deptDisplay, data.hod, 'org-chart-hod-box', true);
+  const hodBox = orgChartLeaderBoxHtml('', data.hod, 'org-chart-hod-box', true);
 
   return (
     '<div class="org-chart">' +
