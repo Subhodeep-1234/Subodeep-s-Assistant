@@ -1290,7 +1290,6 @@ body {
 }
 .org-chart-hod-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #bfdbfe; font-weight: 700; }
 .org-chart-hod-name { font-size: 1.05rem; font-weight: 800; }
-.org-chart-hod-sub { font-size: 0.78rem; color: #bfdbfe; }
 .org-chart-hod-role { font-size: 0.78rem; color: #bfdbfe; font-weight: 600; margin-top: 2px; }
 
 .org-chart-connector-down { width: 2px; height: 26px; background: var(--line); }
