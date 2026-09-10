@@ -430,7 +430,7 @@ ageRowsEl.addEventListener('click', (e) => {
   if (!row) return;
   const filters = { status: 'ACTIVE', ageMin: row.dataset.ageMin };
   if (row.dataset.ageMax) filters.ageMax = row.dataset.ageMax;
-  applyFiltersAndShowDirectory(filters);
+  applyFiltersAndShowDirectory(filters, 'ageDistribution');
 });
 ageRowsEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -1366,6 +1366,15 @@ function formatAgeYearsMonths(dobIso) {
   return years + 'Y ' + months + 'M';
 }
 
+// Precise (fractional) age in years, purely for sorting the Age Distribution
+// report smallest-to-largest - missing DOB sorts to the end either way.
+function ageInYearsForSort(dobIso) {
+  if (!dobIso) return Infinity;
+  const dob = new Date(dobIso);
+  if (isNaN(dob.getTime())) return Infinity;
+  return (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+}
+
 function titleCase(s) {
   return String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -1484,7 +1493,18 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   if (activeFilters.employmentType) filterParts.push(activeFilters.employmentType);
   if (activeFilters.location) filterParts.push(activeFilters.location);
 
+  // Age Distribution's own report sorts purely by actual age (small to
+  // large) instead of the Collar/Department grouping every other report
+  // uses - that grouping doesn't make sense once age, not collar, is the
+  // organizing idea. Every other path (Department/Location/Gender/KPI
+  // clicks, manual filters, Workforce Movement) is unaffected.
+  const isAgeDistributionReport = directoryReportVariant === 'ageDistribution';
   const sortedList = lastEmployeeList.slice().sort((a, b) => {
+    if (isAgeDistributionReport) {
+      const ageDiff = ageInYearsForSort(a.dob) - ageInYearsForSort(b.dob);
+      if (ageDiff !== 0) return ageDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    }
     const collarDiff = collarRank(a.groupD) - collarRank(b.groupD);
     if (collarDiff !== 0) return collarDiff;
     const deptDiff = (a.department || '').localeCompare(b.department || '');
@@ -1513,11 +1533,16 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   document.getElementById('printReportBody').innerHTML = sortedList.length
     ? sortedList
         .map((e) => {
-          const heading = e.groupD || 'Unspecified Collar';
+          // No Collar section headers for the age-sorted report - once rows
+          // are ordered by age, collars no longer sit in contiguous blocks,
+          // so a per-collar heading would just flicker in and out between rows.
           let sectionRow = '';
-          if (heading !== lastGroupHeading) {
-            sectionRow = '<tr class="print-section-row"><td colspan="9">' + escapeHtml(heading) + '</td></tr>';
-            lastGroupHeading = heading;
+          if (!isAgeDistributionReport) {
+            const heading = e.groupD || 'Unspecified Collar';
+            if (heading !== lastGroupHeading) {
+              sectionRow = '<tr class="print-section-row"><td colspan="9">' + escapeHtml(heading) + '</td></tr>';
+              lastGroupHeading = heading;
+            }
           }
           const lastCol = isWorkforceMovementReport
             ? '<td>' + escapeHtml(titleCase(e.status) || '—') + '</td>'
