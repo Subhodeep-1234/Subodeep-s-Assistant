@@ -466,6 +466,22 @@ ageRowsEl.addEventListener('keydown', (e) => {
   row.click();
 });
 
+const tenureRowsEl = document.getElementById('tenureRows');
+tenureRowsEl.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-date-to]');
+  if (!row) return;
+  const filters = { status: 'ACTIVE', dateTo: row.dataset.dateTo };
+  if (row.dataset.dateFrom) filters.dateFrom = row.dataset.dateFrom;
+  applyFiltersAndShowDirectory(filters);
+});
+tenureRowsEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-date-to]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
 const genderRowsEl = document.getElementById('genderRows');
 genderRowsEl.addEventListener('click', (e) => {
   const row = e.target.closest('[data-gender]');
@@ -2171,6 +2187,22 @@ document.getElementById('exportJoiningsPdf').addEventListener('click', async () 
 
 // ---------- Tenure tab ----------
 
+// Converts a tenure bucket's day-count range (tenure = today - DOJ) into
+// the equivalent DOJ dateFrom/dateTo range, so clicking a Tenure Range row
+// can reuse Employee Data's existing dateFrom/dateTo filter instead of
+// needing a dedicated tenure filter. The longest-tenure bucket has no
+// maxDays (open-ended), so dateFrom is left unset for it - any DOJ that
+// old still counts.
+function tenureBucketToDateRange(minDays, maxDays) {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const dateTo = new Date(now.getTime() - minDays * dayMs).toISOString().slice(0, 10);
+  const dateFrom = maxDays === null || maxDays === undefined
+    ? ''
+    : new Date(now.getTime() - maxDays * dayMs).toISOString().slice(0, 10);
+  return { dateFrom, dateTo };
+}
+
 async function loadTenureView() {
   const rowsEl = document.getElementById('tenureRows');
   rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
@@ -2191,13 +2223,21 @@ async function loadTenureView() {
         '<span class="wf-dist-num-col">% of Total</span>' +
       '</div>' +
       data.buckets
-        .map((b, i) => (
-          '<div class="wf-dist-row">' +
-            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
-            '<span class="wf-dist-num-col">' + b.count + '</span>' +
-            '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
-          '</div>'
-        ))
+        .map((b, i) => {
+          // Tenure buckets are day-count ranges (minDays/maxDays), not a
+          // dedicated filter Employee Data understands - converted here
+          // into the DOJ dateFrom/dateTo range that produces the same
+          // tenure window, reusing the filter that's already there.
+          const range = tenureBucketToDateRange(b.minDays, b.maxDays);
+          return (
+            '<div class="wf-dist-row clickable" tabindex="0" role="button" data-date-to="' + range.dateTo + '"' +
+              (range.dateFrom ? ' data-date-from="' + range.dateFrom + '"' : '') + '>' +
+              '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
+              '<span class="wf-dist-num-col">' + b.count + '</span>' +
+              '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+            '</div>'
+          );
+        })
         .join('') +
       '<div class="wf-dist-row wf-dist-total-row">' +
         '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +

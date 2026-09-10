@@ -142,13 +142,13 @@ function buildInsights(employees, departmentNames, locationNames) {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TENURE_BUCKETS = [
-  { key: 'lt6m', label: '< 6 months', maxDays: 182 },
-  { key: '6to12m', label: '6-12 months', maxDays: 365 },
-  { key: '1to2y', label: '1-2 years', maxDays: 730 },
-  { key: '2to5y', label: '2-5 years', maxDays: 1826 },
-  { key: '5to10y', label: '5-10 years', maxDays: 3652 },
-  { key: '10to15y', label: '10-15 years', maxDays: 5478 },
-  { key: 'gt15y', label: '15+ years', maxDays: Infinity }
+  { key: 'lt6m', label: '< 6 months', minDays: 0, maxDays: 182 },
+  { key: '6to12m', label: '6-12 months', minDays: 183, maxDays: 365 },
+  { key: '1to2y', label: '1-2 years', minDays: 366, maxDays: 730 },
+  { key: '2to5y', label: '2-5 years', minDays: 731, maxDays: 1826 },
+  { key: '5to10y', label: '5-10 years', minDays: 1827, maxDays: 3652 },
+  { key: '10to15y', label: '10-15 years', minDays: 3653, maxDays: 5478 },
+  { key: 'gt15y', label: '15+ years', minDays: 5479, maxDays: Infinity }
 ];
 
 function tenureAnalytics(employees, now = new Date()) {
@@ -175,7 +175,13 @@ function tenureAnalytics(employees, now = new Date()) {
     activeCount: activeEmployees.length,
     missingDojCount: activeEmployees.length - eligible.length,
     averageTenureYears: averageYears === null ? null : Math.round(averageYears * 10) / 10,
-    buckets: buckets.map(({ key, label, count }) => ({ key, label, count }))
+    buckets: buckets.map(({ key, label, count, minDays, maxDays }) => ({
+      key,
+      label,
+      count,
+      minDays,
+      maxDays: maxDays === Infinity ? null : maxDays
+    }))
   };
 }
 
