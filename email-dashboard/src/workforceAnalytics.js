@@ -287,25 +287,55 @@ function formatCollarForChart(value) {
   return value === '0' ? 'White' : value;
 }
 
-// A best-effort seniority ordering for grouping designation cards top-to-
-// bottom within a collar section (Manager/HOD first, Helper/Labour last).
-// Covers common patterns across the company's actual designations rather
-// than an exhaustive list - unrecognized designations land in the middle
-// (rank 80) and fall back to alphabetical order among themselves.
+// A market-standard corporate seniority ladder for grouping designation
+// cards top-to-bottom within a collar section. The Manager family in
+// particular needs its own finer tiers, not one lumped-together "Manager"
+// bucket - lumping General/Senior/Deputy/Assistant Manager together was a
+// real bug found in Accounts, where "Assistant General Manager", "Senior
+// Manager" and "Assistant Manager" all tied at the same rank and fell back
+// to alphabetical order (wrongly putting Assistant Manager above Senior
+// Manager). Most-specific patterns are checked first so a title like
+// "Assistant General Manager" matches its own AGM tier rather than the
+// generic "General Manager" or "Assistant Manager" catch-alls it also
+// contains as substrings. Unrecognized designations land at
+// ORG_DESIGNATION_DEFAULT_RANK and fall back to alphabetical order.
 const ORG_DESIGNATION_TIERS = [
-  { rank: 10, test: /\b(HOD|HEAD|GENERAL MANAGER|MANAGER)\b/ },
-  { rank: 20, test: /\b(SR\.?|SENIOR)\s*(ENGINEER|EXECUTIVE|OFFICER)\b/ },
-  { rank: 30, test: /\b(ENGINEER|EXECUTIVE|OFFICER)\b/ },
-  { rank: 40, test: /\b(JR\.?|JUNIOR)\b/ },
-  { rank: 50, test: /\b(DATA ENTRY OPERATOR|DEO)\b/ },
-  { rank: 60, test: /\b(SUPERVISOR|FOREMAN)\b/ },
-  { rank: 70, test: /\b(SR\.?|SENIOR)\b/ },
-  { rank: 90, test: /\b(ASST\.?|ASSISTANT)\b/ },
-  { rank: 100, test: /\bOPERATOR\b/ },
-  { rank: 110, test: /\bTECHNICIAN\b/ },
-  { rank: 200, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER)\b/ }
+  // Leadership
+  { rank: 5, test: /\b(CHAIRMAN|MANAGING DIRECTOR|EXECUTIVE DIRECTOR|COMPANY SECRETARY|DIRECTOR)\b/ },
+  { rank: 15, test: /VICE\s*PRESIDENT|\bVP\b/ },
+  // General Manager family - spelled-out "Deputy/Assistant General
+  // Manager" and the DGM/AGM abbreviations, checked before the generic
+  // "General Manager" catch-all (which they'd otherwise also match).
+  { rank: 40, test: /DEPUTY GENERAL MANAGER|\bDGM\b/ },
+  { rank: 50, test: /ASST\.?\s*GENERAL MANAGER|ASSISTANT GENERAL MANAGER|\bAGM\b/ },
+  { rank: 30, test: /\b(GENERAL MANAGER|\bGM\b|PLANT MANAGER|FINANCE CONTROLLER)\b/ },
+  // Manager family - Senior/Deputy/Assistant before the generic Manager
+  // catch-all, for the same reason.
+  { rank: 60, test: /\b(SR\.?|SENIOR)\s*MANAGER\b/ },
+  { rank: 80, test: /\bDEPUTY MANAGER\b/ },
+  { rank: 90, test: /\b(ASSISTANT MANAGER|ASST\.?\s*MAN[AG]ER)\b/ },
+  { rank: 70, test: /\bMANAGER\b/ },
+  { rank: 18, test: /\b(HOD|HEAD)\b/ },
+  // Engineer/Executive/Officer family
+  { rank: 100, test: /\b(SR\.?|SENIOR)\s*(ENGINEER|EXECUTIVE|OFFICER)\b/ },
+  { rank: 110, test: /\b(JR\.?|JUNIOR)\b/ },
+  { rank: 120, test: /\b(ENGINEER|EXECUTIVE|OFFICER)\b/ },
+  { rank: 135, test: /\b(SR\.?|SENIOR)\s*(DATA ENTRY OPERATOR|DEO)\b/ },
+  { rank: 140, test: /\b(DATA ENTRY OPERATOR|DEO)\b/ },
+  // Supervisory/trade ladder - Sr.<trade> (any trade prefixed Sr./Senior,
+  // not just Supervisor) outranks a plain/unmatched trade title, which in
+  // turn outranks Asst.<trade>, Operator, Technician and finally Helper.
+  { rank: 150, test: /\b(SR\.?|SENIOR)\s*(SUPERVISOR|FOREMAN)\b/ },
+  { rank: 160, test: /\b(SUPERVISOR|FOREMAN)\b/ },
+  { rank: 180, test: /\b(SR\.?|SENIOR)\b/ }, // any other "Sr. <trade>" not already caught above
+  // (plain/unmatched trades fall through to ORG_DESIGNATION_DEFAULT_RANK
+  // here, between the Sr.<trade> catch-all above and Asst.<trade> below)
+  { rank: 210, test: /\b(ASST\.?|ASSISTANT)\b/ },
+  { rank: 215, test: /\bOPERATOR\b/ },
+  { rank: 220, test: /\bTECHNICIAN\b/ },
+  { rank: 230, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER)\b/ }
 ];
-const ORG_DESIGNATION_DEFAULT_RANK = 80;
+const ORG_DESIGNATION_DEFAULT_RANK = 190;
 
 function orgDesignationRank(designation) {
   const upper = String(designation || '').toUpperCase();
