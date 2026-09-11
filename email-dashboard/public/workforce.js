@@ -320,7 +320,7 @@ function loadView(view, forceRefresh) {
   if (view === 'directory') return loadEmployees(forceRefresh);
   if (view === 'joining') return loadJoiningView();
   if (view === 'tenure') return loadTenureView();
-  if (view === 'insights') return loadInsightsView();
+  if (view === 'insights') return loadInsightsView(forceRefresh);
   if (view === 'quality') return loadQualityView();
   if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'locationFull') return loadLocationFullView();
@@ -383,8 +383,16 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
   );
 }
 
+// Fired in the background from the Dashboard (not awaited) so that by the
+// time someone actually opens Insights - usually visited after the
+// Dashboard, not before - the fetch is often already done, and that page
+// no longer has to sit on its own live Sheets round trip the first time
+// it's opened in a session. Cleared once loadInsightsView consumes it.
+let insightsPrefetch = null;
+
 async function loadOverview(forceRefresh) {
   kpiGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  insightsPrefetch = fetchJson('/api/workforce/insights').catch(() => null);
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
@@ -2411,11 +2419,16 @@ function renderGenderDonut(buckets) {
 
 // ---------- Insights tab ----------
 
-async function loadInsightsView() {
+async function loadInsightsView(forceRefresh) {
   const listEl = document.getElementById('insightsFull');
   listEl.innerHTML = '<li class="empty">Loading…</li>';
   try {
-    const insights = await fetchJson('/api/workforce/insights');
+    // Use the Dashboard's background prefetch when there is one - skipped
+    // entirely on an explicit Refresh, or if the prefetch failed/was never
+    // started (e.g. Insights opened without visiting the Dashboard first).
+    let insights = !forceRefresh && insightsPrefetch ? await insightsPrefetch : null;
+    if (!insights) insights = await fetchJson('/api/workforce/insights');
+    insightsPrefetch = null;
     listEl.innerHTML = insights.insights.length
       ? insights.insights.map((i) => '<li>' + escapeHtml(i.text) + '</li>').join('')
       : '<li class="empty">No insights yet</li>';
