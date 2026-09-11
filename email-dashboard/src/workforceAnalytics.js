@@ -111,12 +111,9 @@ function buildInsights(employees, departmentNames, locationNames) {
   const activeByLocation = locationBreakdown(employees, locationNames, (e) => e.status === 'ACTIVE');
   if (activeByLocation.length) {
     insights.push({
-      text: activeByLocation[0].name + ' has the highest number of active employees (' + activeByLocation[0].count + ').'
+      text: activeByLocation[0].name + ' Location has the highest number of active employees (' + activeByLocation[0].count + ').'
     });
   }
-
-  const noticeCount = employees.filter((e) => e.status === 'NOTICE PERIOD').length;
-  insights.push({ text: noticeCount + ' employee' + (noticeCount === 1 ? ' is' : 's are') + ' currently serving notice.' });
 
   const probationDone = probationCompletingThisMonth(employees, now);
   insights.push({
@@ -131,13 +128,24 @@ function buildInsights(employees, departmentNames, locationNames) {
     });
   }
 
-  const trend = joiningTrend(employees, 12);
-  const busiestMonth = trend.reduce((best, m) => (m.count > (best ? best.count : -1) ? m : best), null);
-  if (busiestMonth && busiestMonth.count > 0) {
-    insights.push({ text: busiestMonth.label + ' had the highest number of joiners (' + busiestMonth.count + ') in the last year.' });
-  }
+  const birthdays = birthdaysThisMonth(employees, now);
+  insights.push({
+    text: birthdays.length
+      ? birthdays.length + ' employee' + (birthdays.length === 1 ? ' has' : 's have') + ' a birthday this month: ' +
+        birthdays.map((e) => e.name + ' (' + e.dob.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) + ')').join(', ') + '.'
+      : 'No employees have a birthday this month.'
+  });
 
   return insights;
+}
+
+// Whole current month (1st to last day), sorted earliest-to-latest in the
+// month - Active/Notice Period only, matching turning58ThisMonth's own
+// convention (an Inactive/departed employee's birthday isn't relevant here).
+function birthdaysThisMonth(employees, now = new Date()) {
+  return employees
+    .filter((e) => e.dob && e.status !== 'INACTIVE' && e.dob.getUTCMonth() === now.getUTCMonth())
+    .sort((a, b) => a.dob.getUTCDate() - b.dob.getUTCDate());
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -448,6 +456,7 @@ module.exports = {
   pendingConfirmationsThisMonth,
   probationCompletionDate,
   turning58ThisMonth,
+  birthdaysThisMonth,
   tenureAnalytics,
   ageAnalytics,
   genderAnalytics,
