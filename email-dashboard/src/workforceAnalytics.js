@@ -388,13 +388,25 @@ function findMostCommonPerson(deptEmployees, allEmployees, employeeField) {
   if (!name) return null;
   const key = name.trim().toLowerCase();
   const match = allEmployees.find((e) => e.name && e.name.trim().toLowerCase() === key);
+  // If the identified person's own record has gone Inactive, the Org Chart
+  // box should go blank rather than keep showing a departed person's name -
+  // returning null here reuses the same "Not identified" box rendering
+  // already in place. Once the department's staff get retagged to a new
+  // (active) HOD/DOER in the sheet, that new name naturally takes over here.
+  if (match && match.status === 'INACTIVE') return null;
   return { name, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
 }
 
-// Active-only, matching every other section's department breakdown
-// convention (Doer Management, Department Wise Headcount, etc).
+// Active and Notice Period stay on the Org Chart - only Inactive staff
+// drop off, per explicit request (unlike every other department breakdown
+// in the app, which is Active-only). A designation's card disappears on
+// its own once no one in it qualifies any more (groupByDesignation only
+// creates a card for designations with at least one person), and
+// reappears the moment someone with that designation does - no extra
+// logic needed for that, it falls out of filtering from the current list
+// every time this runs.
 function buildOrgChart(employees, departmentNames, targetDepartmentKey) {
-  const deptEmployees = employees.filter((e) => e.status === 'ACTIVE' && e.departmentKey === targetDepartmentKey);
+  const deptEmployees = employees.filter((e) => e.status !== 'INACTIVE' && e.departmentKey === targetDepartmentKey);
   const departmentName =
     departmentNames.get(targetDepartmentKey) || (deptEmployees[0] && deptEmployees[0].department) || '';
 
