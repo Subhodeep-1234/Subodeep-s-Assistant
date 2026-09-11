@@ -296,6 +296,15 @@ function setView(view) {
     directoryReportVariant = 'default';
     syncVariantButtons();
   }
+  if (view === 'orgChart') {
+    // Reset back to the department-picker every time this view is (re)entered
+    // via navigation - otherwise the dropdown and rendered chart just keep
+    // showing whatever department was last picked, since loadView's cache
+    // skips reloading a view that's already been visited this session.
+    document.getElementById('orgChartDeptSelect').value = '';
+    document.getElementById('orgChartContent').innerHTML = '';
+    document.getElementById('exportOrgChartPdf').hidden = true;
+  }
   // All views live in the same scrolling document (sections are toggled via
   // [hidden], not real navigation), so the old scroll position otherwise
   // carries over - e.g. leaving a long list scrolled down, then reopening
