@@ -388,12 +388,14 @@ function findMostCommonPerson(deptEmployees, allEmployees, employeeField) {
   if (!name) return null;
   const key = name.trim().toLowerCase();
   const match = allEmployees.find((e) => e.name && e.name.trim().toLowerCase() === key);
-  // If the identified person's own record has gone Inactive, the Org Chart
-  // box should go blank rather than keep showing a departed person's name -
-  // returning null here reuses the same "Not identified" box rendering
-  // already in place. Once the department's staff get retagged to a new
-  // (active) HOD/DOER in the sheet, that new name naturally takes over here.
-  if (match && match.status === 'INACTIVE') return null;
+  // If the identified person's own record has gone Inactive, the box stays
+  // exactly as it is (same design, still rendered) but with a blank name/
+  // designation instead of a departed person's stale info - an empty (not
+  // null) name here keeps it out of the "Not identified" fallback, which
+  // is reserved for when no one could be identified at all. Once the
+  // department's staff get retagged to a new (active) HOD/DOER in the
+  // sheet, that new name naturally takes over here.
+  if (match && match.status === 'INACTIVE') return { name: '', employeeId: null, designation: null };
   return { name, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
 }
 
