@@ -1000,41 +1000,6 @@ body {
 .wf-work-summary-card .wf-ws-label { font-size: 0.68rem; color: var(--muted); }
 .wf-work-summary-card .wf-ws-value { font-size: 0.88rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
 
-/* ---------- Employee table ---------- */
-
-.wf-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-
-.wf-table th,
-.wf-table td {
-  padding: 10px 12px;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.wf-table thead th {
-  background: var(--other-bg);
-  color: var(--muted);
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-  position: sticky;
-  top: 0;
-}
-
-.wf-table tbody tr:not(:last-child) td {
-  border-bottom: 1px solid var(--line);
-}
-
-.wf-table tbody tr:nth-child(even) {
-  background: color-mix(in srgb, var(--other-bg) 40%, transparent);
-}
-
-
 .wf-status-chip {
   display: inline-block;
   font-size: 0.68rem;
@@ -1141,8 +1106,6 @@ body {
   margin-bottom: 14px;
 }
 
-.table-wrap { overflow-x: auto; }
-
 @media (max-width: 860px) {
   .wf-grid-2 { grid-template-columns: 1fr; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1151,7 +1114,6 @@ body {
 @media (max-width: 640px) {
   .wf-shell { padding: 14px 14px 32px; }
   .wf-wordmark { font-size: 1.05rem; }
-  .wf-table th, .wf-table td { padding: 8px 9px; font-size: 0.78rem; }
 }
 
 @media (max-width: 460px) {

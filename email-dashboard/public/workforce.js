@@ -2413,41 +2413,16 @@ function renderGenderDonut(buckets) {
 
 async function loadInsightsView() {
   const listEl = document.getElementById('insightsFull');
-  const probBody = document.getElementById('probationTableBody');
   listEl.innerHTML = '<li class="empty">Loading…</li>';
   try {
-    const [insights, probation] = await Promise.all([
-      fetchJson('/api/workforce/insights'),
-      fetchJson('/api/workforce/probation-completing')
-    ]);
+    const insights = await fetchJson('/api/workforce/insights');
     listEl.innerHTML = insights.insights.length
       ? insights.insights.map((i) => '<li>' + escapeHtml(i.text) + '</li>').join('')
       : '<li class="empty">No insights yet</li>';
-
-    probBody.innerHTML = probation.items.length
-      ? probation.items
-          .map(
-            (e) =>
-              '<tr>' +
-                '<td>' + escapeHtml(e.employeeId) + '</td>' +
-                '<td>' + escapeHtml(e.name) + '</td>' +
-                '<td>' + escapeHtml(e.department) + '</td>' +
-                '<td>' + escapeHtml(e.designation) + '</td>' +
-                '<td>' + escapeHtml(e.location) + '</td>' +
-                '<td>' + formatDate(e.doj) + '</td>' +
-                '<td>' + escapeHtml(e.reportingDoer) + '</td>' +
-              '</tr>'
-          )
-          .join('')
-      : '<tr><td colspan="7"><div class="empty">No one is completing probation this month</div></td></tr>';
   } catch (err) {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }
 }
-
-document.getElementById('exportProbationPdf').addEventListener('click', () => {
-  window.print();
-});
 
 // ---------- Data Quality tab ----------
 
