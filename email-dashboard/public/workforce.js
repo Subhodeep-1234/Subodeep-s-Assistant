@@ -316,7 +316,7 @@ function loadView(view, forceRefresh) {
   if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'locationFull') return loadLocationFullView();
   if (view === 'doerManagement') return loadDoerManagementView();
-  if (view === 'orgChart') return loadOrgChartView();
+  if (view === 'orgChart') return loadOrgChartView(forceRefresh);
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'profile') return loadProfile();
@@ -824,21 +824,23 @@ const ORG_CARD_PALETTE = [
 
 let lastOrgChartData = null;
 
-function loadOrgChartView() {
+function loadOrgChartView(forceRefresh) {
   const select = document.getElementById('orgChartDeptSelect');
-  if (select.value) return loadOrgChartForDepartment(select.value);
+  if (select.value) return loadOrgChartForDepartment(select.value, forceRefresh);
   document.getElementById('orgChartContent').innerHTML = '';
   document.getElementById('exportOrgChartPdf').hidden = true;
   return Promise.resolve();
 }
 
-async function loadOrgChartForDepartment(department) {
+async function loadOrgChartForDepartment(department, forceRefresh) {
   const content = document.getElementById('orgChartContent');
   const exportBtn = document.getElementById('exportOrgChartPdf');
   content.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   exportBtn.hidden = true;
   try {
-    const data = await fetchJson('/api/workforce/org-chart?department=' + encodeURIComponent(department));
+    const data = await fetchJson(
+      '/api/workforce/org-chart?department=' + encodeURIComponent(department) + (forceRefresh ? '&refresh=1' : '')
+    );
     lastOrgChartData = data;
     content.innerHTML = renderOrgChartHtml(data);
     exportBtn.hidden = false;

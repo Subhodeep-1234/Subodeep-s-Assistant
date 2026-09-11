@@ -194,7 +194,9 @@ router.get('/org-chart', async (req, res) => {
     if (!req.query.department) {
       return res.status(400).json({ error: 'department is required' });
     }
-    const { employees, departmentNames } = await employeeService.getEmployeeData();
+    const { employees, departmentNames } = await employeeService.getEmployeeData({
+      forceRefresh: wantsForceRefresh(req)
+    });
     const targetKey = employeeService.normalizeKey(req.query.department);
     res.json(analytics.buildOrgChart(employees, departmentNames, targetKey));
   } catch (err) {
