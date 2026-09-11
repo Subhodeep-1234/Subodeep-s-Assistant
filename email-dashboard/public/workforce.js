@@ -316,7 +316,7 @@ function loadView(view, forceRefresh) {
   if (view === 'departmentFull') return loadDepartmentFullView();
   if (view === 'locationFull') return loadLocationFullView();
   if (view === 'doerManagement') return loadDoerManagementView();
-  if (view === 'orgChart') return loadOrgChartView(forceRefresh);
+  if (view === 'orgChart') return loadOrgChartView();
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'profile') return loadProfile();
@@ -824,22 +824,28 @@ const ORG_CARD_PALETTE = [
 
 let lastOrgChartData = null;
 
-function loadOrgChartView(forceRefresh) {
+function loadOrgChartView() {
   const select = document.getElementById('orgChartDeptSelect');
-  if (select.value) return loadOrgChartForDepartment(select.value, forceRefresh);
+  if (select.value) return loadOrgChartForDepartment(select.value);
   document.getElementById('orgChartContent').innerHTML = '';
   document.getElementById('exportOrgChartPdf').hidden = true;
   return Promise.resolve();
 }
 
-async function loadOrgChartForDepartment(department, forceRefresh) {
+// Always forces a fresh Sheets fetch (bypassing employeeService's 2-minute
+// cache), not just when the user hits Refresh - the HOD/Director boxes are
+// meant to reflect the HR sheet's Active/Inactive/HOD-tag state live, and a
+// director watching an up-to-2-minutes-stale name during a real handover
+// is a worse experience than the extra ~1-2s Sheets round trip on every
+// department switch, for a low-traffic internal view like this one.
+async function loadOrgChartForDepartment(department) {
   const content = document.getElementById('orgChartContent');
   const exportBtn = document.getElementById('exportOrgChartPdf');
   content.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   exportBtn.hidden = true;
   try {
     const data = await fetchJson(
-      '/api/workforce/org-chart?department=' + encodeURIComponent(department) + (forceRefresh ? '&refresh=1' : '')
+      '/api/workforce/org-chart?department=' + encodeURIComponent(department) + '&refresh=1'
     );
     lastOrgChartData = data;
     content.innerHTML = renderOrgChartHtml(data);
