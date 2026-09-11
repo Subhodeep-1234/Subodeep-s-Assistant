@@ -111,7 +111,7 @@ function buildInsights(employees, departmentNames, locationNames) {
   const activeByLocation = locationBreakdown(employees, locationNames, (e) => e.status === 'ACTIVE');
   if (activeByLocation.length) {
     insights.push({
-      text: activeByLocation[0].name + ' Location has the highest number of active employees (' + activeByLocation[0].count + ').'
+      text: activeByLocation[0].name + ' location has the highest number of active employees (' + activeByLocation[0].count + ').'
     });
   }
 
@@ -131,8 +131,7 @@ function buildInsights(employees, departmentNames, locationNames) {
   const birthdays = birthdaysThisMonth(employees, now);
   insights.push({
     text: birthdays.length
-      ? birthdays.length + ' employee' + (birthdays.length === 1 ? ' has' : 's have') + ' a birthday this month: ' +
-        birthdays.map((e) => e.name + ' (' + e.dob.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) + ')').join(', ') + '.'
+      ? birthdays.length + ' employee' + (birthdays.length === 1 ? ' has' : 's have') + ' a birthday this month.'
       : 'No employees have a birthday this month.'
   });
 
