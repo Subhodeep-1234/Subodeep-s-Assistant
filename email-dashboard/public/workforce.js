@@ -1265,10 +1265,30 @@ async function loadHiExitsView() {
   const listEl = document.getElementById('hiExitsList');
   listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
   document.getElementById('hiExitsSearch').value = '';
+  document.getElementById('hiExitsDeptFilter').value = '';
+  document.getElementById('hiExitsDesigFilter').value = '';
+  document.getElementById('hiExitsStatusFilter').value = '';
   try {
     const data = await fetchJson('/api/insurance/exits');
     hiExitsAllItems = data.items;
     hiExitsRawRows = data.rawRows;
+
+    const depts = Array.from(new Set(hiExitsAllItems.map((e) => e.department).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const desigs = Array.from(new Set(hiExitsAllItems.map((e) => e.designation).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const statuses = Array.from(new Set(hiExitsAllItems.map((e) => e.status).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    // Option value stays the raw sheet string (exact-match filtering) -
+    // only the visible label is title-cased, same as Covered Employees.
+    document.getElementById('hiExitsDeptFilter').innerHTML =
+      '<option value="">Department</option>' +
+      depts.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiExitsDesigFilter').innerHTML =
+      '<option value="">Designation</option>' +
+      desigs.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiExitsStatusFilter').innerHTML =
+      '<option value="">Status</option>' +
+      statuses.map((s) => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
+
     renderHiExitsList(hiExitsAllItems);
   } catch (err) {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
@@ -1277,9 +1297,17 @@ async function loadHiExitsView() {
 
 function applyHiExitsFilters() {
   const q = document.getElementById('hiExitsSearch').value.trim().toLowerCase();
-  const filtered = hiExitsAllItems.filter(
-    (e) => !q || e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q)
-  );
+  const dept = document.getElementById('hiExitsDeptFilter').value;
+  const desig = document.getElementById('hiExitsDesigFilter').value;
+  const status = document.getElementById('hiExitsStatusFilter').value;
+
+  const filtered = hiExitsAllItems.filter((e) => {
+    if (q && !(e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q))) return false;
+    if (dept && e.department !== dept) return false;
+    if (desig && e.designation !== desig) return false;
+    if (status && e.status !== status) return false;
+    return true;
+  });
   renderHiExitsList(filtered);
 }
 
@@ -1336,6 +1364,24 @@ document.getElementById('exportHiExitsPdf').addEventListener('click', () => {
 });
 
 document.getElementById('hiExitsSearch').addEventListener('input', applyHiExitsFilters);
+document.getElementById('hiExitsDeptFilter').addEventListener('change', applyHiExitsFilters);
+document.getElementById('hiExitsDesigFilter').addEventListener('change', applyHiExitsFilters);
+document.getElementById('hiExitsStatusFilter').addEventListener('change', applyHiExitsFilters);
+
+// Same show/hide-behind-the-funnel-icon pattern as Covered Employees'
+// hiCeFilterToggleBtn/hiCeFilterbar - filters start collapsed, not always visible.
+document.getElementById('hiExitsFilterToggleBtn').addEventListener('click', () => {
+  const btn = document.getElementById('hiExitsFilterToggleBtn');
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  document.getElementById('hiExitsFilterbar').hidden = expanded;
+  btn.setAttribute('aria-expanded', String(!expanded));
+});
+document.getElementById('hiExitsClearFilters').addEventListener('click', () => {
+  document.getElementById('hiExitsDeptFilter').value = '';
+  document.getElementById('hiExitsDesigFilter').value = '';
+  document.getElementById('hiExitsStatusFilter').value = '';
+  applyHiExitsFilters();
+});
 
 document.getElementById('sendHiExitsMail').addEventListener('click', async () => {
   const btn = document.getElementById('sendHiExitsMail');
