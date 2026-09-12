@@ -21,6 +21,8 @@ body {
   --move-green-bg: #dcfce7;
   --move-red: #dc2626;
   --move-red-bg: #fee2e2;
+  --move-orange: #ea580c;
+  --move-orange-bg: #ffedd5;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -32,6 +34,8 @@ body {
     --move-green-bg: #1e3f2c;
     --move-red: #f87171;
     --move-red-bg: #4a1f1f;
+    --move-orange: #fb923c;
+    --move-orange-bg: #4a2f14;
   }
 }
 :root[data-theme="dark"] {
@@ -43,6 +47,8 @@ body {
   --move-green-bg: #1e3f2c;
   --move-red: #f87171;
   --move-red-bg: #4a1f1f;
+  --move-orange: #fb923c;
+  --move-orange-bg: #4a2f14;
 }
 
 .wf-shell {
@@ -429,6 +435,89 @@ body {
 #movementView .kpi-card.tone-move-red { background: var(--move-red-bg); }
 #movementView .kpi-card.tone-move-red .kpi-icon { color: var(--move-red); }
 #movementView .kpi-card .kpi-icon { background: var(--surface); }
+
+/* Health Insurance's 8-card grid - same vivid full-card-tint pattern as
+   Workforce Movement, reusing the same color tokens (plus orange, which
+   only this page needs). */
+#healthInsuranceView .kpi-card { border: none; cursor: default; }
+#healthInsuranceView .kpi-card:hover { transform: none; box-shadow: 0 2px 6px var(--shadow); }
+#healthInsuranceView .kpi-card.tone-ins-blue { background: var(--move-blue-bg); }
+#healthInsuranceView .kpi-card.tone-ins-blue .kpi-icon { color: var(--move-blue); }
+#healthInsuranceView .kpi-card.tone-ins-purple { background: var(--move-purple-bg); }
+#healthInsuranceView .kpi-card.tone-ins-purple .kpi-icon { color: var(--move-purple); }
+#healthInsuranceView .kpi-card.tone-ins-green { background: var(--move-green-bg); }
+#healthInsuranceView .kpi-card.tone-ins-green .kpi-icon { color: var(--move-green); }
+#healthInsuranceView .kpi-card.tone-ins-red { background: var(--move-red-bg); }
+#healthInsuranceView .kpi-card.tone-ins-red .kpi-icon { color: var(--move-red); }
+#healthInsuranceView .kpi-card.tone-ins-orange { background: var(--move-orange-bg); }
+#healthInsuranceView .kpi-card.tone-ins-orange .kpi-icon { color: var(--move-orange); }
+#healthInsuranceView .kpi-card .kpi-icon { background: var(--surface); }
+
+.hi-page-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--move-blue-bg);
+  color: var(--move-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.hi-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #e3edfa, #eef4fb);
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+:root:not([data-theme="light"]) .hi-banner,
+:root[data-theme="dark"] .hi-banner { background: linear-gradient(135deg, #1a2b3d, #16222f); }
+.hi-banner-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--move-blue);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+}
+.hi-banner-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; z-index: 1; }
+.hi-banner-title { font-size: 1.05rem; font-weight: 800; color: var(--ink); line-height: 1.25; }
+.hi-banner-tagline { font-size: 0.8rem; color: var(--muted); }
+.hi-banner-illustration { flex-shrink: 0; opacity: 0.9; }
+
+.hi-renewal-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.hi-renewal-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--move-blue-bg);
+  color: var(--move-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.hi-renewal-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.hi-renewal-text b { font-size: 0.88rem; color: var(--ink); }
+.hi-renewal-due { font-size: 0.78rem; color: var(--important); font-weight: 600; }
+.hi-renewal-pct { font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+#hiRenewalPanel .wf-progress-fill { background: var(--move-blue); }
+
+@media (max-width: 640px) {
+  .hi-banner { flex-wrap: wrap; }
+  .hi-banner-illustration { display: none; }
+}
+
 /* Employee Movements' labels ("Inter-Department Transfers") are longer than
    any other kpi-card in the app - the shared .kpi-label is nowrap, which
    let long labels push the card past the screen edge instead of wrapping.

@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -131,7 +131,9 @@ const ICONS = {
   money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
   scale: '<path d="M12 3v18"/><path d="M9 21h6"/><path d="M3 8h18"/><path d="M5 8l-3 6a4 4 0 0 0 8 0l-3-6z"/><path d="M19 8l-3 6a4 4 0 0 0 8 0l-3-6z"/>',
   flask: '<path d="M9 3h6"/><path d="M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/><path d="M7.5 15h9"/>',
-  briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>'
+  briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  plusCircle: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  shieldPlus: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/>'
 };
 
 // Same keyword-matching approach as DEPARTMENT_ICON_RULES, but for the
@@ -326,6 +328,7 @@ function loadView(view, forceRefresh) {
   if (view === 'locationFull') return loadLocationFullView();
   if (view === 'doerManagement') return loadDoerManagementView();
   if (view === 'orgChart') return loadOrgChartView();
+  if (view === 'healthInsurance') return loadHealthInsuranceView(forceRefresh);
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'profile') return loadProfile();
@@ -1012,6 +1015,75 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', () => {
     window.removeEventListener('afterprint', cleanup);
   });
 });
+
+// ---------- Health Insurance ----------
+
+function formatLakhs(amount) {
+  return '₹' + (amount / 100000).toFixed(1) + 'L';
+}
+
+async function loadHealthInsuranceView(forceRefresh) {
+  const grid = document.getElementById('hiStatsGrid');
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetchJson('/api/insurance/summary' + (forceRefresh ? '?refresh=1' : ''));
+
+    // clickable deliberately omitted (not set to false) - these cards are
+    // meant to look like the vibrant, fully-opaque mockup, not the app's
+    // disabled/dimmed N/A style, which kpiCard's clickable:false triggers.
+    // Non-interactivity comes from #healthInsuranceView's own CSS instead
+    // (no pointer cursor, no hover lift).
+    grid.innerHTML =
+      kpiCard({ key: 'hiCovered', label: 'Covered Employees', value: data.coveredEmployees, tone: 'ins-green', icon: 'total', deltaSub: 'Out of ' + data.totalActiveEmployees + ' total employees' }) +
+      kpiCard({ key: 'hiEmpPremium', label: 'Employee Premium', value: formatLakhs(data.employeePremium), tone: 'ins-blue', icon: 'money', deltaSub: 'FY 26-27' }) +
+      kpiCard({ key: 'hiFamily', label: 'Family Members', value: data.familyMembers, tone: 'ins-purple', icon: 'total', deltaSub: 'Covered' }) +
+      kpiCard({ key: 'hiFamPremium', label: 'Family Premium', value: formatLakhs(data.familyPremium), tone: 'ins-orange', icon: 'money', deltaSub: 'FY 26-27' }) +
+      kpiCard({ key: 'hiTotalLives', label: 'Total Insured Lives', value: data.totalInsuredLives, tone: 'ins-purple', icon: 'total', deltaSub: 'Employees + Family' }) +
+      kpiCard({ key: 'hiAnnualPremium', label: 'Annual Premium', value: formatLakhs(data.annualPremium), tone: 'ins-green', icon: 'money', deltaSub: 'FY 26-27' }) +
+      kpiCard({ key: 'hiAdditions', label: 'New Addition Requests', value: data.newAdditionRequests, tone: 'ins-green', icon: 'plusCircle', deltaSub: 'Pending' }) +
+      kpiCard({ key: 'hiExits', label: 'Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
+
+    const panel = document.getElementById('hiRenewalPanel');
+    panel.hidden = false;
+    document.getElementById('hiRenewalDue').textContent =
+      'Due in ' + data.renewal.daysRemaining + ' day' + (data.renewal.daysRemaining === 1 ? '' : 's');
+    document.getElementById('hiRenewalPct').textContent = data.renewal.progressPct + '%';
+    document.getElementById('hiRenewalBar').style.width = Math.min(100, data.renewal.progressPct) + '%';
+
+    renderHiCoverageDonut(data.coverage, data.totalInsuredLives);
+  } catch (err) {
+    grid.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderHiCoverageDonut(coverage, total) {
+  const c = chartColors();
+  const buckets = [
+    { key: 'employees', label: 'Employees', color: c.accent },
+    { key: 'spouse', label: 'Spouse', color: c.warning },
+    { key: 'children', label: 'Children', color: c.candidate },
+    { key: 'parents', label: 'Parents', color: c.important }
+  ];
+  if (coverage.other > 0) buckets.push({ key: 'other', label: 'Other', color: c.muted });
+
+  document.getElementById('hiCoverageDonutTotal').textContent = (total || 0).toLocaleString();
+
+  destroyChart('hiCoverageDonut');
+  const ctx = document.getElementById('hiCoverageDonut');
+  charts.hiCoverageDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: buckets.map((b) => b.label),
+      datasets: [{ data: buckets.map((b) => coverage[b.key] || 0), backgroundColor: buckets.map((b) => b.color), borderWidth: 0 }]
+    },
+    options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+  });
+
+  const denom = total || 1;
+  document.getElementById('hiCoverageLegend').innerHTML = buckets
+    .map((b) => legendRow(b.color, b.label, coverage[b.key] || 0, Math.round(((coverage[b.key] || 0) / denom) * 1000) / 10, false, null))
+    .join('');
+}
 
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));

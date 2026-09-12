@@ -4,6 +4,7 @@ const path = require('path');
 const { getAuthUrl, handleCallback, isAuthenticated, getConfigStatus } = require('./src/auth');
 const gmailService = require('./src/gmailService');
 const workforceRoutes = require('./src/workforceRoutes');
+const insuranceRoutes = require('./src/insuranceRoutes');
 const hrAuth = require('./src/hrAuth');
 const emailService = require('./src/emailService');
 const movementTracker = require('./src/movementTracker');
@@ -161,6 +162,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 app.use('/api/workforce', hrAuth.requireHrAuth, workforceRoutes);
+app.use('/api/insurance', hrAuth.requireHrAuth, insuranceRoutes);
 
 // Read-only equivalents of the old standalone Mail Management page's two
 // most useful reports, folded into the HR app's own menu. These still run
