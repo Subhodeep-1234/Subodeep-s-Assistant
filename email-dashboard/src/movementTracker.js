@@ -190,16 +190,51 @@ async function checkAndLogLocationChange({ employeeId, name, location }) {
   return checkAndLogFieldChange(FIELD_CONFIGS.location, { employeeId, name, value: location });
 }
 
-async function getChangesInLastDays(config, days = 365) {
+// Each of the 4 tracked fields' change log gets its own cache entry (they're
+// separate tabs, read independently) - same 2-minute TTL + in-flight dedup
+// as employeeService/insuranceService, added after the Dashboard's own
+// background prefetch (which warms all 4 on every load) started tripping the
+// Sheets API's per-minute read quota: unlike those other two services, these
+// reads previously had no caching at all, so every single request - prefetch,
+// the Movement view's own KPI row, and its detail page - was a fresh live
+// Sheets call.
+const CACHE_TTL_MS = 2 * 60 * 1000;
+const changeLogCache = {};
+const changeLogInFlight = {};
+
+async function fetchChangeLogRows(config) {
   const sheets = getSheetsClient();
   // Self-healing: a brand-new field's tabs may not exist yet if neither the
   // daily cron nor a webhook has run since it was added - create them (empty)
   // rather than erroring, so the dashboard shows a clean 0 instead of failing.
-  // Cached (ensureTabsOnce) so this only actually hits the Sheets API the
-  // first time in a warm instance, not on every dashboard load.
   await ensureTabsOnce(sheets, config);
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${config.logTab}'!A2:E` });
-  const rows = res.data.values || [];
+  return res.data.values || [];
+}
+
+function refreshChangeLogCache(config) {
+  const key = config.logTab;
+  if (changeLogInFlight[key]) return changeLogInFlight[key];
+  changeLogInFlight[key] = (async () => {
+    const rows = await fetchChangeLogRows(config);
+    changeLogCache[key] = { rows, fetchedAt: Date.now() };
+    return changeLogCache[key];
+  })();
+  return changeLogInFlight[key].finally(() => {
+    changeLogInFlight[key] = null;
+  });
+}
+
+async function getChangeLogRows(config) {
+  const key = config.logTab;
+  const entry = changeLogCache[key];
+  if (!entry) return (await refreshChangeLogCache(config)).rows;
+  if (Date.now() - entry.fetchedAt >= CACHE_TTL_MS) refreshChangeLogCache(config).catch(() => {});
+  return entry.rows;
+}
+
+async function getChangesInLastDays(config, days = 365) {
+  const rows = await getChangeLogRows(config);
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   const inWindow = rows.filter((r) => {

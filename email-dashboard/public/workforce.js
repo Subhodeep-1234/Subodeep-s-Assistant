@@ -401,6 +401,19 @@ let insightsPrefetch = null;
 // Sheets round trip (a separate spreadsheet from the HR Master one).
 let healthInsurancePrefetch = null;
 
+// Firing every prefetch in one instant burst (~15 simultaneous requests)
+// tripped the Google Sheets API's own per-minute read quota - each request
+// can land on its own serverless instance, so even cached/deduped services
+// don't fully protect against a burst that size. Spread across a few small
+// batches instead; everything still finishes well within a couple of
+// seconds, long before anyone could navigate to another section.
+function staggeredPrefetch(urls, batchSize = 3, batchDelayMs = 500) {
+  urls.forEach((url, i) => {
+    const batchIndex = Math.floor(i / batchSize);
+    setTimeout(() => prefetchJson(url), batchIndex * batchDelayMs);
+  });
+}
+
 async function loadOverview(forceRefresh) {
   kpiGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   insightsPrefetch = fetchJson('/api/workforce/insights').catch(() => null);
@@ -410,22 +423,23 @@ async function loadOverview(forceRefresh) {
   // them afterwards in the same session reuses this instead of waiting on
   // its own fresh Sheets round trip. Harmless if a section never gets
   // opened - an unread cache entry is just dropped when this view reloads.
-  prefetchJson('/api/workforce/employees?status=ACTIVE');
-  prefetchJson('/api/hr/upcoming-joinings');
-  prefetchJson('/api/workforce/tenure');
-  prefetchJson('/api/workforce/data-quality');
-  prefetchJson('/api/workforce/age');
-  prefetchJson('/api/workforce/gender');
-  prefetchJson('/api/workforce/joining-trend?months=36');
-  prefetchJson('/api/workforce/dept-transfers?days=365');
-  prefetchJson('/api/workforce/promotions?days=365');
-  prefetchJson('/api/workforce/company-transfers?days=365');
-  prefetchJson('/api/workforce/location-transfers?days=365');
-  // Health Insurance's own drill-downs (Covered Employees, Exits) - fixed
-  // URLs, no filter params, so they're always safe to warm from the
-  // Dashboard the same way.
-  prefetchJson('/api/insurance/covered-employees');
-  prefetchJson('/api/insurance/exits');
+  staggeredPrefetch([
+    '/api/workforce/employees?status=ACTIVE',
+    '/api/hr/upcoming-joinings',
+    '/api/workforce/tenure',
+    '/api/workforce/data-quality',
+    '/api/workforce/age',
+    '/api/workforce/gender',
+    '/api/workforce/joining-trend?months=36',
+    '/api/workforce/dept-transfers?days=365',
+    '/api/workforce/promotions?days=365',
+    '/api/workforce/company-transfers?days=365',
+    '/api/workforce/location-transfers?days=365',
+    // Health Insurance's own drill-downs (Covered Employees, Exits) - fixed
+    // URLs, no filter params, so they're always safe to warm the same way.
+    '/api/insurance/covered-employees',
+    '/api/insurance/exits'
+  ]);
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
