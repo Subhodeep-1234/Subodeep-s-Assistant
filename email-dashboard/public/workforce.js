@@ -23,6 +23,14 @@ let activeFilters = { status: 'ACTIVE' };
 let searchDebounce;
 let currentRequestId = 0;
 let activeView = 'overview';
+// Back-navigation stack: the view to return to when a [data-back] button is
+// clicked. A view reached via the drawer (a fresh top-level entry point)
+// resets this to empty, so its own back button goes straight to the
+// Dashboard; a view reached by drilling into another one (a KPI card, a
+// dashboard bar, a filter click) pushes whatever was active onto here first,
+// so its back button returns to that exact parent instead of always
+// jumping to the Dashboard.
+let viewHistory = [];
 const loadedViews = new Set();
 const charts = {};
 
@@ -233,7 +241,10 @@ refreshBtn.addEventListener('click', async () => {
 wfDrawer.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-view]');
   if (!btn) return;
-  setView(btn.dataset.view);
+  // A drawer pick is always a fresh top-level entry point - its own back
+  // button should go straight to the Dashboard, not resume some unrelated
+  // drill-down chain left over from before the drawer was opened.
+  setView(btn.dataset.view, { resetHistory: true });
   closeDrawer();
 });
 
@@ -249,7 +260,9 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('click', (e) => {
-  if (e.target.closest('[data-back]')) setView('overview');
+  if (!e.target.closest('[data-back]')) return;
+  const prev = viewHistory.pop();
+  setView(prev || 'overview', { isBack: true });
 });
 
 function openDrawer() {
@@ -286,8 +299,13 @@ async function logout() {
 document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('profileLogoutBtn').addEventListener('click', logout);
 
-function setView(view) {
+function setView(view, opts = {}) {
   if (!VIEWS.includes(view)) return;
+  if (opts.resetHistory) {
+    viewHistory = [];
+  } else if (!opts.isBack && activeView !== view) {
+    viewHistory.push(activeView);
+  }
   activeView = view;
   wfDrawer.querySelectorAll('[data-view]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.view === view));
@@ -354,7 +372,7 @@ async function loadProfile() {
 
 // ---------- Overview ----------
 
-function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, delta, deltaSub, data }) {
+function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, liveNum, delta, deltaSub, data }) {
   const isNa = value === null || value === undefined;
   const displayValue = isNa ? 'N/A' : value;
   const deltaLine =
@@ -383,7 +401,9 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
         '<span class="kpi-label">' + escapeHtml(label) +
           (live ? '<span class="live-dot" title="Live"></span>' : '') +
         '</span>' +
-        '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue + '</span>' +
+        '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue +
+          (liveNum ? '<span class="live-dot" title="Live"></span>' : '') +
+        '</span>' +
         (deltaLine ? '<span class="kpi-delta-row">' + deltaLine + '</span>' : '') +
       '</span>' +
     '</button>'
@@ -1092,7 +1112,7 @@ async function loadHealthInsuranceView(forceRefresh) {
       kpiCard({ key: 'hiEmpPremium', label: 'Employee Premium', value: formatLakhs(data.employeePremium), tone: 'ins-blue', icon: 'money', deltaSub: 'FY 26-27' }) +
       kpiCard({ key: 'hiFamily', label: 'Family Members', value: data.familyMembers, tone: 'ins-purple', icon: 'total', deltaSub: 'Covered' }) +
       kpiCard({ key: 'hiFamPremium', label: 'Family Premium', value: formatLakhs(data.familyPremium), tone: 'ins-orange', icon: 'money', deltaSub: 'FY 26-27' }) +
-      kpiCard({ key: 'hiTotalLives', label: 'Total Insured Lives', value: data.totalInsuredLives, tone: 'ins-purple', icon: 'total', deltaSub: 'Employees + Family' }) +
+      kpiCard({ key: 'hiTotalLives', label: 'Total Insured Lives', value: data.totalInsuredLives, tone: 'ins-purple', icon: 'total', deltaSub: 'Employees + Family', liveNum: true }) +
       kpiCard({ key: 'hiAnnualPremium', label: 'Annual Premium', value: formatLakhs(data.annualPremium), tone: 'ins-green', icon: 'money', deltaSub: 'FY 26-27' }) +
       kpiCard({ key: 'hiAdditions', label: 'New Addition Requests', value: data.newAdditionRequests, tone: 'ins-green', icon: 'plusCircle', deltaSub: 'Pending' }) +
       kpiCard({ key: 'hiExits', label: 'Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
@@ -2942,6 +2962,6 @@ async function loadDrawerIdentity() {
 
 document.getElementById('greetingTime').textContent = greetingForHour(new Date().getHours());
 
-setView('overview');
+setView('overview', { resetHistory: true });
 loadFilterOptions();
 loadDrawerIdentity();
