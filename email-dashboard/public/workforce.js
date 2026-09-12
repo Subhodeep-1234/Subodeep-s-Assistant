@@ -1196,13 +1196,6 @@ document.getElementById('hiCeClearFilters').addEventListener('click', () => {
   document.getElementById('hiCeStatusFilter').value = '';
   applyCoveredEmployeesFilters();
 });
-document.getElementById('hiCeViewAllBtn').addEventListener('click', () => {
-  document.getElementById('hiCeSearch').value = '';
-  document.getElementById('hiCeDeptFilter').value = '';
-  document.getElementById('hiCeDesigFilter').value = '';
-  document.getElementById('hiCeStatusFilter').value = '';
-  renderCoveredEmployeesList(hiCeAllItems);
-});
 
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));
