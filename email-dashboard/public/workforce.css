@@ -487,53 +487,6 @@ body {
   flex-shrink: 0;
 }
 
-.hi-banner {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: linear-gradient(135deg, #e3edfa, #eef4fb);
-  border-radius: 16px;
-  padding: 20px 22px;
-  margin-bottom: 20px;
-  position: relative;
-  overflow: hidden;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .hi-banner { background: linear-gradient(135deg, #1a2b3d, #16222f); }
-}
-:root[data-theme="dark"] .hi-banner { background: linear-gradient(135deg, #1a2b3d, #16222f); }
-.hi-banner-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: var(--move-blue);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
-}
-.hi-banner-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; z-index: 1; }
-.hi-banner-title { font-size: 1.05rem; font-weight: 800; color: var(--ink); line-height: 1.25; }
-.hi-banner-tagline { font-size: 0.8rem; color: var(--muted); }
-.hi-banner-illustration { flex-shrink: 0; }
-.hi-banner-badge {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--move-green);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.35);
-  z-index: 1;
-}
-
 .hi-renewal-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .hi-renewal-icon {
   width: 34px;
@@ -551,11 +504,6 @@ body {
 .hi-renewal-due { font-size: 0.78rem; color: var(--important); font-weight: 600; }
 .hi-renewal-pct { font-size: 0.9rem; font-weight: 700; color: var(--ink); }
 #hiRenewalPanel .wf-progress-fill { background: var(--move-blue); }
-
-@media (max-width: 640px) {
-  .hi-banner { flex-wrap: wrap; }
-  .hi-banner-illustration { display: none; }
-}
 
 /* Employee Movements' labels ("Inter-Department Transfers") are longer than
    any other kpi-card in the app - the shared .kpi-label is nowrap, which
