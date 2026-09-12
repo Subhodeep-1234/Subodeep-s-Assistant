@@ -463,9 +463,10 @@ body {
 #healthInsuranceView .kpi-card.tone-ins-orange .kpi-num { color: var(--move-orange); }
 #healthInsuranceView .kpi-card .kpi-icon { background: var(--surface); }
 #healthInsuranceView .kpi-card .kpi-label { font-weight: 700; }
-/* Caption stays the shared small/muted/non-bold .kpi-delta-sub style
-   (e.g. "FY 26-27", "Pending") - only the label and number above it are
-   colorized/bolded for this page. */
+/* Caption (e.g. "FY 26-27", "Pending") a touch smaller/lighter than the
+   shared .kpi-delta-sub default, matching the mockup's faint small print
+   under the bold colored count. */
+#healthInsuranceView .kpi-card .kpi-delta-sub { font-size: 0.7rem; font-weight: 400; opacity: 0.75; }
 /* Health Insurance's labels ("New Addition Requests", "Total Insured
    Lives") are longer than most other kpi-cards - the shared .kpi-label is
    nowrap, which let long labels push the card past the screen edge on
@@ -514,7 +515,22 @@ body {
 .hi-banner-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; z-index: 1; }
 .hi-banner-title { font-size: 1.05rem; font-weight: 800; color: var(--ink); line-height: 1.25; }
 .hi-banner-tagline { font-size: 0.8rem; color: var(--muted); }
-.hi-banner-illustration { flex-shrink: 0; opacity: 0.9; }
+.hi-banner-illustration { flex-shrink: 0; }
+.hi-banner-badge {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--move-green);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.35);
+  z-index: 1;
+}
 
 .hi-renewal-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .hi-renewal-icon {
