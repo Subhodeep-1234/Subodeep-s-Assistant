@@ -520,7 +520,6 @@ body {
 .hi-ce-total-row b { color: var(--accent); }
 .hi-ce-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hi-ce-sub { font-size: 0.74rem; color: var(--ink); font-weight: 600; margin-top: 3px; }
-.hi-ce-chevron { flex-shrink: 0; color: var(--muted); }
 
 /* Employee Movements' labels ("Inter-Department Transfers") are longer than
    any other kpi-card in the app - the shared .kpi-label is nowrap, which
@@ -998,6 +997,19 @@ body {
 .wf-emp-meta { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
 .wf-emp-meta .wf-status-chip { padding: 1px 7px; font-size: 0.62rem; }
 .wf-emp-role { font-size: 0.74rem; color: var(--muted); margin-top: 1px; }
+
+.wf-emp-chevron {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--move-blue-bg);
+  color: var(--move-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wf-emp-chevron svg { width: 15px; height: 15px; }
 
 /* ---------- Employee profile (detail) ---------- */
 

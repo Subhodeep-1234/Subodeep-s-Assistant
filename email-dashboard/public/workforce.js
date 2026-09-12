@@ -1170,7 +1170,7 @@ function renderCoveredEmployeesList(items) {
                   ' &nbsp;|&nbsp; ₹' + Math.round(e.totalPremium).toLocaleString('en-IN') +
                 '</span>' +
               '</span>' +
-              '<span class="hi-ce-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+              '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
             '</li>'
         )
         .join('')
@@ -1840,6 +1840,7 @@ function renderEmployees(data) {
             '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + ' · <span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span></span>' +
             '<span class="wf-emp-role">' + escapeHtml(e.designation || '—') + '</span>' +
           '</span>' +
+          '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
         '</li>'
     )
     .join('');
