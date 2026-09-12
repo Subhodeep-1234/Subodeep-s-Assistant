@@ -51,4 +51,33 @@ router.get('/covered-employees', async (req, res) => {
   }
 });
 
+// Deletions tab has no Department/Designation column either - cross-referenced
+// the same way covered-employees is, by Employee ID against the HR Master sheet.
+router.get('/exits', async (req, res) => {
+  try {
+    const forceRefresh = wantsForceRefresh(req);
+    const [insuranceData, hrData] = await Promise.all([
+      insuranceService.getInsuranceData({ forceRefresh }),
+      employeeService.getEmployeeData({ forceRefresh })
+    ]);
+    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+
+    const items = analytics.buildExitsList(insuranceData.deletions).map((c) => {
+      const hr = hrByEmployeeId.get(c.employeeId);
+      return {
+        employeeId: c.employeeId,
+        name: c.name,
+        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+        designation: hr ? hr.designation : '',
+        dateOfLeaving: c.dateOfLeaving,
+        familyCount: c.familyCount
+      };
+    });
+
+    res.json({ total: items.length, items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

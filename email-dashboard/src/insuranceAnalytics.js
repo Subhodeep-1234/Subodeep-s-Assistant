@@ -91,6 +91,31 @@ function buildCoveredEmployeesList(members) {
   return result.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// Same "Self row anchors the group, family rows roll into a count" shape as
+// buildCoveredEmployeesList, but over the Deletions tab instead of Member
+// List - no premium here, Deletions doesn't carry one.
+function buildExitsList(deletions) {
+  const byEmployee = new Map();
+  deletions.forEach((d) => {
+    if (!byEmployee.has(d.employeeId)) byEmployee.set(d.employeeId, []);
+    byEmployee.get(d.employeeId).push(d);
+  });
+
+  const result = [];
+  byEmployee.forEach((rows, employeeId) => {
+    const selfRow = rows.find((r) => String(r.relationship || '').toLowerCase() === 'self');
+    if (!selfRow) return; // family-only rows with no matching Self row - nothing to anchor an exit entry on
+    result.push({
+      employeeId,
+      name: selfRow.name,
+      dateOfLeaving: selfRow.dateOfLeaving,
+      familyCount: rows.length - 1
+    });
+  });
+
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // Fixed policy period (no start/end date exists anywhere in the sheet -
 // set directly per the real current policy, update here if it's ever
 // renewed on different dates).
@@ -112,4 +137,4 @@ function policyRenewalInfo(now = new Date()) {
   };
 }
 
-module.exports = { buildHealthInsuranceSummary, buildCoveredEmployeesList, policyRenewalInfo };
+module.exports = { buildHealthInsuranceSummary, buildCoveredEmployeesList, buildExitsList, policyRenewalInfo };

@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -421,9 +421,11 @@ async function loadOverview(forceRefresh) {
   prefetchJson('/api/workforce/promotions?days=365');
   prefetchJson('/api/workforce/company-transfers?days=365');
   prefetchJson('/api/workforce/location-transfers?days=365');
-  // Health Insurance's own drill-down (Covered Employees) - fixed URL, no
-  // filter params, so it's always safe to warm from the Dashboard the same way.
+  // Health Insurance's own drill-downs (Covered Employees, Exits) - fixed
+  // URLs, no filter params, so they're always safe to warm from the
+  // Dashboard the same way.
   prefetchJson('/api/insurance/covered-employees');
+  prefetchJson('/api/insurance/exits');
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
@@ -1127,10 +1129,15 @@ function renderHiCoverageDonut(coverage, total) {
 // drawer), same "always fetch fresh, no loadedViews cache" pattern as
 // Workforce Movement's detail view - no case for it in loadView's dispatch.
 document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
-  const card = e.target.closest('[data-kpi="hiCovered"]');
-  if (!card) return;
-  setView('coveredEmployees');
-  loadCoveredEmployeesView();
+  if (e.target.closest('[data-kpi="hiCovered"]')) {
+    setView('coveredEmployees');
+    loadCoveredEmployeesView();
+    return;
+  }
+  if (e.target.closest('[data-kpi="hiExits"]')) {
+    setView('hiExits');
+    loadHiExitsView();
+  }
 });
 
 let hiCeAllItems = [];
@@ -1234,6 +1241,57 @@ document.getElementById('hiCeClearFilters').addEventListener('click', () => {
   document.getElementById('hiCeStatusFilter').value = '';
   applyCoveredEmployeesFilters();
 });
+
+// ---------- Exits (Health Insurance drill-down, from the Deletions tab) ----------
+
+let hiExitsAllItems = [];
+
+async function loadHiExitsView() {
+  const listEl = document.getElementById('hiExitsList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  document.getElementById('hiExitsSearch').value = '';
+  try {
+    const data = await fetchJson('/api/insurance/exits');
+    hiExitsAllItems = data.items;
+    renderHiExitsList(hiExitsAllItems);
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function applyHiExitsFilters() {
+  const q = document.getElementById('hiExitsSearch').value.trim().toLowerCase();
+  const filtered = hiExitsAllItems.filter(
+    (e) => !q || e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q)
+  );
+  renderHiExitsList(filtered);
+}
+
+function renderHiExitsList(items) {
+  // Same "header always shows the real overall total" rule as Covered
+  // Employees - search only changes what the list below shows.
+  document.getElementById('hiExitsTotalCount').textContent = hiExitsAllItems.length;
+  const listEl = document.getElementById('hiExitsList');
+  listEl.innerHTML = items.length
+    ? items
+        .map(
+          (e) =>
+            '<li>' +
+              '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+              '<span class="wf-emp-main">' +
+                '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + '</span>' +
+                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.designation) || '—') + '</span>' +
+                '<span class="hi-ce-sub">' + (e.familyCount > 0 ? 'Self + ' + e.familyCount + ' Family' : 'Self only') + '</span>' +
+              '</span>' +
+              '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+            '</li>'
+        )
+        .join('')
+    : '<li class="empty">No exits found</li>';
+}
+
+document.getElementById('hiExitsSearch').addEventListener('input', applyHiExitsFilters);
 
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));
