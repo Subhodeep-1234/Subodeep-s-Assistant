@@ -110,7 +110,7 @@ function buildFamilyMembersList(members) {
       relatedEmployeeName: selfNameByEmployee.get(m.employeeId) || '',
       premiumWithGST: m.premiumWithGST
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.employeeId.localeCompare(b.employeeId));
 }
 
 // Every Active member (Self + family) flat, one row each - the Total

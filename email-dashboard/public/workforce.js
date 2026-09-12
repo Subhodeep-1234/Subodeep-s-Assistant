@@ -1345,7 +1345,6 @@ function renderHiFamilyMembersList(items) {
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
                 '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + ' · ' + escapeHtml(e.relationship) + '</span>' +
-                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.department) || '—') + '</span>' +
                 '<span class="hi-ce-sub">' +
                   'Family of ' + escapeHtml(e.relatedEmployeeName) +
                   ' &nbsp;|&nbsp; ₹' + Math.round(e.premiumWithGST).toLocaleString('en-IN') +
