@@ -373,12 +373,8 @@ async function loadProfile() {
 
 // ---------- Overview ----------
 
-function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, liveNum, delta, deltaSub, data, noValue }) {
-  // noValue is for a purely informational tile (Policy Information) with no
-  // computed number at all - distinct from a real metric that's simply
-  // missing (isNa/"N/A"), which noValue deliberately skips so this doesn't
-  // render (or get disabled/dimmed) as if data failed to load.
-  const isNa = !noValue && (value === null || value === undefined);
+function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, liveNum, delta, deltaSub, data }) {
+  const isNa = value === null || value === undefined;
   const displayValue = isNa ? 'N/A' : value;
   const deltaLine =
     (delta
@@ -406,11 +402,9 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
         '<span class="kpi-label">' + escapeHtml(label) +
           (live ? '<span class="live-dot" title="Live"></span>' : '') +
         '</span>' +
-        (noValue ? '' :
-          '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue +
-            (liveNum ? '<span class="live-dot" title="Live"></span>' : '') +
-          '</span>'
-        ) +
+        '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue +
+          (liveNum ? '<span class="live-dot" title="Live"></span>' : '') +
+        '</span>' +
         (deltaLine ? '<span class="kpi-delta-row">' + deltaLine + '</span>' : '') +
       '</span>' +
     '</button>'
@@ -1126,12 +1120,13 @@ async function loadHealthInsuranceView(forceRefresh) {
       kpiCard({ key: 'hiAnnualPremium', label: 'Annual Premium', value: formatLakhs(data.annualPremium), tone: 'ins-green', icon: 'money', deltaSub: 'FY 26-27' }) +
       kpiCard({ key: 'hiAdditions', label: 'New Addition Requests', value: data.newAdditionRequests, tone: 'ins-green', icon: 'plusCircle', deltaSub: 'Pending' }) +
       kpiCard({ key: 'hiExits', label: 'Pending Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' }) +
-      // clickable deliberately omitted (not set to false) on these two, same
-      // as every other Health Insurance card - non-interactivity comes from
+      // clickable deliberately omitted (not set to false), same as every
+      // other Health Insurance card - non-interactivity comes from
       // #healthInsuranceView's own CSS, not the disabled attribute (which
       // triggers the shared .kpi-card:disabled dimmed/opacity look).
-      kpiCard({ key: 'hiPolicyInfo', label: 'Policy Information', tone: 'ins-blue', icon: 'info', noValue: true, deltaSub: 'Group Mediclaim Policy' }) +
       kpiCard({ key: 'hiTotalExits', label: 'Total Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
+
+    loadHiPolicyInfo();
 
     const panel = document.getElementById('hiRenewalPanel');
     panel.hidden = false;
@@ -1145,6 +1140,92 @@ async function loadHealthInsuranceView(forceRefresh) {
     grid.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
+
+// Policy Information - manually-entered fields (no live sheet source for
+// Insurer Name/TPA/Sum Insured etc.), stored via policyInfoService.js and
+// edited inline here through a small pencil icon per field.
+async function loadHiPolicyInfo() {
+  const gridEl = document.getElementById('hiPolicyInfoGrid');
+  gridEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetchJson('/api/insurance/policy-info');
+    renderHiPolicyInfo(data.fields, data.values);
+  } catch (err) {
+    gridEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderHiPolicyInfo(fields, values) {
+  document.getElementById('hiPolicyInfoGrid').innerHTML = fields
+    .map((f) => {
+      const value = values[f.key];
+      return (
+        '<div class="hi-policy-info-field">' +
+          '<span class="hi-policy-info-label">' + escapeHtml(f.label) + '</span>' +
+          '<span class="hi-policy-info-value-row">' +
+            '<span class="hi-policy-info-value' + (value ? '' : ' na') + '" data-field="' + f.key + '">' + escapeHtml(value || '—') + '</span>' +
+            '<button class="hi-policy-info-edit-btn" data-edit-field="' + f.key + '" aria-label="Edit ' + escapeHtml(f.label) + '">' +
+              '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+            '</button>' +
+          '</span>' +
+        '</div>'
+      );
+    })
+    .join('');
+}
+
+document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-edit-field]');
+  if (!btn) return;
+  const key = btn.dataset.editField;
+  const row = btn.closest('.hi-policy-info-value-row');
+  const valueEl = row.querySelector('.hi-policy-info-value');
+  const current = valueEl.classList.contains('na') ? '' : valueEl.textContent;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'hi-policy-info-input';
+  input.value = current;
+  valueEl.replaceWith(input);
+  btn.hidden = true;
+  input.focus();
+  input.select();
+
+  function restoreValueSpan(text) {
+    const span = document.createElement('span');
+    span.className = 'hi-policy-info-value' + (text ? '' : ' na');
+    span.dataset.field = key;
+    span.textContent = text || '—';
+    input.replaceWith(span);
+    btn.hidden = false;
+  }
+
+  let settled = false;
+  async function commit() {
+    if (settled) return;
+    settled = true;
+    const newValue = input.value.trim();
+    restoreValueSpan(newValue);
+    try {
+      await fetch('/api/insurance/policy-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value: newValue })
+      });
+    } catch (err) {
+      alert('Failed to save: ' + err.message);
+    }
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      input.blur();
+    } else if (ev.key === 'Escape') {
+      settled = true;
+      restoreValueSpan(current);
+    }
+  });
+});
 
 function renderHiCoverageDonut(coverage, total) {
   const c = chartColors();

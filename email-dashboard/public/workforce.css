@@ -488,6 +488,35 @@ body {
   flex-shrink: 0;
 }
 
+/* Policy Information panel - manually-entered fields (Insurer Name, TPA,
+   dates, Sum Insured...), each with a small pencil icon to edit inline. */
+.hi-policy-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
+.hi-policy-info-field { min-width: 0; }
+.hi-policy-info-label { display: block; font-size: 0.74rem; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
+.hi-policy-info-value-row { display: flex; align-items: center; gap: 6px; }
+.hi-policy-info-value { font-size: 0.9rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.hi-policy-info-value.na { color: var(--muted); font-weight: 500; }
+.hi-policy-info-edit-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+  display: flex;
+}
+.hi-policy-info-edit-btn:hover { color: var(--accent); }
+.hi-policy-info-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
 .hi-renewal-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .hi-renewal-icon {
   width: 34px;

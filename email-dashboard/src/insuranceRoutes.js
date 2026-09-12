@@ -4,6 +4,7 @@ const employeeService = require('./employeeService');
 const analytics = require('./insuranceAnalytics');
 const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
+const policyInfoService = require('./policyInfoService');
 
 const router = express.Router();
 
@@ -190,6 +191,29 @@ router.post('/exits/send-mail', async (req, res) => {
     res.json({ ok: true, sentTo: EXIT_MAIL_TO, cc: EXIT_MAIL_CC, recordCount: rawRows.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Manually-entered policy metadata (Insurer Name, TPA, dates, Sum Insured,
+// etc.) - no live sheet source exists for these, so they're stored/edited
+// through this route instead (see policyInfoService.js for where).
+router.get('/policy-info', async (req, res) => {
+  try {
+    const values = await policyInfoService.getPolicyInfo();
+    res.json({ fields: policyInfoService.FIELDS, values });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/policy-info', async (req, res) => {
+  try {
+    const { key, value } = req.body || {};
+    if (!key) return res.status(400).json({ error: 'Missing field key' });
+    const values = await policyInfoService.savePolicyInfoField(key, String(value == null ? '' : value));
+    res.json({ ok: true, values });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
