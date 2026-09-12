@@ -78,10 +78,9 @@ router.get('/exits', async (req, res) => {
     // Raw Deletions rows (Sr No, Corporate Name, Employee ID, Name of
     // Insured, Gender, Relationship, Date of Leaving, Reason) - separate
     // from `items` above (which is grouped one-row-per-exited-employee for
-    // the on-screen list) since the PDF export wants every logged row.
-    const rawRows = insuranceData.deletions
-      .slice()
-      .sort((a, b) => Number(a.srNo) - Number(b.srNo));
+    // the on-screen list) since the PDF export wants every logged row, each
+    // employee's Self row immediately followed by their own family rows.
+    const rawRows = analytics.sortDeletionsSelfFirst(insuranceData.deletions);
 
     res.json({ total: items.length, items, rawRows });
   } catch (err) {

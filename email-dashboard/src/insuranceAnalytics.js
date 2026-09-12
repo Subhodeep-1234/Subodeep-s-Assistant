@@ -116,6 +116,33 @@ function buildExitsList(deletions) {
   return result.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// Same grouping as buildExitsList, but returns the raw rows themselves
+// (for the PDF export) instead of a summary - each employee's Self row
+// first, immediately followed by their own family rows, one employee
+// group after another (ordered the same way the on-screen list is:
+// alphabetically by the Self row's name).
+function sortDeletionsSelfFirst(deletions) {
+  const byEmployee = new Map();
+  const order = [];
+  deletions.forEach((d) => {
+    if (!byEmployee.has(d.employeeId)) {
+      byEmployee.set(d.employeeId, []);
+      order.push(d.employeeId);
+    }
+    byEmployee.get(d.employeeId).push(d);
+  });
+
+  const groups = order.map((employeeId) => {
+    const rows = byEmployee.get(employeeId);
+    const selfRow = rows.find((r) => String(r.relationship || '').toLowerCase() === 'self');
+    const rest = rows.filter((r) => r !== selfRow);
+    return { sortName: selfRow ? selfRow.name : rows[0].name, rows: selfRow ? [selfRow, ...rest] : rest };
+  });
+  groups.sort((a, b) => a.sortName.localeCompare(b.sortName));
+
+  return groups.flatMap((g) => g.rows);
+}
+
 // Fixed policy period (no start/end date exists anywhere in the sheet -
 // set directly per the real current policy, update here if it's ever
 // renewed on different dates).
@@ -137,4 +164,10 @@ function policyRenewalInfo(now = new Date()) {
   };
 }
 
-module.exports = { buildHealthInsuranceSummary, buildCoveredEmployeesList, buildExitsList, policyRenewalInfo };
+module.exports = {
+  buildHealthInsuranceSummary,
+  buildCoveredEmployeesList,
+  buildExitsList,
+  sortDeletionsSelfFirst,
+  policyRenewalInfo
+};
