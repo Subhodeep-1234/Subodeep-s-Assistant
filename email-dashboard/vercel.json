@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/index.js": {
-      "includeFiles": "{public/**,node_modules/chart.js/dist/**,node_modules/pdfkit/js/data/**}"
+      "includeFiles": "{public/**,node_modules/chart.js/dist/**,node_modules/pdfkit/js/data/**,node_modules/pdfkit/js/standard-fonts/**,node_modules/pdfkit/lib/**}"
     }
   },
   "headers": [
