@@ -401,12 +401,33 @@ async function loadOverview(forceRefresh) {
   kpiGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   insightsPrefetch = fetchJson('/api/workforce/insights').catch(() => null);
   healthInsurancePrefetch = fetchJson('/api/insurance/summary').catch(() => null);
+  // Every other menu section's first-load endpoint, warmed the moment the
+  // Dashboard opens (the page everyone lands on first) so opening any of
+  // them afterwards in the same session reuses this instead of waiting on
+  // its own fresh Sheets round trip. Harmless if a section never gets
+  // opened - an unread cache entry is just dropped when this view reloads.
+  prefetchJson('/api/workforce/employees?status=ACTIVE');
+  prefetchJson('/api/hr/upcoming-joinings');
+  prefetchJson('/api/workforce/tenure');
+  prefetchJson('/api/workforce/data-quality');
+  prefetchJson('/api/workforce/age');
+  prefetchJson('/api/workforce/gender');
+  prefetchJson('/api/workforce/joining-trend?months=36');
+  prefetchJson('/api/workforce/dept-transfers?days=365');
+  prefetchJson('/api/workforce/promotions?days=365');
+  prefetchJson('/api/workforce/company-transfers?days=365');
+  prefetchJson('/api/workforce/location-transfers?days=365');
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
       fetchJson('/api/workforce/breakdowns?status=ACTIVE'),
       fetchJson('/api/workforce/joining-trend?months=12')
     ]);
+    // Doer Management reuses these exact two calls - stash the data this
+    // view just fetched instead of leaving it to fire a second, redundant
+    // round trip for the same numbers when that section is opened later.
+    jsonPrefetchCache.set('/api/workforce/overview', Promise.resolve(overview));
+    jsonPrefetchCache.set('/api/workforce/breakdowns?status=ACTIVE', Promise.resolve(activeBreakdowns));
 
     kpiGrid.innerHTML =
       kpiCard({ key: 'active', label: 'Active Employees', value: overview.active, tone: 'active', icon: 'active', live: true }) +
@@ -1707,7 +1728,29 @@ document.getElementById('movementTrendTabs').addEventListener('click', (e) => {
 
 // ---------- Employee Data ----------
 
+// Populated by prefetchJson() calls fired (not awaited) from the Dashboard
+// for every other menu section's first-load endpoint, so that whichever one
+// gets opened next in the session finds its data already in flight (or
+// already resolved) instead of sitting on its own live Sheets round trip.
+// Each entry is consumed - and removed - by the first real fetchJson() call
+// for that exact URL; a forceRefresh call uses a different URL (?refresh=1)
+// so it always misses the cache and goes straight to the network, same as
+// before this existed.
+const jsonPrefetchCache = new Map();
+
+function prefetchJson(url) {
+  const p = fetch(url).then((res) => (res.ok ? res.json() : null)).catch(() => null);
+  jsonPrefetchCache.set(url, p);
+  return p;
+}
+
 async function fetchJson(url) {
+  if (jsonPrefetchCache.has(url)) {
+    const cached = jsonPrefetchCache.get(url);
+    jsonPrefetchCache.delete(url);
+    const data = await cached;
+    if (data !== null) return data;
+  }
   const res = await fetch(url);
   if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
   return res.json();
