@@ -141,7 +141,8 @@ const ICONS = {
   flask: '<path d="M9 3h6"/><path d="M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/><path d="M7.5 15h9"/>',
   briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
   plusCircle: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
-  shieldPlus: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/>'
+  shieldPlus: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/>',
+  info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'
 };
 
 // Same keyword-matching approach as DEPARTMENT_ICON_RULES, but for the
@@ -372,8 +373,12 @@ async function loadProfile() {
 
 // ---------- Overview ----------
 
-function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, liveNum, delta, deltaSub, data }) {
-  const isNa = value === null || value === undefined;
+function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, liveNum, delta, deltaSub, data, noValue }) {
+  // noValue is for a purely informational tile (Policy Information) with no
+  // computed number at all - distinct from a real metric that's simply
+  // missing (isNa/"N/A"), which noValue deliberately skips so this doesn't
+  // render (or get disabled/dimmed) as if data failed to load.
+  const isNa = !noValue && (value === null || value === undefined);
   const displayValue = isNa ? 'N/A' : value;
   const deltaLine =
     (delta
@@ -401,9 +406,11 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
         '<span class="kpi-label">' + escapeHtml(label) +
           (live ? '<span class="live-dot" title="Live"></span>' : '') +
         '</span>' +
-        '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue +
-          (liveNum ? '<span class="live-dot" title="Live"></span>' : '') +
-        '</span>' +
+        (noValue ? '' :
+          '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue +
+            (liveNum ? '<span class="live-dot" title="Live"></span>' : '') +
+          '</span>'
+        ) +
         (deltaLine ? '<span class="kpi-delta-row">' + deltaLine + '</span>' : '') +
       '</span>' +
     '</button>'
@@ -1118,7 +1125,13 @@ async function loadHealthInsuranceView(forceRefresh) {
       kpiCard({ key: 'hiTotalLives', label: 'Total Insured Lives', value: data.totalInsuredLives, tone: 'ins-purple', icon: 'total', deltaSub: 'Employees + Family', liveNum: true }) +
       kpiCard({ key: 'hiAnnualPremium', label: 'Annual Premium', value: formatLakhs(data.annualPremium), tone: 'ins-green', icon: 'money', deltaSub: 'FY 26-27' }) +
       kpiCard({ key: 'hiAdditions', label: 'New Addition Requests', value: data.newAdditionRequests, tone: 'ins-green', icon: 'plusCircle', deltaSub: 'Pending' }) +
-      kpiCard({ key: 'hiExits', label: 'Pending Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
+      kpiCard({ key: 'hiExits', label: 'Pending Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' }) +
+      // clickable deliberately omitted (not set to false) on these two, same
+      // as every other Health Insurance card - non-interactivity comes from
+      // #healthInsuranceView's own CSS, not the disabled attribute (which
+      // triggers the shared .kpi-card:disabled dimmed/opacity look).
+      kpiCard({ key: 'hiPolicyInfo', label: 'Policy Information', tone: 'ins-blue', icon: 'info', noValue: true, deltaSub: 'Group Mediclaim Policy' }) +
+      kpiCard({ key: 'hiTotalExits', label: 'Total Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
 
     const panel = document.getElementById('hiRenewalPanel');
     panel.hidden = false;
