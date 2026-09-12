@@ -1,5 +1,6 @@
 const express = require('express');
 const insuranceService = require('./insuranceService');
+const employeeService = require('./employeeService');
 const analytics = require('./insuranceAnalytics');
 
 const router = express.Router();
@@ -14,6 +15,37 @@ router.get('/summary', async (req, res) => {
     const summary = analytics.buildHealthInsuranceSummary(data);
     const renewal = analytics.policyRenewalInfo();
     res.json({ ...summary, renewal });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Member List has no Department/Designation column - cross-referenced here
+// from the HR Master sheet by Employee ID, since that's a separate fetch
+// this analytics-only module shouldn't have to know about.
+router.get('/covered-employees', async (req, res) => {
+  try {
+    const forceRefresh = wantsForceRefresh(req);
+    const [insuranceData, hrData] = await Promise.all([
+      insuranceService.getInsuranceData({ forceRefresh }),
+      employeeService.getEmployeeData({ forceRefresh })
+    ]);
+    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+
+    const items = analytics.buildCoveredEmployeesList(insuranceData.members).map((c) => {
+      const hr = hrByEmployeeId.get(c.employeeId);
+      return {
+        employeeId: c.employeeId,
+        name: c.name,
+        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+        designation: hr ? hr.designation : '',
+        familyCount: c.familyCount,
+        totalPremium: c.totalPremium,
+        status: c.status
+      };
+    });
+
+    res.json({ total: items.length, items });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

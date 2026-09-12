@@ -505,6 +505,23 @@ body {
 .hi-renewal-pct { font-size: 0.9rem; font-weight: 700; color: var(--ink); }
 #hiRenewalPanel .wf-progress-fill { background: var(--move-blue); }
 
+/* ---------- Covered Employees (Health Insurance drill-down) ---------- */
+
+.hi-ce-filterbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.hi-ce-filterbar select { flex: 1; min-width: 110px; }
+.hi-ce-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.hi-ce-total-row b { color: var(--accent); }
+.hi-ce-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hi-ce-sub { font-size: 0.74rem; color: var(--ink); font-weight: 600; margin-top: 3px; }
+.hi-ce-chevron { flex-shrink: 0; color: var(--muted); }
+
 /* Employee Movements' labels ("Inter-Department Transfers") are longer than
    any other kpi-card in the app - the shared .kpi-label is nowrap, which
    let long labels push the card past the screen edge instead of wrapping.

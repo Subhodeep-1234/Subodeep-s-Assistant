@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -1084,6 +1084,111 @@ function renderHiCoverageDonut(coverage, total) {
     .map((b) => legendRow(b.color, b.label, coverage[b.key] || 0, Math.round(((coverage[b.key] || 0) / denom) * 1000) / 10, false, null))
     .join('');
 }
+
+// Covered Employees only reached via clicking that one KPI card (not the
+// drawer), same "always fetch fresh, no loadedViews cache" pattern as
+// Workforce Movement's detail view - no case for it in loadView's dispatch.
+document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('[data-kpi="hiCovered"]');
+  if (!card) return;
+  setView('coveredEmployees');
+  loadCoveredEmployeesView();
+});
+
+let hiCeAllItems = [];
+
+async function loadCoveredEmployeesView() {
+  const listEl = document.getElementById('hiCeList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  document.getElementById('hiCeSearch').value = '';
+  document.getElementById('hiCeDeptFilter').value = '';
+  document.getElementById('hiCeDesigFilter').value = '';
+  document.getElementById('hiCeStatusFilter').value = '';
+  try {
+    const data = await fetchJson('/api/insurance/covered-employees');
+    hiCeAllItems = data.items;
+
+    const depts = Array.from(new Set(hiCeAllItems.map((e) => e.department).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const desigs = Array.from(new Set(hiCeAllItems.map((e) => e.designation).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const statuses = Array.from(new Set(hiCeAllItems.map((e) => e.status).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    // Option value stays the raw sheet string (what e.department/e.designation
+    // actually equal, for exact-match filtering) - only the visible label is
+    // title-cased for readability.
+    document.getElementById('hiCeDeptFilter').innerHTML =
+      '<option value="">Department</option>' +
+      depts.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiCeDesigFilter').innerHTML =
+      '<option value="">Designation</option>' +
+      desigs.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiCeStatusFilter').innerHTML =
+      '<option value="">Status</option>' +
+      statuses.map((s) => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
+
+    renderCoveredEmployeesList(hiCeAllItems);
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function applyCoveredEmployeesFilters() {
+  const q = document.getElementById('hiCeSearch').value.trim().toLowerCase();
+  const dept = document.getElementById('hiCeDeptFilter').value;
+  const desig = document.getElementById('hiCeDesigFilter').value;
+  const status = document.getElementById('hiCeStatusFilter').value;
+
+  const filtered = hiCeAllItems.filter((e) => {
+    if (q && !(e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q))) return false;
+    if (dept && e.department !== dept) return false;
+    if (desig && e.designation !== desig) return false;
+    if (status && e.status !== status) return false;
+    return true;
+  });
+  renderCoveredEmployeesList(filtered);
+}
+
+function renderCoveredEmployeesList(items) {
+  // The header count is always the real overall total, not the filtered
+  // count - search/filters only change what the list below shows.
+  document.getElementById('hiCeTotalCount').textContent = hiCeAllItems.length;
+  const listEl = document.getElementById('hiCeList');
+  listEl.innerHTML = items.length
+    ? items
+        .map(
+          (e) =>
+            '<li>' +
+              '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+              '<span class="wf-emp-main">' +
+                '<span class="hi-ce-name-row">' +
+                  '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
+                  '<span class="wf-status-chip ' + statusChipClass(String(e.status).toUpperCase()) + '">' + escapeHtml(e.status) + '</span>' +
+                '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + (e.department ? ' · ' + escapeHtml(titleCase(e.department)) : '') + '</span>' +
+                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.designation) || '—') + '</span>' +
+                '<span class="hi-ce-sub">' +
+                  (e.familyCount > 0 ? 'Self + ' + e.familyCount + ' Family' : 'Self only') +
+                  ' &nbsp;|&nbsp; ₹' + Math.round(e.totalPremium).toLocaleString('en-IN') +
+                '</span>' +
+              '</span>' +
+              '<span class="hi-ce-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+            '</li>'
+        )
+        .join('')
+    : '<li class="empty">No employees match these filters</li>';
+}
+
+document.getElementById('hiCeSearch').addEventListener('input', applyCoveredEmployeesFilters);
+document.getElementById('hiCeDeptFilter').addEventListener('change', applyCoveredEmployeesFilters);
+document.getElementById('hiCeDesigFilter').addEventListener('change', applyCoveredEmployeesFilters);
+document.getElementById('hiCeStatusFilter').addEventListener('change', applyCoveredEmployeesFilters);
+document.getElementById('hiCeFilterBtn').addEventListener('click', applyCoveredEmployeesFilters);
+document.getElementById('hiCeViewAllBtn').addEventListener('click', () => {
+  document.getElementById('hiCeSearch').value = '';
+  document.getElementById('hiCeDeptFilter').value = '';
+  document.getElementById('hiCeDesigFilter').value = '';
+  document.getElementById('hiCeStatusFilter').value = '';
+  renderCoveredEmployeesList(hiCeAllItems);
+});
 
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));

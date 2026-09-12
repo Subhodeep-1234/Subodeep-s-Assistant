@@ -54,6 +54,37 @@ function buildHealthInsuranceSummary({ members, additions, deletions, activeEmpl
   };
 }
 
+// One row per covered employee (their own "Self" row), with their family
+// members on the same policy rolled into a count + combined premium.
+// Member List has no Department/Designation column - the route layer
+// cross-references those from the HR Master sheet by Employee ID, this
+// function only groups what's actually in the insurance data itself.
+function buildCoveredEmployeesList(members) {
+  const activeMembers = members.filter((m) => m.status === 'Active');
+  const byEmployee = new Map();
+  activeMembers.forEach((m) => {
+    if (!byEmployee.has(m.employeeId)) byEmployee.set(m.employeeId, []);
+    byEmployee.get(m.employeeId).push(m);
+  });
+
+  const result = [];
+  byEmployee.forEach((rows, employeeId) => {
+    const selfRow = rows.find((r) => String(r.relationship || '').toLowerCase() === 'self');
+    if (!selfRow) return; // family rows with no matching Self row - nothing to anchor a covered-employee entry on
+    const totalPremium = rows.reduce((sum, r) => sum + r.premiumWithGST, 0);
+    result.push({
+      employeeId,
+      name: selfRow.name,
+      grade: selfRow.grade,
+      status: selfRow.status,
+      familyCount: rows.length - 1,
+      totalPremium
+    });
+  });
+
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // Fixed policy period (no start/end date exists anywhere in the sheet -
 // set directly per the real current policy, update here if it's ever
 // renewed on different dates).
@@ -75,4 +106,4 @@ function policyRenewalInfo(now = new Date()) {
   };
 }
 
-module.exports = { buildHealthInsuranceSummary, policyRenewalInfo };
+module.exports = { buildHealthInsuranceSummary, buildCoveredEmployeesList, policyRenewalInfo };
