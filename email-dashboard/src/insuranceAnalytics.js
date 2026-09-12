@@ -91,6 +91,42 @@ function buildCoveredEmployeesList(members) {
   return result.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// One row per Active family member (everything but the Self row), each
+// carrying the anchor employee's own name so the row can show whose family
+// it belongs to - the Family Members drill-down.
+function buildFamilyMembersList(members) {
+  const activeMembers = members.filter((m) => m.status === 'Active');
+  const selfNameByEmployee = new Map();
+  activeMembers.forEach((m) => {
+    if (String(m.relationship || '').toLowerCase() === 'self') selfNameByEmployee.set(m.employeeId, m.name);
+  });
+
+  return activeMembers
+    .filter((m) => String(m.relationship || '').toLowerCase() !== 'self')
+    .map((m) => ({
+      employeeId: m.employeeId,
+      name: m.name,
+      relationship: m.relationship,
+      relatedEmployeeName: selfNameByEmployee.get(m.employeeId) || '',
+      premiumWithGST: m.premiumWithGST
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Every Active member (Self + family) flat, one row each - the Total
+// Insured Lives drill-down.
+function buildTotalInsuredLivesList(members) {
+  return members
+    .filter((m) => m.status === 'Active')
+    .map((m) => ({
+      employeeId: m.employeeId,
+      name: m.name,
+      relationship: m.relationship,
+      premiumWithGST: m.premiumWithGST
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // Same "Self row anchors the group, family rows roll into a count" shape as
 // buildCoveredEmployeesList, but over the Deletions tab instead of Member
 // List - no premium here, Deletions doesn't carry one.
@@ -167,6 +203,8 @@ function policyRenewalInfo(now = new Date()) {
 module.exports = {
   buildHealthInsuranceSummary,
   buildCoveredEmployeesList,
+  buildFamilyMembersList,
+  buildTotalInsuredLivesList,
   buildExitsList,
   sortDeletionsSelfFirst,
   policyRenewalInfo

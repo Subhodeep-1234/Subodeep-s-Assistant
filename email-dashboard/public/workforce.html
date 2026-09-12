@@ -625,6 +625,82 @@
       </ul>
     </section>
 
+    <!-- Family Members (Health Insurance drill-down, from Member List) -->
+    <section id="hiFamilyMembersView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Health Insurance">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <span class="hi-page-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg></span>
+        <span>
+          <h2>Family Members</h2>
+          <p class="wf-note" style="margin:0;">Dependents covered under the policy</p>
+        </span>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <div style="position:relative; flex:1;">
+          <input type="search" id="hiFmSearch" placeholder="Search by name / ID" autocomplete="off" style="width:100%; background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:10px 12px 10px 34px; font:inherit; font-size:.85rem; color:var(--ink);" />
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:11px; top:50%; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <button class="wf-icon-btn" id="hiFmFilterToggleBtn" aria-expanded="false" aria-label="Filters" title="Filters">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </button>
+      </div>
+
+      <div class="wf-filterbar" id="hiFmFilterbar" hidden>
+        <select id="hiFmDeptFilter"><option value="">All departments</option></select>
+        <select id="hiFmRelationFilter"><option value="">All relationships</option></select>
+        <button class="wf-clear-btn" id="hiFmClearFilters">Clear filters</button>
+      </div>
+
+      <div class="hi-ce-total-row">
+        <span>Total Family Members: <b id="hiFmTotalCount">—</b></span>
+      </div>
+
+      <ul class="wf-emp-list" id="hiFmList">
+        <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
+      </ul>
+    </section>
+
+    <!-- Total Insured Lives (Health Insurance drill-down, from Member List) -->
+    <section id="hiTotalLivesView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back to Health Insurance">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <span class="hi-page-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg></span>
+        <span>
+          <h2>Total Insured Lives</h2>
+          <p class="wf-note" style="margin:0;">Every employee &amp; family member covered</p>
+        </span>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <div style="position:relative; flex:1;">
+          <input type="search" id="hiTlSearch" placeholder="Search by name / ID" autocomplete="off" style="width:100%; background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:10px 12px 10px 34px; font:inherit; font-size:.85rem; color:var(--ink);" />
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:11px; top:50%; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <button class="wf-icon-btn" id="hiTlFilterToggleBtn" aria-expanded="false" aria-label="Filters" title="Filters">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </button>
+      </div>
+
+      <div class="wf-filterbar" id="hiTlFilterbar" hidden>
+        <select id="hiTlDeptFilter"><option value="">All departments</option></select>
+        <select id="hiTlRelationFilter"><option value="">All relationships</option></select>
+        <button class="wf-clear-btn" id="hiTlClearFilters">Clear filters</button>
+      </div>
+
+      <div class="hi-ce-total-row">
+        <span>Total Insured Lives: <b id="hiTlTotalCount">—</b></span>
+      </div>
+
+      <ul class="wf-emp-list" id="hiTlList">
+        <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
+      </ul>
+    </section>
+
     <!-- Age Distribution (Demographics) -->
     <section id="ageDistributionView" class="wf-view" hidden>
       <div class="wf-page-head">
@@ -696,6 +772,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=130"></script>
+  <script src="workforce.js?v=131"></script>
 </body>
 </html>

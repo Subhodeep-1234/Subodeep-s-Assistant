@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiFamilyMembers', 'hiTotalLives', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -455,10 +455,13 @@ async function loadOverview(forceRefresh) {
     '/api/workforce/promotions?days=365',
     '/api/workforce/company-transfers?days=365',
     '/api/workforce/location-transfers?days=365',
-    // Health Insurance's own drill-downs (Covered Employees, Exits) - fixed
-    // URLs, no filter params, so they're always safe to warm the same way.
+    // Health Insurance's own drill-downs (Covered Employees, Exits, Family
+    // Members, Total Insured Lives) - fixed URLs, no filter params, so
+    // they're always safe to warm the same way.
     '/api/insurance/covered-employees',
-    '/api/insurance/exits'
+    '/api/insurance/exits',
+    '/api/insurance/family-members',
+    '/api/insurance/total-insured-lives'
   ]);
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
@@ -1171,6 +1174,16 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
   if (e.target.closest('[data-kpi="hiExits"]')) {
     setView('hiExits');
     loadHiExitsView();
+    return;
+  }
+  if (e.target.closest('[data-kpi="hiFamily"]')) {
+    setView('hiFamilyMembers');
+    loadHiFamilyMembersView();
+    return;
+  }
+  if (e.target.closest('[data-kpi="hiTotalLives"]')) {
+    setView('hiTotalLives');
+    loadHiTotalLivesView();
   }
 });
 
@@ -1274,6 +1287,173 @@ document.getElementById('hiCeClearFilters').addEventListener('click', () => {
   document.getElementById('hiCeDesigFilter').value = '';
   document.getElementById('hiCeStatusFilter').value = '';
   applyCoveredEmployeesFilters();
+});
+
+// ---------- Family Members (Health Insurance drill-down) ----------
+
+let hiFmAllItems = [];
+
+async function loadHiFamilyMembersView() {
+  const listEl = document.getElementById('hiFmList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  document.getElementById('hiFmSearch').value = '';
+  document.getElementById('hiFmDeptFilter').value = '';
+  document.getElementById('hiFmRelationFilter').value = '';
+  try {
+    const data = await fetchJson('/api/insurance/family-members');
+    hiFmAllItems = data.items;
+
+    const depts = Array.from(new Set(hiFmAllItems.map((e) => e.department).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const relations = Array.from(new Set(hiFmAllItems.map((e) => e.relationship).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    document.getElementById('hiFmDeptFilter').innerHTML =
+      '<option value="">Department</option>' +
+      depts.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiFmRelationFilter').innerHTML =
+      '<option value="">Relationship</option>' +
+      relations.map((r) => '<option value="' + escapeHtml(r) + '">' + escapeHtml(r) + '</option>').join('');
+
+    renderHiFamilyMembersList(hiFmAllItems);
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function applyHiFamilyMembersFilters() {
+  const q = document.getElementById('hiFmSearch').value.trim().toLowerCase();
+  const dept = document.getElementById('hiFmDeptFilter').value;
+  const relation = document.getElementById('hiFmRelationFilter').value;
+
+  const filtered = hiFmAllItems.filter((e) => {
+    if (q && !(e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q))) return false;
+    if (dept && e.department !== dept) return false;
+    if (relation && e.relationship !== relation) return false;
+    return true;
+  });
+  renderHiFamilyMembersList(filtered);
+}
+
+function renderHiFamilyMembersList(items) {
+  document.getElementById('hiFmTotalCount').textContent = hiFmAllItems.length;
+  const listEl = document.getElementById('hiFmList');
+  listEl.innerHTML = items.length
+    ? items
+        .map(
+          (e) =>
+            '<li>' +
+              '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+              '<span class="wf-emp-main">' +
+                '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + ' · ' + escapeHtml(e.relationship) + '</span>' +
+                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.department) || '—') + '</span>' +
+                '<span class="hi-ce-sub">' +
+                  'Family of ' + escapeHtml(e.relatedEmployeeName) +
+                  ' &nbsp;|&nbsp; ₹' + Math.round(e.premiumWithGST).toLocaleString('en-IN') +
+                '</span>' +
+              '</span>' +
+              '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+            '</li>'
+        )
+        .join('')
+    : '<li class="empty">No family members match these filters</li>';
+}
+
+document.getElementById('hiFmSearch').addEventListener('input', applyHiFamilyMembersFilters);
+document.getElementById('hiFmDeptFilter').addEventListener('change', applyHiFamilyMembersFilters);
+document.getElementById('hiFmRelationFilter').addEventListener('change', applyHiFamilyMembersFilters);
+
+document.getElementById('hiFmFilterToggleBtn').addEventListener('click', () => {
+  const btn = document.getElementById('hiFmFilterToggleBtn');
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  document.getElementById('hiFmFilterbar').hidden = expanded;
+  btn.setAttribute('aria-expanded', String(!expanded));
+});
+document.getElementById('hiFmClearFilters').addEventListener('click', () => {
+  document.getElementById('hiFmDeptFilter').value = '';
+  document.getElementById('hiFmRelationFilter').value = '';
+  applyHiFamilyMembersFilters();
+});
+
+// ---------- Total Insured Lives (Health Insurance drill-down) ----------
+
+let hiTlAllItems = [];
+
+async function loadHiTotalLivesView() {
+  const listEl = document.getElementById('hiTlList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  document.getElementById('hiTlSearch').value = '';
+  document.getElementById('hiTlDeptFilter').value = '';
+  document.getElementById('hiTlRelationFilter').value = '';
+  try {
+    const data = await fetchJson('/api/insurance/total-insured-lives');
+    hiTlAllItems = data.items;
+
+    const depts = Array.from(new Set(hiTlAllItems.map((e) => e.department).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const relations = Array.from(new Set(hiTlAllItems.map((e) => e.relationship).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    document.getElementById('hiTlDeptFilter').innerHTML =
+      '<option value="">Department</option>' +
+      depts.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiTlRelationFilter').innerHTML =
+      '<option value="">Relationship</option>' +
+      relations.map((r) => '<option value="' + escapeHtml(r) + '">' + escapeHtml(r) + '</option>').join('');
+
+    renderHiTotalLivesList(hiTlAllItems);
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function applyHiTotalLivesFilters() {
+  const q = document.getElementById('hiTlSearch').value.trim().toLowerCase();
+  const dept = document.getElementById('hiTlDeptFilter').value;
+  const relation = document.getElementById('hiTlRelationFilter').value;
+
+  const filtered = hiTlAllItems.filter((e) => {
+    if (q && !(e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q))) return false;
+    if (dept && e.department !== dept) return false;
+    if (relation && e.relationship !== relation) return false;
+    return true;
+  });
+  renderHiTotalLivesList(filtered);
+}
+
+function renderHiTotalLivesList(items) {
+  document.getElementById('hiTlTotalCount').textContent = hiTlAllItems.length;
+  const listEl = document.getElementById('hiTlList');
+  listEl.innerHTML = items.length
+    ? items
+        .map(
+          (e) =>
+            '<li>' +
+              '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+              '<span class="wf-emp-main">' +
+                '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + ' · ' + escapeHtml(e.relationship) + '</span>' +
+                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.department) || '—') + '</span>' +
+                '<span class="hi-ce-sub">₹' + Math.round(e.premiumWithGST).toLocaleString('en-IN') + '</span>' +
+              '</span>' +
+              '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+            '</li>'
+        )
+        .join('')
+    : '<li class="empty">No members match these filters</li>';
+}
+
+document.getElementById('hiTlSearch').addEventListener('input', applyHiTotalLivesFilters);
+document.getElementById('hiTlDeptFilter').addEventListener('change', applyHiTotalLivesFilters);
+document.getElementById('hiTlRelationFilter').addEventListener('change', applyHiTotalLivesFilters);
+
+document.getElementById('hiTlFilterToggleBtn').addEventListener('click', () => {
+  const btn = document.getElementById('hiTlFilterToggleBtn');
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  document.getElementById('hiTlFilterbar').hidden = expanded;
+  btn.setAttribute('aria-expanded', String(!expanded));
+});
+document.getElementById('hiTlClearFilters').addEventListener('click', () => {
+  document.getElementById('hiTlDeptFilter').value = '';
+  document.getElementById('hiTlRelationFilter').value = '';
+  applyHiTotalLivesFilters();
 });
 
 // ---------- Exits (Health Insurance drill-down, from the Deletions tab) ----------

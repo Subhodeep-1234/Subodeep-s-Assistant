@@ -57,6 +57,64 @@ router.get('/covered-employees', async (req, res) => {
   }
 });
 
+// Family members list - cross-referenced by Employee ID against the HR
+// Master sheet the same way covered-employees is, for the department the
+// related employee (not the family member themselves) belongs to.
+router.get('/family-members', async (req, res) => {
+  try {
+    const forceRefresh = wantsForceRefresh(req);
+    const [insuranceData, hrData] = await Promise.all([
+      insuranceService.getInsuranceData({ forceRefresh }),
+      employeeService.getEmployeeData({ forceRefresh })
+    ]);
+    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+
+    const items = analytics.buildFamilyMembersList(insuranceData.members).map((m) => {
+      const hr = hrByEmployeeId.get(m.employeeId);
+      return {
+        employeeId: m.employeeId,
+        name: m.name,
+        relationship: m.relationship,
+        relatedEmployeeName: m.relatedEmployeeName,
+        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+        premiumWithGST: m.premiumWithGST
+      };
+    });
+
+    res.json({ total: items.length, items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Every Active member (Self + family) flat - the Total Insured Lives
+// drill-down.
+router.get('/total-insured-lives', async (req, res) => {
+  try {
+    const forceRefresh = wantsForceRefresh(req);
+    const [insuranceData, hrData] = await Promise.all([
+      insuranceService.getInsuranceData({ forceRefresh }),
+      employeeService.getEmployeeData({ forceRefresh })
+    ]);
+    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+
+    const items = analytics.buildTotalInsuredLivesList(insuranceData.members).map((m) => {
+      const hr = hrByEmployeeId.get(m.employeeId);
+      return {
+        employeeId: m.employeeId,
+        name: m.name,
+        relationship: m.relationship,
+        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+        premiumWithGST: m.premiumWithGST
+      };
+    });
+
+    res.json({ total: items.length, items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Deletions tab has no Department/Designation column either - cross-referenced
 // the same way covered-employees is, by Employee ID against the HR Master sheet.
 router.get('/exits', async (req, res) => {
