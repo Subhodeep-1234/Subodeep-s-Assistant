@@ -473,4 +473,59 @@ async function sendMail({ to, subject, text }) {
   await gmail().users.messages.send({ userId: 'me', requestBody: { raw } });
 }
 
-module.exports = { getCounts, getMessagesByCategory, getFullMessage, sendReply, trashMessage, getUpcomingJoinings, sendMail };
+// Base64 content is wrapped at 76 chars per line - not strictly required by
+// Gmail's API, but keeps the raw message a well-formed RFC 2045 MIME body.
+function wrapBase64(b64) {
+  return b64.replace(/(.{76})/g, '$1\r\n');
+}
+
+// Multipart/mixed send with a CC and a single binary attachment (a
+// generated PDF, here) - used for the Health Insurance Exits "Send Mail"
+// button. buildRawMessage/sendMail above stay untouched (plain-text-only,
+// used by OTP delivery) since this is a distinct MIME shape.
+function buildRawMessageWithAttachment({ to, cc, subject, bodyText, attachment }) {
+  const boundary = 'wf_boundary_' + Date.now().toString(36);
+  const lines = [
+    `To: ${to}`,
+    ...(cc ? [`Cc: ${cc}`] : []),
+    `Subject: ${encodeHeaderText(subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(bodyText, 'utf8').toString('base64'),
+    '',
+    `--${boundary}`,
+    `Content-Type: ${attachment.contentType}; name="${attachment.filename}"`,
+    `Content-Disposition: attachment; filename="${attachment.filename}"`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    wrapBase64(attachment.content.toString('base64')),
+    '',
+    `--${boundary}--`
+  ];
+  return Buffer.from(lines.join('\r\n'))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+async function sendMailWithAttachment({ to, cc, subject, text, attachment }) {
+  const raw = buildRawMessageWithAttachment({ to, cc, subject, bodyText: text, attachment });
+  await gmail().users.messages.send({ userId: 'me', requestBody: { raw } });
+}
+
+module.exports = {
+  getCounts,
+  getMessagesByCategory,
+  getFullMessage,
+  sendReply,
+  trashMessage,
+  getUpcomingJoinings,
+  sendMail,
+  sendMailWithAttachment
+};

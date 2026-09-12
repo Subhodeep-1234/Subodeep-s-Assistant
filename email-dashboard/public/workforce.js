@@ -1337,6 +1337,28 @@ document.getElementById('exportHiExitsPdf').addEventListener('click', () => {
 
 document.getElementById('hiExitsSearch').addEventListener('input', applyHiExitsFilters);
 
+document.getElementById('sendHiExitsMail').addEventListener('click', async () => {
+  const btn = document.getElementById('sendHiExitsMail');
+  if (btn.disabled) return;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/insurance/exits/send-mail', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
+    btn.textContent = '✓ Sent';
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 3000);
+  } catch (err) {
+    alert('Failed to send mail: ' + err.message);
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
   const pct = Math.max(4, Math.round((count / max) * 100));
   const share = shareTotal ? Math.round((count / shareTotal) * 1000) / 10 : null;

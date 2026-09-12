@@ -599,7 +599,10 @@
 
       <div class="hi-ce-total-row">
         <span>Total Exits: <b id="hiExitsTotalCount">—</b></span>
-        <button class="wf-link-btn" id="exportHiExitsPdf" type="button">⬇ Export PDF</button>
+        <span style="display:flex; gap:14px;">
+          <button class="wf-link-btn" id="sendHiExitsMail" type="button">✉ Send Mail</button>
+          <button class="wf-link-btn" id="exportHiExitsPdf" type="button">⬇ Export PDF</button>
+        </span>
       </div>
 
       <ul class="wf-emp-list" id="hiExitsList">
@@ -678,6 +681,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=125"></script>
+  <script src="workforce.js?v=126"></script>
 </body>
 </html>
