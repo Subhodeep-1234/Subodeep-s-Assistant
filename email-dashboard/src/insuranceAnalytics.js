@@ -40,6 +40,12 @@ function buildHealthInsuranceSummary({ members, additions, deletions, activeEmpl
 
   const totalActiveEmployees = activeEmployees.filter((e) => e.status === 'Active').length;
 
+  // Annual Premium is the one figure meant to cover the whole Member List
+  // regardless of status (Active, Notice Period, or Inactive) - every other
+  // card here is Active-only, so this is summed separately rather than from
+  // employeePremium + familyPremium.
+  const annualPremium = members.reduce((sum, m) => sum + m.premiumWithGST, 0);
+
   return {
     coveredEmployees,
     totalActiveEmployees,
@@ -47,7 +53,7 @@ function buildHealthInsuranceSummary({ members, additions, deletions, activeEmpl
     totalInsuredLives: activeMembers.length,
     employeePremium,
     familyPremium,
-    annualPremium: employeePremium + familyPremium,
+    annualPremium,
     newAdditionRequests: additions.length,
     exits: deletions.length,
     coverage
