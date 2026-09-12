@@ -393,9 +393,14 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
 // it's opened in a session. Cleared once loadInsightsView consumes it.
 let insightsPrefetch = null;
 
+// Same idea as insightsPrefetch above, for Health Insurance's own live
+// Sheets round trip (a separate spreadsheet from the HR Master one).
+let healthInsurancePrefetch = null;
+
 async function loadOverview(forceRefresh) {
   kpiGrid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   insightsPrefetch = fetchJson('/api/workforce/insights').catch(() => null);
+  healthInsurancePrefetch = fetchJson('/api/insurance/summary').catch(() => null);
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
@@ -1026,7 +1031,12 @@ async function loadHealthInsuranceView(forceRefresh) {
   const grid = document.getElementById('hiStatsGrid');
   grid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const data = await fetchJson('/api/insurance/summary' + (forceRefresh ? '?refresh=1' : ''));
+    // Use the Dashboard's background prefetch when there is one - skipped
+    // entirely on an explicit Refresh, or if the prefetch failed/was never
+    // started (e.g. Health Insurance opened without visiting the Dashboard first).
+    let data = !forceRefresh && healthInsurancePrefetch ? await healthInsurancePrefetch : null;
+    if (!data) data = await fetchJson('/api/insurance/summary' + (forceRefresh ? '?refresh=1' : ''));
+    healthInsurancePrefetch = null;
 
     // clickable deliberately omitted (not set to false) - these cards are
     // meant to look like the vibrant, fully-opaque mockup, not the app's
