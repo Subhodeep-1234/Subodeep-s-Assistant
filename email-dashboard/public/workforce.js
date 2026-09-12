@@ -218,6 +218,10 @@ refreshBtn.addEventListener('click', async () => {
   refreshBtn.classList.add('spinning');
   refreshBtn.disabled = true;
   loadedViews.clear();
+  // Any still-unconsumed (or persisted multi-read) prefetch entry is now
+  // stale intent-wise - an explicit Refresh means every view opened from
+  // here on, including the current one, should hit the network again.
+  jsonPrefetchCache.clear();
   try {
     await loadView(activeView, true);
   } finally {
@@ -417,6 +421,9 @@ async function loadOverview(forceRefresh) {
   prefetchJson('/api/workforce/promotions?days=365');
   prefetchJson('/api/workforce/company-transfers?days=365');
   prefetchJson('/api/workforce/location-transfers?days=365');
+  // Health Insurance's own drill-down (Covered Employees) - fixed URL, no
+  // filter params, so it's always safe to warm from the Dashboard the same way.
+  prefetchJson('/api/insurance/covered-employees');
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
       fetchJson('/api/workforce/overview' + (forceRefresh ? '?refresh=1' : '')),
@@ -1572,6 +1579,10 @@ async function renderMovementBreakdown() {
   await Promise.all(Object.entries(MOVEMENT_TYPES).map(async ([type, m]) => {
     try {
       const data = await fetchJson(m.endpoint + '?days=365');
+      // loadMovementDetail fetches this exact same URL when its card is
+      // clicked - hand it the response already in hand instead of a second
+      // round trip for the same 12-month tracker data.
+      jsonPrefetchCache.set(m.endpoint + '?days=365', Promise.resolve(data));
       const card = document.querySelector('#movementBreakdownGrid [data-kpi="' + m.kpiKey + '"]');
       if (card) {
         card.outerHTML = kpiCard({
@@ -1732,11 +1743,25 @@ document.getElementById('movementTrendTabs').addEventListener('click', (e) => {
 // for every other menu section's first-load endpoint, so that whichever one
 // gets opened next in the session finds its data already in flight (or
 // already resolved) instead of sitting on its own live Sheets round trip.
-// Each entry is consumed - and removed - by the first real fetchJson() call
-// for that exact URL; a forceRefresh call uses a different URL (?refresh=1)
-// so it always misses the cache and goes straight to the network, same as
-// before this existed.
+// Each entry is normally consumed - and removed - by the first real
+// fetchJson() call for that exact URL; a forceRefresh call uses a different
+// URL (?refresh=1) so it always misses the cache and goes straight to the
+// network, same as before this existed.
 const jsonPrefetchCache = new Map();
+
+// Dashboard-level datasets with more than one legitimate consumer within a
+// session (Doer Management, "view all" Department, and "view all" Location
+// are three different pages all built from the same Overview/Breakdowns
+// numbers already showing on the Dashboard) - kept in the cache across
+// multiple reads instead of the default single-consumption behavior, so
+// whichever of those pages is opened later still gets it instantly. Never
+// used for anything filter-dependent (Employee Data's own list, drill-down
+// clicks) - those always go straight back to the network so they can never
+// go stale within a session.
+const MULTI_READ_PREFETCH_URLS = new Set([
+  '/api/workforce/overview',
+  '/api/workforce/breakdowns?status=ACTIVE'
+]);
 
 function prefetchJson(url) {
   const p = fetch(url).then((res) => (res.ok ? res.json() : null)).catch(() => null);
@@ -1747,9 +1772,10 @@ function prefetchJson(url) {
 async function fetchJson(url) {
   if (jsonPrefetchCache.has(url)) {
     const cached = jsonPrefetchCache.get(url);
-    jsonPrefetchCache.delete(url);
+    if (!MULTI_READ_PREFETCH_URLS.has(url)) jsonPrefetchCache.delete(url);
     const data = await cached;
     if (data !== null) return data;
+    jsonPrefetchCache.delete(url);
   }
   const res = await fetch(url);
   if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
