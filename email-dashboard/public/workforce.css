@@ -498,7 +498,9 @@ body {
   position: relative;
   overflow: hidden;
 }
-:root:not([data-theme="light"]) .hi-banner,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hi-banner { background: linear-gradient(135deg, #1a2b3d, #16222f); }
+}
 :root[data-theme="dark"] .hi-banner { background: linear-gradient(135deg, #1a2b3d, #16222f); }
 .hi-banner-icon {
   width: 50px;
