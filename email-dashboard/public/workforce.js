@@ -1339,22 +1339,23 @@ document.getElementById('hiExitsSearch').addEventListener('input', applyHiExitsF
 
 document.getElementById('sendHiExitsMail').addEventListener('click', async () => {
   const btn = document.getElementById('sendHiExitsMail');
+  const label = btn.querySelector('span');
   if (btn.disabled) return;
-  const originalText = btn.textContent;
+  const originalLabel = label.textContent;
   btn.disabled = true;
-  btn.textContent = 'Sending…';
+  label.textContent = 'Sending…';
   try {
     const res = await fetch('/api/insurance/exits/send-mail', { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to send mail');
-    btn.textContent = '✓ Sent';
+    label.textContent = 'Sent ✓';
     setTimeout(() => {
-      btn.textContent = originalText;
+      label.textContent = originalLabel;
       btn.disabled = false;
     }, 3000);
   } catch (err) {
     alert('Failed to send mail: ' + err.message);
-    btn.textContent = originalText;
+    label.textContent = originalLabel;
     btn.disabled = false;
   }
 });

@@ -540,6 +540,28 @@ body {
 .wf-link-btn:hover { text-decoration: underline; }
 .wf-link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Same solid-accent primary-CTA look as login.css's .login-btn, sized down
+   to sit inline in a page header row instead of full-width. */
+.wf-send-mail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 8px var(--shadow);
+  white-space: nowrap;
+}
+.wf-send-mail-btn:hover { filter: brightness(1.06); }
+.wf-send-mail-btn:disabled { opacity: 0.65; cursor: default; box-shadow: none; }
+.wf-send-mail-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .wf-donut-row {
   display: flex;
   align-items: center;
