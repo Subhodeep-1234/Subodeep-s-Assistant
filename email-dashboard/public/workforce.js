@@ -1259,6 +1259,7 @@ document.getElementById('hiCeClearFilters').addEventListener('click', () => {
 // ---------- Exits (Health Insurance drill-down, from the Deletions tab) ----------
 
 let hiExitsAllItems = [];
+let hiExitsRawRows = [];
 
 async function loadHiExitsView() {
   const listEl = document.getElementById('hiExitsList');
@@ -1267,6 +1268,7 @@ async function loadHiExitsView() {
   try {
     const data = await fetchJson('/api/insurance/exits');
     hiExitsAllItems = data.items;
+    hiExitsRawRows = data.rawRows;
     renderHiExitsList(hiExitsAllItems);
   } catch (err) {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
@@ -1306,6 +1308,32 @@ function renderHiExitsList(items) {
         .join('')
     : '<li class="empty">No exits found</li>';
 }
+
+document.getElementById('exportHiExitsPdf').addEventListener('click', () => {
+  document.getElementById('printReportTitle').textContent = 'Health Insurance Exits Report';
+  document.getElementById('printReportSubtitle').textContent = hiExitsRawRows.length + ' record' + (hiExitsRawRows.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Sr No</th><th>Corporate_name</th><th>Employee ID/UHID</th><th>Name of Insured</th><th>Gender</th><th>Relationship</th><th>Date of Leaving</th><th>Reason</th>';
+  document.getElementById('printReportBody').innerHTML = hiExitsRawRows.length
+    ? hiExitsRawRows
+        .map((r) => (
+          '<tr>' +
+            '<td>' + escapeHtml(r.srNo) + '</td>' +
+            '<td>' + escapeHtml(r.corporateName) + '</td>' +
+            '<td>' + escapeHtml(r.employeeId) + '</td>' +
+            '<td>' + escapeHtml(r.name) + '</td>' +
+            '<td>' + escapeHtml(r.gender) + '</td>' +
+            '<td>' + escapeHtml(r.relationship) + '</td>' +
+            '<td>' + escapeHtml(r.dateOfLeaving) + '</td>' +
+            '<td>' + escapeHtml(r.reason) + '</td>' +
+          '</tr>'
+        ))
+        .join('')
+    : '<tr><td colspan="8">No exits found</td></tr>';
+  window.print();
+});
 
 document.getElementById('hiExitsSearch').addEventListener('input', applyHiExitsFilters);
 
