@@ -451,6 +451,17 @@ async function loadOverview(forceRefresh) {
   // its own fresh Sheets round trip. Harmless if a section never gets
   // opened - an unread cache entry is just dropped when this view reloads.
   staggeredPrefetch([
+    // Health Insurance's own drill-downs (Covered Employees, Exits, Family
+    // Members, Total Insured Lives, Policy Information) - fixed URLs, no
+    // filter params, so they're always safe to warm the same way. Put
+    // first so they land in the earliest batches, same priority as
+    // healthInsurancePrefetch above (its own summary fetch) rather than
+    // waiting behind every workforce endpoint below.
+    '/api/insurance/covered-employees',
+    '/api/insurance/exits',
+    '/api/insurance/family-members',
+    '/api/insurance/total-insured-lives',
+    '/api/insurance/policy-info',
     '/api/workforce/employees?status=ACTIVE',
     '/api/hr/upcoming-joinings',
     '/api/workforce/tenure',
@@ -461,14 +472,7 @@ async function loadOverview(forceRefresh) {
     '/api/workforce/dept-transfers?days=365',
     '/api/workforce/promotions?days=365',
     '/api/workforce/company-transfers?days=365',
-    '/api/workforce/location-transfers?days=365',
-    // Health Insurance's own drill-downs (Covered Employees, Exits, Family
-    // Members, Total Insured Lives) - fixed URLs, no filter params, so
-    // they're always safe to warm the same way.
-    '/api/insurance/covered-employees',
-    '/api/insurance/exits',
-    '/api/insurance/family-members',
-    '/api/insurance/total-insured-lives'
+    '/api/workforce/location-transfers?days=365'
   ]);
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
@@ -1151,12 +1155,29 @@ async function loadHealthInsuranceView(forceRefresh) {
 // Policy Information - manually-entered fields (no live sheet source for
 // Insurer Name/TPA/Sum Insured etc.), stored via policyInfoService.js and
 // edited inline here through a small pencil icon per field.
+// Icon + tone per field - purely a visual choice (rotating through Health
+// Insurance's existing tone palette) so the page reads as a colorful info
+// card, matching the rest of that section, instead of a flat plain list.
+const POLICY_INFO_FIELD_STYLE = {
+  insurerName: { icon: 'shield', tone: 'ins-blue' },
+  tpaName: { icon: 'building', tone: 'ins-purple' },
+  policyStartDate: { icon: 'calendar', tone: 'ins-green' },
+  policyEndDate: { icon: 'calendar', tone: 'ins-orange' },
+  sumInsured: { icon: 'money', tone: 'ins-green' },
+  totalEmployeesCovered: { icon: 'total', tone: 'ins-blue' },
+  totalPremium: { icon: 'money', tone: 'ins-red' }
+};
+
 async function loadHiPolicyInfo() {
   const gridEl = document.getElementById('hiPolicyInfoGrid');
   gridEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
+    // Same generic jsonPrefetchCache warmed from the Dashboard as every
+    // other Health Insurance drill-down - fetchJson transparently serves
+    // the prefetched response for this exact URL when one is in flight.
     const data = await fetchJson('/api/insurance/policy-info');
     renderHiPolicyInfo(data.fields, data.values);
+    renderHiPolicyInfoBanner(data.renewal);
   } catch (err) {
     gridEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
@@ -1166,19 +1187,42 @@ function renderHiPolicyInfo(fields, values) {
   document.getElementById('hiPolicyInfoGrid').innerHTML = fields
     .map((f) => {
       const value = values[f.key];
+      const style = POLICY_INFO_FIELD_STYLE[f.key] || { icon: 'total', tone: 'ins-blue' };
       return (
         '<div class="hi-policy-info-field">' +
-          '<span class="hi-policy-info-label">' + escapeHtml(f.label) + '</span>' +
-          '<span class="hi-policy-info-value-row">' +
-            '<span class="hi-policy-info-value' + (value ? '' : ' na') + '" data-field="' + f.key + '">' + escapeHtml(value || '—') + '</span>' +
-            '<button class="hi-policy-info-edit-btn" data-edit-field="' + f.key + '" aria-label="Edit ' + escapeHtml(f.label) + '">' +
-              '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
-            '</button>' +
+          '<span class="hi-policy-info-icon tone-' + style.tone + '">' + icon(style.icon, 16) + '</span>' +
+          '<span class="hi-policy-info-body">' +
+            '<span class="hi-policy-info-label">' + escapeHtml(f.label) + '</span>' +
+            '<span class="hi-policy-info-value-row">' +
+              '<span class="hi-policy-info-value' + (value ? '' : ' na') + '" data-field="' + f.key + '">' + escapeHtml(value || '—') + '</span>' +
+              '<button class="hi-policy-info-edit-btn" data-edit-field="' + f.key + '" aria-label="Edit ' + escapeHtml(f.label) + '">' +
+                '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+              '</button>' +
+            '</span>' +
           '</span>' +
         '</div>'
       );
     })
     .join('');
+}
+
+// Real, already-computed renewal data (same figures as the Dashboard's own
+// Policy Renewal panel) - not a static mockup caption.
+function renderHiPolicyInfoBanner(renewal) {
+  const bannerEl = document.getElementById('hiPolicyInfoBanner');
+  if (!renewal) { bannerEl.innerHTML = ''; return; }
+  const days = renewal.daysRemaining;
+  const message =
+    days <= 0
+      ? 'Policy has reached its end date. Renewal action is required.'
+      : days <= 30
+        ? 'Policy renewal is due in ' + days + ' day' + (days === 1 ? '' : 's') + '. Please review the renewal documents.'
+        : 'Policy details are active. No renewal action is required at this time.';
+  bannerEl.innerHTML =
+    '<div class="hi-policy-info-banner">' +
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' +
+      '<span>' + escapeHtml(message) + '</span>' +
+    '</div>';
 }
 
 document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {

@@ -200,7 +200,11 @@ router.post('/exits/send-mail', async (req, res) => {
 router.get('/policy-info', async (req, res) => {
   try {
     const values = await policyInfoService.getPolicyInfo();
-    res.json({ fields: policyInfoService.FIELDS, values });
+    // Renewal is real, already-computed data (same as the Health Insurance
+    // summary's own renewal panel) - included here so the page's status
+    // banner reflects it without a second fetch.
+    const renewal = analytics.policyRenewalInfo();
+    res.json({ fields: policyInfoService.FIELDS, values, renewal });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

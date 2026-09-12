@@ -489,12 +489,38 @@ body {
 }
 
 /* Policy Information panel - manually-entered fields (Insurer Name, TPA,
-   dates, Sum Insured...), each with a small pencil icon to edit inline. */
-.hi-policy-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
-.hi-policy-info-field { min-width: 0; }
-.hi-policy-info-label { display: block; font-size: 0.74rem; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
+   dates, Sum Insured...), each with a small pencil icon to edit inline.
+   Each field gets its own colored icon (rotating through the same
+   move-blue/purple/green/orange/red tones the rest of Health Insurance
+   already uses) so the page reads as a lively info card, not a plain list. */
+.hi-policy-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.hi-policy-info-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  background: var(--other-bg);
+  border-radius: 12px;
+  padding: 12px;
+}
+.hi-policy-info-icon {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hi-policy-info-icon.tone-ins-blue { background: var(--move-blue-bg); color: var(--move-blue); }
+.hi-policy-info-icon.tone-ins-purple { background: var(--move-purple-bg); color: var(--move-purple); }
+.hi-policy-info-icon.tone-ins-green { background: var(--move-green-bg); color: var(--move-green); }
+.hi-policy-info-icon.tone-ins-orange { background: var(--move-orange-bg); color: var(--move-orange); }
+.hi-policy-info-icon.tone-ins-red { background: var(--move-red-bg); color: var(--move-red); }
+.hi-policy-info-body { min-width: 0; flex: 1; }
+.hi-policy-info-label { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
 .hi-policy-info-value-row { display: flex; align-items: center; gap: 6px; }
-.hi-policy-info-value { font-size: 0.9rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.hi-policy-info-value { font-size: 0.88rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
 .hi-policy-info-value.na { color: var(--muted); font-weight: 500; }
 .hi-policy-info-edit-btn {
   background: none;
@@ -513,10 +539,28 @@ body {
   border-radius: 8px;
   padding: 5px 8px;
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 700;
   color: var(--ink);
 }
+@media (max-width: 420px) {
+  .hi-policy-info-grid { grid-template-columns: 1fr; }
+}
+
+.hi-policy-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.hi-policy-info-banner svg { flex-shrink: 0; margin-top: 1px; }
 .hi-renewal-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .hi-renewal-icon {
   width: 34px;
