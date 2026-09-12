@@ -442,16 +442,37 @@ body {
 #healthInsuranceView .kpi-card { border: none; cursor: default; }
 #healthInsuranceView .kpi-card:hover { transform: none; box-shadow: 0 2px 6px var(--shadow); }
 #healthInsuranceView .kpi-card.tone-ins-blue { background: var(--move-blue-bg); }
-#healthInsuranceView .kpi-card.tone-ins-blue .kpi-icon { color: var(--move-blue); }
+#healthInsuranceView .kpi-card.tone-ins-blue .kpi-icon,
+#healthInsuranceView .kpi-card.tone-ins-blue .kpi-label,
+#healthInsuranceView .kpi-card.tone-ins-blue .kpi-num { color: var(--move-blue); }
 #healthInsuranceView .kpi-card.tone-ins-purple { background: var(--move-purple-bg); }
-#healthInsuranceView .kpi-card.tone-ins-purple .kpi-icon { color: var(--move-purple); }
+#healthInsuranceView .kpi-card.tone-ins-purple .kpi-icon,
+#healthInsuranceView .kpi-card.tone-ins-purple .kpi-label,
+#healthInsuranceView .kpi-card.tone-ins-purple .kpi-num { color: var(--move-purple); }
 #healthInsuranceView .kpi-card.tone-ins-green { background: var(--move-green-bg); }
-#healthInsuranceView .kpi-card.tone-ins-green .kpi-icon { color: var(--move-green); }
+#healthInsuranceView .kpi-card.tone-ins-green .kpi-icon,
+#healthInsuranceView .kpi-card.tone-ins-green .kpi-label,
+#healthInsuranceView .kpi-card.tone-ins-green .kpi-num { color: var(--move-green); }
 #healthInsuranceView .kpi-card.tone-ins-red { background: var(--move-red-bg); }
-#healthInsuranceView .kpi-card.tone-ins-red .kpi-icon { color: var(--move-red); }
+#healthInsuranceView .kpi-card.tone-ins-red .kpi-icon,
+#healthInsuranceView .kpi-card.tone-ins-red .kpi-label,
+#healthInsuranceView .kpi-card.tone-ins-red .kpi-num { color: var(--move-red); }
 #healthInsuranceView .kpi-card.tone-ins-orange { background: var(--move-orange-bg); }
-#healthInsuranceView .kpi-card.tone-ins-orange .kpi-icon { color: var(--move-orange); }
+#healthInsuranceView .kpi-card.tone-ins-orange .kpi-icon,
+#healthInsuranceView .kpi-card.tone-ins-orange .kpi-label,
+#healthInsuranceView .kpi-card.tone-ins-orange .kpi-num { color: var(--move-orange); }
 #healthInsuranceView .kpi-card .kpi-icon { background: var(--surface); }
+#healthInsuranceView .kpi-card .kpi-label { font-weight: 700; }
+/* Caption stays the shared small/muted/non-bold .kpi-delta-sub style
+   (e.g. "FY 26-27", "Pending") - only the label and number above it are
+   colorized/bolded for this page. */
+/* Health Insurance's labels ("New Addition Requests", "Total Insured
+   Lives") are longer than most other kpi-cards - the shared .kpi-label is
+   nowrap, which let long labels push the card past the screen edge on
+   mobile instead of wrapping (same issue Workforce Movement's cards hit
+   earlier). Scoped to just this grid so other kpi-cards' single-line
+   labels elsewhere stay exactly as they are. */
+#healthInsuranceView .kpi-card .kpi-label { white-space: normal; line-height: 1.25; }
 
 .hi-page-icon {
   width: 34px;
