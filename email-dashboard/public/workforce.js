@@ -1184,7 +1184,9 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
     loadCoveredEmployeesView();
     return;
   }
-  if (e.target.closest('[data-kpi="hiExits"]')) {
+  // Pending Exits and Total Exits show the same count and open the same
+  // drill-down page - two entry points into one identical Exits view.
+  if (e.target.closest('[data-kpi="hiExits"]') || e.target.closest('[data-kpi="hiTotalExits"]')) {
     setView('hiExits');
     loadHiExitsView();
     return;
