@@ -1118,7 +1118,7 @@ async function loadHealthInsuranceView(forceRefresh) {
       kpiCard({ key: 'hiTotalLives', label: 'Total Insured Lives', value: data.totalInsuredLives, tone: 'ins-purple', icon: 'total', deltaSub: 'Employees + Family', liveNum: true }) +
       kpiCard({ key: 'hiAnnualPremium', label: 'Annual Premium', value: formatLakhs(data.annualPremium), tone: 'ins-green', icon: 'money', deltaSub: 'FY 26-27' }) +
       kpiCard({ key: 'hiAdditions', label: 'New Addition Requests', value: data.newAdditionRequests, tone: 'ins-green', icon: 'plusCircle', deltaSub: 'Pending' }) +
-      kpiCard({ key: 'hiExits', label: 'Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
+      kpiCard({ key: 'hiExits', label: 'Pending Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
 
     const panel = document.getElementById('hiRenewalPanel');
     panel.hidden = false;
