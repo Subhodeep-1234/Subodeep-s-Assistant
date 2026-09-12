@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -373,8 +373,12 @@ async function loadProfile() {
 
 // ---------- Overview ----------
 
-function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, liveNum, delta, deltaSub, data }) {
-  const isNa = value === null || value === undefined;
+function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, live, liveNum, delta, deltaSub, data, noValue }) {
+  // noValue is for a purely informational tile (Policy Information) with no
+  // computed number at all - distinct from a real metric that's simply
+  // missing (isNa/"N/A"), which noValue deliberately skips so this doesn't
+  // render (or get disabled/dimmed) as if data failed to load.
+  const isNa = !noValue && (value === null || value === undefined);
   const displayValue = isNa ? 'N/A' : value;
   const deltaLine =
     (delta
@@ -402,9 +406,11 @@ function kpiCard({ key, label, value, tone, icon: iconName, clickable, title, li
         '<span class="kpi-label">' + escapeHtml(label) +
           (live ? '<span class="live-dot" title="Live"></span>' : '') +
         '</span>' +
-        '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue +
-          (liveNum ? '<span class="live-dot" title="Live"></span>' : '') +
-        '</span>' +
+        (noValue ? '' :
+          '<span class="kpi-num' + (isNa ? ' na' : '') + '">' + displayValue +
+            (liveNum ? '<span class="live-dot" title="Live"></span>' : '') +
+          '</span>'
+        ) +
         (deltaLine ? '<span class="kpi-delta-row">' + deltaLine + '</span>' : '') +
       '</span>' +
     '</button>'
@@ -1123,10 +1129,11 @@ async function loadHealthInsuranceView(forceRefresh) {
       // clickable deliberately omitted (not set to false), same as every
       // other Health Insurance card - non-interactivity comes from
       // #healthInsuranceView's own CSS, not the disabled attribute (which
-      // triggers the shared .kpi-card:disabled dimmed/opacity look).
+      // triggers the shared .kpi-card:disabled dimmed/opacity look). Except
+      // hiPolicyInfo, which IS clickable (opens its own page) via the
+      // shared hiStatsGrid click listener, same as hiCovered/hiExits/etc.
+      kpiCard({ key: 'hiPolicyInfo', label: 'Policy Information', tone: 'ins-blue', icon: 'info', noValue: true, deltaSub: 'Group Mediclaim Policy' }) +
       kpiCard({ key: 'hiTotalExits', label: 'Total Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
-
-    loadHiPolicyInfo();
 
     const panel = document.getElementById('hiRenewalPanel');
     panel.hidden = false;
@@ -1285,6 +1292,11 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
   if (e.target.closest('[data-kpi="hiTotalLives"]')) {
     setView('hiTotalLives');
     loadHiTotalLivesView();
+    return;
+  }
+  if (e.target.closest('[data-kpi="hiPolicyInfo"]')) {
+    setView('hiPolicyInfo');
+    loadHiPolicyInfo();
   }
 });
 
