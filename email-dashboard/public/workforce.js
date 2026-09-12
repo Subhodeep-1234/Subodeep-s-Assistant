@@ -1181,7 +1181,21 @@ document.getElementById('hiCeSearch').addEventListener('input', applyCoveredEmpl
 document.getElementById('hiCeDeptFilter').addEventListener('change', applyCoveredEmployeesFilters);
 document.getElementById('hiCeDesigFilter').addEventListener('change', applyCoveredEmployeesFilters);
 document.getElementById('hiCeStatusFilter').addEventListener('change', applyCoveredEmployeesFilters);
-document.getElementById('hiCeFilterBtn').addEventListener('click', applyCoveredEmployeesFilters);
+
+// Same show/hide-behind-the-funnel-icon pattern as Employee Data's own
+// filterToggleBtn/wfFilterbar - filters start collapsed, not always visible.
+document.getElementById('hiCeFilterToggleBtn').addEventListener('click', () => {
+  const btn = document.getElementById('hiCeFilterToggleBtn');
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  document.getElementById('hiCeFilterbar').hidden = expanded;
+  btn.setAttribute('aria-expanded', String(!expanded));
+});
+document.getElementById('hiCeClearFilters').addEventListener('click', () => {
+  document.getElementById('hiCeDeptFilter').value = '';
+  document.getElementById('hiCeDesigFilter').value = '';
+  document.getElementById('hiCeStatusFilter').value = '';
+  applyCoveredEmployeesFilters();
+});
 document.getElementById('hiCeViewAllBtn').addEventListener('click', () => {
   document.getElementById('hiCeSearch').value = '';
   document.getElementById('hiCeDeptFilter').value = '';

@@ -507,8 +507,6 @@ body {
 
 /* ---------- Covered Employees (Health Insurance drill-down) ---------- */
 
-.hi-ce-filterbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.hi-ce-filterbar select { flex: 1; min-width: 110px; }
 .hi-ce-total-row {
   display: flex;
   align-items: center;
