@@ -1201,7 +1201,7 @@ function renderCoveredEmployeesList(items) {
                   '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
                   '<span class="wf-status-chip ' + statusChipClass(String(e.status).toUpperCase()) + '">' + escapeHtml(e.status) + '</span>' +
                 '</span>' +
-                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + (e.department ? ' · ' + escapeHtml(titleCase(e.department)) : '') + '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + '</span>' +
                 '<span class="wf-emp-role">' + escapeHtml(titleCase(e.designation) || '—') + '</span>' +
                 '<span class="hi-ce-sub">' +
                   (e.familyCount > 0 ? 'Self + ' + e.familyCount + ' Family' : 'Self only') +
