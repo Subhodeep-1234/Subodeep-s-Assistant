@@ -1294,7 +1294,9 @@ function renderHiExitsList(items) {
               '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
-                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) +
+                  (e.status ? ' · <span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span>' : '') +
+                '</span>' +
                 '<span class="wf-emp-role">' + escapeHtml(titleCase(e.designation) || '—') + '</span>' +
                 '<span class="hi-ce-sub">' + (e.familyCount > 0 ? 'Self + ' + e.familyCount + ' Family' : 'Self only') + '</span>' +
               '</span>' +

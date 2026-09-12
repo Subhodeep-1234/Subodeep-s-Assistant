@@ -69,6 +69,7 @@ router.get('/exits', async (req, res) => {
         name: c.name,
         department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
         designation: hr ? hr.designation : '',
+        status: hr ? hr.status : '',
         dateOfLeaving: c.dateOfLeaving,
         familyCount: c.familyCount
       };
