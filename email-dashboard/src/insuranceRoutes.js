@@ -167,7 +167,10 @@ router.post('/exits/send-mail', async (req, res) => {
         rawRows.length + ' record' + (rawRows.length === 1 ? '' : 's') + ' · Generated ' +
         new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       columns: EXITS_PDF_COLUMNS,
-      rows: rawRows.map((r) => [r.srNo, r.corporateName, r.employeeId, r.name, r.gender, r.relationship, r.dateOfLeaving, r.reason])
+      // Sr No is a fresh running serial over the displayed (Self-first) order,
+      // not the sheet's original Sr No column - that would otherwise show
+      // out-of-sequence numbers like 4, 7, 13, 3... after the reorder.
+      rows: rawRows.map((r, i) => [i + 1, r.corporateName, r.employeeId, r.name, r.gender, r.relationship, r.dateOfLeaving, r.reason])
     });
 
     await gmailService.sendMailWithAttachment({

@@ -1559,9 +1559,9 @@ document.getElementById('exportHiExitsPdf').addEventListener('click', () => {
     '<th>Sr No</th><th>Corporate_name</th><th>Employee ID/UHID</th><th>Name of Insured</th><th>Gender</th><th>Relationship</th><th>Date of Leaving</th><th>Reason</th>';
   document.getElementById('printReportBody').innerHTML = hiExitsRawRows.length
     ? hiExitsRawRows
-        .map((r) => (
+        .map((r, i) => (
           '<tr>' +
-            '<td>' + escapeHtml(r.srNo) + '</td>' +
+            '<td>' + (i + 1) + '</td>' +
             '<td>' + escapeHtml(r.corporateName) + '</td>' +
             '<td>' + escapeHtml(r.employeeId) + '</td>' +
             '<td>' + escapeHtml(r.name) + '</td>' +
