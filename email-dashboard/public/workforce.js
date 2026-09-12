@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiFamilyMembers', 'hiTotalLives', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -1184,11 +1184,16 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
     loadCoveredEmployeesView();
     return;
   }
-  // Pending Exits and Total Exits show the same count and open the same
-  // drill-down page - two entry points into one identical Exits view.
-  if (e.target.closest('[data-kpi="hiExits"]') || e.target.closest('[data-kpi="hiTotalExits"]')) {
+  if (e.target.closest('[data-kpi="hiExits"]')) {
     setView('hiExits');
     loadHiExitsView();
+    return;
+  }
+  // Same list/design as Pending Exits, but its own separate page - it has
+  // no Send Mail button, unlike Pending Exits' page.
+  if (e.target.closest('[data-kpi="hiTotalExits"]')) {
+    setView('hiTotalExits');
+    loadHiTotalExitsView();
     return;
   }
   if (e.target.closest('[data-kpi="hiFamily"]')) {
@@ -1617,6 +1622,130 @@ document.getElementById('sendHiExitsMail').addEventListener('click', async () =>
     label.textContent = originalLabel;
     btn.disabled = false;
   }
+});
+
+// ---------- Total Exits (Health Insurance drill-down) ----------
+// Same data/list/design as Pending Exits' Exits page (both read
+// /api/insurance/exits) - kept as its own separate page, with its own DOM
+// ids and state, only because it has no Send Mail button.
+
+let hiTeAllItems = [];
+let hiTeRawRows = [];
+
+async function loadHiTotalExitsView() {
+  const listEl = document.getElementById('hiTeList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  document.getElementById('hiTeSearch').value = '';
+  document.getElementById('hiTeDeptFilter').value = '';
+  document.getElementById('hiTeDesigFilter').value = '';
+  document.getElementById('hiTeStatusFilter').value = '';
+  try {
+    const data = await fetchJson('/api/insurance/exits');
+    hiTeAllItems = data.items;
+    hiTeRawRows = data.rawRows;
+
+    const depts = Array.from(new Set(hiTeAllItems.map((e) => e.department).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const desigs = Array.from(new Set(hiTeAllItems.map((e) => e.designation).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const statuses = Array.from(new Set(hiTeAllItems.map((e) => e.status).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    document.getElementById('hiTeDeptFilter').innerHTML =
+      '<option value="">Department</option>' +
+      depts.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiTeDesigFilter').innerHTML =
+      '<option value="">Designation</option>' +
+      desigs.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiTeStatusFilter').innerHTML =
+      '<option value="">Status</option>' +
+      statuses.map((s) => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
+
+    renderHiTotalExitsList(hiTeAllItems);
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function applyHiTotalExitsFilters() {
+  const q = document.getElementById('hiTeSearch').value.trim().toLowerCase();
+  const dept = document.getElementById('hiTeDeptFilter').value;
+  const desig = document.getElementById('hiTeDesigFilter').value;
+  const status = document.getElementById('hiTeStatusFilter').value;
+
+  const filtered = hiTeAllItems.filter((e) => {
+    if (q && !(e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q))) return false;
+    if (dept && e.department !== dept) return false;
+    if (desig && e.designation !== desig) return false;
+    if (status && e.status !== status) return false;
+    return true;
+  });
+  renderHiTotalExitsList(filtered);
+}
+
+function renderHiTotalExitsList(items) {
+  document.getElementById('hiTeTotalCount').textContent = hiTeAllItems.length;
+  const listEl = document.getElementById('hiTeList');
+  listEl.innerHTML = items.length
+    ? items
+        .map(
+          (e) =>
+            '<li>' +
+              '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+              '<span class="wf-emp-main">' +
+                '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) +
+                  (e.status ? ' · <span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span>' : '') +
+                '</span>' +
+                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.designation) || '—') + '</span>' +
+                '<span class="hi-ce-sub">' + (e.familyCount > 0 ? 'Self + ' + e.familyCount + ' Family' : 'Self only') + '</span>' +
+              '</span>' +
+              '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+            '</li>'
+        )
+        .join('')
+    : '<li class="empty">No exits found</li>';
+}
+
+document.getElementById('exportHiTeExitsPdf').addEventListener('click', () => {
+  document.getElementById('printReportTitle').textContent = 'Health Insurance Exits Report';
+  document.getElementById('printReportSubtitle').textContent = hiTeRawRows.length + ' record' + (hiTeRawRows.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Sr No</th><th>Corporate_name</th><th>Employee ID/UHID</th><th>Name of Insured</th><th>Gender</th><th>Relationship</th><th>Date of Leaving</th><th>Reason</th>';
+  document.getElementById('printReportBody').innerHTML = hiTeRawRows.length
+    ? hiTeRawRows
+        .map((r, i) => (
+          '<tr>' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td>' + escapeHtml(r.corporateName) + '</td>' +
+            '<td>' + escapeHtml(r.employeeId) + '</td>' +
+            '<td>' + escapeHtml(r.name) + '</td>' +
+            '<td>' + escapeHtml(r.gender) + '</td>' +
+            '<td>' + escapeHtml(r.relationship) + '</td>' +
+            '<td>' + escapeHtml(r.dateOfLeaving) + '</td>' +
+            '<td>' + escapeHtml(r.reason) + '</td>' +
+          '</tr>'
+        ))
+        .join('')
+    : '<tr><td colspan="8">No exits found</td></tr>';
+  window.print();
+});
+
+document.getElementById('hiTeSearch').addEventListener('input', applyHiTotalExitsFilters);
+document.getElementById('hiTeDeptFilter').addEventListener('change', applyHiTotalExitsFilters);
+document.getElementById('hiTeDesigFilter').addEventListener('change', applyHiTotalExitsFilters);
+document.getElementById('hiTeStatusFilter').addEventListener('change', applyHiTotalExitsFilters);
+
+document.getElementById('hiTeFilterToggleBtn').addEventListener('click', () => {
+  const btn = document.getElementById('hiTeFilterToggleBtn');
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  document.getElementById('hiTeFilterbar').hidden = expanded;
+  btn.setAttribute('aria-expanded', String(!expanded));
+});
+document.getElementById('hiTeClearFilters').addEventListener('click', () => {
+  document.getElementById('hiTeDeptFilter').value = '';
+  document.getElementById('hiTeDesigFilter').value = '';
+  document.getElementById('hiTeStatusFilter').value = '';
+  applyHiTotalExitsFilters();
 });
 
 function barListItem(iconName, name, count, max, shareTotal, filterKey, iconColor) {
