@@ -1052,7 +1052,7 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', () => {
 // ---------- Health Insurance ----------
 
 function formatLakhs(amount) {
-  return '₹' + (amount / 100000).toFixed(1) + 'L';
+  return '₹' + (amount / 100000).toFixed(2) + 'L';
 }
 
 async function loadHealthInsuranceView(forceRefresh) {
