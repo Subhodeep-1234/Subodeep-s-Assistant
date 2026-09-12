@@ -999,17 +999,13 @@ body {
 .wf-emp-role { font-size: 0.74rem; color: var(--muted); margin-top: 1px; }
 
 .wf-emp-chevron {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: var(--move-blue-bg);
   color: var(--move-blue);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.wf-emp-chevron svg { width: 15px; height: 15px; }
+.wf-emp-chevron svg { width: 16px; height: 16px; }
 
 /* ---------- Employee profile (detail) ---------- */
 
