@@ -1429,7 +1429,6 @@ function renderHiTotalLivesList(items) {
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
                 '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) + ' · ' + escapeHtml(e.relationship) + '</span>' +
-                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.department) || '—') + '</span>' +
                 '<span class="hi-ce-sub">₹' + Math.round(e.premiumWithGST).toLocaleString('en-IN') + '</span>' +
               '</span>' +
               '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +

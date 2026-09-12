@@ -124,7 +124,7 @@ function buildTotalInsuredLivesList(members) {
       relationship: m.relationship,
       premiumWithGST: m.premiumWithGST
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.employeeId.localeCompare(b.employeeId));
 }
 
 // Same "Self row anchors the group, family rows roll into a count" shape as
