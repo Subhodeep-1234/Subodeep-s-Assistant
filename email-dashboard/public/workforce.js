@@ -451,17 +451,13 @@ async function loadOverview(forceRefresh) {
   // its own fresh Sheets round trip. Harmless if a section never gets
   // opened - an unread cache entry is just dropped when this view reloads.
   staggeredPrefetch([
-    // Health Insurance's own drill-downs (Covered Employees, Exits, Family
-    // Members, Total Insured Lives, Policy Information) - fixed URLs, no
-    // filter params, so they're always safe to warm the same way. Put
-    // first so they land in the earliest batches, same priority as
-    // healthInsurancePrefetch above (its own summary fetch) rather than
-    // waiting behind every workforce endpoint below.
-    '/api/insurance/covered-employees',
-    '/api/insurance/exits',
-    '/api/insurance/family-members',
-    '/api/insurance/total-insured-lives',
-    '/api/insurance/policy-info',
+    // Health Insurance's own drill-downs deliberately are NOT prefetched
+    // here - they used to be, but that meant every single Dashboard load
+    // (not just ones that actually visit Health Insurance) fired 5 extra
+    // Sheets-backed requests, which was tripping the Sheets API's own
+    // per-minute read quota on top of everything below. They're prefetched
+    // from loadHealthInsuranceView itself instead, only when that section
+    // is actually opened - see healthInsuranceOwnPrefetch there.
     '/api/workforce/employees?status=ACTIVE',
     '/api/hr/upcoming-joinings',
     '/api/workforce/tenure',
@@ -1133,6 +1129,20 @@ async function loadHealthInsuranceView(forceRefresh) {
     let data = !forceRefresh && healthInsurancePrefetch ? await healthInsurancePrefetch : null;
     if (!data) data = await fetchJson('/api/insurance/summary' + (forceRefresh ? '?refresh=1' : ''));
     healthInsurancePrefetch = null;
+
+    // Warmed here (only when Health Insurance is actually opened) rather
+    // than from the Dashboard - these used to fire on every single
+    // Dashboard load regardless of whether the user ever came here, which
+    // was a big part of what was tripping the Sheets API's per-minute
+    // quota. loadView's own loadedViews gate means this function - and so
+    // this prefetch - only runs once per session unless forceRefresh.
+    staggeredPrefetch([
+      '/api/insurance/covered-employees',
+      '/api/insurance/exits',
+      '/api/insurance/family-members',
+      '/api/insurance/total-insured-lives',
+      '/api/insurance/policy-info'
+    ], 2, 500);
 
     // clickable deliberately omitted (not set to false) - these cards are
     // meant to look like the vibrant, fully-opaque mockup, not the app's
