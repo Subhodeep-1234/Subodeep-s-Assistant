@@ -1139,18 +1139,16 @@ async function loadHealthInsuranceView(forceRefresh) {
       kpiCard({ key: 'hiPolicyInfo', label: 'Policy Information', tone: 'ins-blue', icon: 'info', noValue: true, deltaSub: 'Group Mediclaim Policy' }) +
       kpiCard({ key: 'hiTotalExits', label: 'Total Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
 
-    // Derived from Policy Information's own Start/End Date fields - hidden
-    // rather than showing a fabricated countdown when either isn't set yet.
-    const panel = document.getElementById('hiRenewalPanel');
-    if (data.renewal.hasDates) {
-      panel.hidden = false;
-      document.getElementById('hiRenewalDue').textContent =
-        'Due in ' + data.renewal.daysRemaining + ' day' + (data.renewal.daysRemaining === 1 ? '' : 's');
-      document.getElementById('hiRenewalPct').textContent = data.renewal.progressPct + '%';
-      document.getElementById('hiRenewalBar').style.width = Math.min(100, data.renewal.progressPct) + '%';
-    } else {
-      panel.hidden = true;
-    }
+    // The panel itself always stays on the page - only its calculated
+    // values (Due In/percentage/progress bar) are derived from Policy
+    // Information's Start/End Date, falling back to a plain "—" instead of
+    // a fabricated countdown when either date isn't set yet.
+    document.getElementById('hiRenewalPanel').hidden = false;
+    document.getElementById('hiRenewalDue').textContent = data.renewal.hasDates
+      ? 'Due in ' + data.renewal.daysRemaining + ' day' + (data.renewal.daysRemaining === 1 ? '' : 's')
+      : 'Set Start & End Date';
+    document.getElementById('hiRenewalPct').textContent = data.renewal.hasDates ? data.renewal.progressPct + '%' : '—';
+    document.getElementById('hiRenewalBar').style.width = data.renewal.hasDates ? Math.min(100, data.renewal.progressPct) + '%' : '0%';
 
     renderHiCoverageDonut(data.coverage, data.totalInsuredLives);
   } catch (err) {
