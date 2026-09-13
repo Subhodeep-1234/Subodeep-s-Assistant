@@ -1614,7 +1614,12 @@ function renderHiFamilyMembersList(items) {
 }
 
 document.getElementById('exportHiFmPdf').addEventListener('click', () => {
-  const rows = hiFmAllItems.slice().sort((a, b) => a.name.localeCompare(b.name));
+  // A-Z by "Family Of" (the related employee), not the member's own name -
+  // groups each family's members together under their employee, name A-Z
+  // as the tiebreaker within the same family.
+  const rows = hiFmAllItems.slice().sort((a, b) =>
+    a.relatedEmployeeName.localeCompare(b.relatedEmployeeName) || a.name.localeCompare(b.name)
+  );
   const totalPremium = rows.reduce((sum, r) => sum + r.premiumWithGST, 0);
   document.getElementById('printReportTitle').textContent = 'Family Members Report';
   document.getElementById('printReportSubtitle').textContent = rows.length + ' member' + (rows.length === 1 ? '' : 's') + ' · ';
