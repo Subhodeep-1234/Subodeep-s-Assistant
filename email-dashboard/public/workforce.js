@@ -1493,6 +1493,38 @@ function renderCoveredEmployeesList(items) {
     : '<li class="empty">No employees match these filters</li>';
 }
 
+document.getElementById('exportHiCePdf').addEventListener('click', () => {
+  // Always the full list (not whatever search/filters currently show),
+  // same convention as every other Export PDF in the app - sorted A-Z by
+  // name regardless of the on-screen list's own sort order.
+  const rows = hiCeAllItems.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const totalPremium = rows.reduce((sum, r) => sum + r.totalPremium, 0);
+  document.getElementById('printReportTitle').textContent = 'Covered Employees Report';
+  document.getElementById('printReportSubtitle').textContent = rows.length + ' employee' + (rows.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Status</th><th>Family</th><th>Premium</th>';
+  document.getElementById('printReportBody').innerHTML =
+    (rows.length
+      ? rows
+          .map((r) => (
+            '<tr>' +
+              '<td>' + escapeHtml(r.employeeId) + '</td>' +
+              '<td>' + escapeHtml(r.name) + '</td>' +
+              '<td>' + escapeHtml(titleCase(r.department) || '—') + '</td>' +
+              '<td>' + escapeHtml(titleCase(r.designation) || '—') + '</td>' +
+              '<td>' + escapeHtml(r.status) + '</td>' +
+              '<td>' + (r.familyCount > 0 ? 'Self + ' + r.familyCount : 'Self only') + '</td>' +
+              '<td>₹' + Math.round(r.totalPremium).toLocaleString('en-IN') + '</td>' +
+            '</tr>'
+          ))
+          .join('')
+      : '<tr><td colspan="7">No employees match these filters</td></tr>') +
+    '<tr><td colspan="6"><b>Total Premium</b></td><td><b>₹' + Math.round(totalPremium).toLocaleString('en-IN') + '</b></td></tr>';
+  window.print();
+});
+
 document.getElementById('hiCeSearch').addEventListener('input', applyCoveredEmployeesFilters);
 document.getElementById('hiCeDeptFilter').addEventListener('change', applyCoveredEmployeesFilters);
 document.getElementById('hiCeDesigFilter').addEventListener('change', applyCoveredEmployeesFilters);
@@ -1581,6 +1613,33 @@ function renderHiFamilyMembersList(items) {
     : '<li class="empty">No family members match these filters</li>';
 }
 
+document.getElementById('exportHiFmPdf').addEventListener('click', () => {
+  const rows = hiFmAllItems.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const totalPremium = rows.reduce((sum, r) => sum + r.premiumWithGST, 0);
+  document.getElementById('printReportTitle').textContent = 'Family Members Report';
+  document.getElementById('printReportSubtitle').textContent = rows.length + ' member' + (rows.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Employee ID</th><th>Name</th><th>Relationship</th><th>Family Of</th><th>Premium</th>';
+  document.getElementById('printReportBody').innerHTML =
+    (rows.length
+      ? rows
+          .map((r) => (
+            '<tr>' +
+              '<td>' + escapeHtml(r.employeeId) + '</td>' +
+              '<td>' + escapeHtml(r.name) + '</td>' +
+              '<td>' + escapeHtml(r.relationship) + '</td>' +
+              '<td>' + escapeHtml(r.relatedEmployeeName) + '</td>' +
+              '<td>₹' + Math.round(r.premiumWithGST).toLocaleString('en-IN') + '</td>' +
+            '</tr>'
+          ))
+          .join('')
+      : '<tr><td colspan="5">No family members match these filters</td></tr>') +
+    '<tr><td colspan="4"><b>Total Premium</b></td><td><b>₹' + Math.round(totalPremium).toLocaleString('en-IN') + '</b></td></tr>';
+  window.print();
+});
+
 document.getElementById('hiFmSearch').addEventListener('input', applyHiFamilyMembersFilters);
 document.getElementById('hiFmDeptFilter').addEventListener('change', applyHiFamilyMembersFilters);
 document.getElementById('hiFmRelationFilter').addEventListener('change', applyHiFamilyMembersFilters);
@@ -1661,6 +1720,32 @@ function renderHiTotalLivesList(items) {
         .join('')
     : '<li class="empty">No members match these filters</li>';
 }
+
+document.getElementById('exportHiTlPdf').addEventListener('click', () => {
+  const rows = hiTlAllItems.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const totalPremium = rows.reduce((sum, r) => sum + r.premiumWithGST, 0);
+  document.getElementById('printReportTitle').textContent = 'Total Insured Lives Report';
+  document.getElementById('printReportSubtitle').textContent = rows.length + ' member' + (rows.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Employee ID</th><th>Name</th><th>Relationship</th><th>Premium</th>';
+  document.getElementById('printReportBody').innerHTML =
+    (rows.length
+      ? rows
+          .map((r) => (
+            '<tr>' +
+              '<td>' + escapeHtml(r.employeeId) + '</td>' +
+              '<td>' + escapeHtml(r.name) + '</td>' +
+              '<td>' + escapeHtml(r.relationship) + '</td>' +
+              '<td>₹' + Math.round(r.premiumWithGST).toLocaleString('en-IN') + '</td>' +
+            '</tr>'
+          ))
+          .join('')
+      : '<tr><td colspan="4">No members match these filters</td></tr>') +
+    '<tr><td colspan="3"><b>Total Premium</b></td><td><b>₹' + Math.round(totalPremium).toLocaleString('en-IN') + '</b></td></tr>';
+  window.print();
+});
 
 document.getElementById('hiTlSearch').addEventListener('input', applyHiTotalLivesFilters);
 document.getElementById('hiTlDeptFilter').addEventListener('change', applyHiTotalLivesFilters);
