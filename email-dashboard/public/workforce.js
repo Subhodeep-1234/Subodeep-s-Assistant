@@ -1105,6 +1105,24 @@ function formatLakhs(amount) {
   return '₹' + (amount / 100000).toFixed(2) + 'L';
 }
 
+// The panel itself always stays on the Dashboard - only its calculated
+// values (Due In/percentage/progress bar) are derived from Policy
+// Information's Start/End Date, falling back to a plain "—" instead of a
+// fabricated countdown when either date isn't set yet. Called both from
+// loadHealthInsuranceView's own fetch and straight after a Start/End Date
+// edit on the Policy Information page (see its commit()), so the Dashboard
+// reflects a date change immediately instead of only on next full reload -
+// loadView's loadedViews cache would otherwise skip re-fetching healthInsurance
+// entirely on the next visit.
+function applyRenewalToDashboard(renewal) {
+  document.getElementById('hiRenewalPanel').hidden = false;
+  document.getElementById('hiRenewalDue').textContent = renewal.hasDates
+    ? 'Due in ' + renewal.daysRemaining + ' day' + (renewal.daysRemaining === 1 ? '' : 's')
+    : 'Set Start & End Date';
+  document.getElementById('hiRenewalPct').textContent = renewal.hasDates ? renewal.progressPct + '%' : '—';
+  document.getElementById('hiRenewalBar').style.width = renewal.hasDates ? Math.min(100, renewal.progressPct) + '%' : '0%';
+}
+
 async function loadHealthInsuranceView(forceRefresh) {
   const grid = document.getElementById('hiStatsGrid');
   grid.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
@@ -1139,16 +1157,7 @@ async function loadHealthInsuranceView(forceRefresh) {
       kpiCard({ key: 'hiPolicyInfo', label: 'Policy Information', tone: 'ins-blue', icon: 'info', noValue: true, deltaSub: 'Group Mediclaim Policy' }) +
       kpiCard({ key: 'hiTotalExits', label: 'Total Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
 
-    // The panel itself always stays on the page - only its calculated
-    // values (Due In/percentage/progress bar) are derived from Policy
-    // Information's Start/End Date, falling back to a plain "—" instead of
-    // a fabricated countdown when either date isn't set yet.
-    document.getElementById('hiRenewalPanel').hidden = false;
-    document.getElementById('hiRenewalDue').textContent = data.renewal.hasDates
-      ? 'Due in ' + data.renewal.daysRemaining + ' day' + (data.renewal.daysRemaining === 1 ? '' : 's')
-      : 'Set Start & End Date';
-    document.getElementById('hiRenewalPct').textContent = data.renewal.hasDates ? data.renewal.progressPct + '%' : '—';
-    document.getElementById('hiRenewalBar').style.width = data.renewal.hasDates ? Math.min(100, data.renewal.progressPct) + '%' : '0%';
+    applyRenewalToDashboard(data.renewal);
 
     renderHiCoverageDonut(data.coverage, data.totalInsuredLives);
   } catch (err) {
@@ -1287,10 +1296,16 @@ document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
       // Start/End Date drive the renewal countdown shown both here and on
       // the Dashboard - the server's own cache is already updated by the
       // save above, so a plain re-fetch reflects it immediately instead of
-      // waiting for the next full page load.
+      // waiting for the next full page load. Also patch the Dashboard's own
+      // renewal elements directly (they still exist in the DOM even while
+      // that section is hidden) and drop healthInsurance from loadedViews,
+      // since otherwise navigating back to it wouldn't re-fetch at all and
+      // would keep showing whatever countdown was cached from before this edit.
       if (isDateField) {
         const fresh = await fetchJson('/api/insurance/policy-info');
         renderHiPolicyInfoBanner(fresh.renewal);
+        applyRenewalToDashboard(fresh.renewal);
+        loadedViews.delete('healthInsurance');
       }
     } catch (err) {
       alert('Failed to save: ' + err.message);
