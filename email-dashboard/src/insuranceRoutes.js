@@ -18,9 +18,12 @@ function wantsForceRefresh(req) {
 
 router.get('/summary', async (req, res) => {
   try {
-    const data = await insuranceService.getInsuranceData({ forceRefresh: wantsForceRefresh(req) });
+    const [data, policyValues] = await Promise.all([
+      insuranceService.getInsuranceData({ forceRefresh: wantsForceRefresh(req) }),
+      policyInfoService.getPolicyInfo()
+    ]);
     const summary = analytics.buildHealthInsuranceSummary(data);
-    const renewal = analytics.policyRenewalInfo();
+    const renewal = analytics.policyRenewalInfo(policyValues.policyStartDate, policyValues.policyEndDate);
     res.json({ ...summary, renewal });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -200,10 +203,9 @@ router.post('/exits/send-mail', async (req, res) => {
 router.get('/policy-info', async (req, res) => {
   try {
     const values = await policyInfoService.getPolicyInfo();
-    // Renewal is real, already-computed data (same as the Health Insurance
-    // summary's own renewal panel) - included here so the page's status
-    // banner reflects it without a second fetch.
-    const renewal = analytics.policyRenewalInfo();
+    // Renewal is derived from this same Start/End Date pair - included here
+    // so the page's status banner reflects it without a second fetch.
+    const renewal = analytics.policyRenewalInfo(values.policyStartDate, values.policyEndDate);
     res.json({ fields: policyInfoService.FIELDS, values, renewal });
   } catch (err) {
     res.status(500).json({ error: err.message });

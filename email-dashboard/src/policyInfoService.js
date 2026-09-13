@@ -43,26 +43,60 @@ async function ensureTab(sheets) {
   ensured = true;
 }
 
-async function readRows(sheets) {
+// This had no caching at all until now - every single call (including the
+// Dashboard's own background prefetch, fired on every page load) was a live
+// Sheets API read, which is exactly the bug already fixed once before in
+// movementTracker.js for the same reason (a burst of uncached reads tripping
+// the Sheets API's per-minute read quota). Same 2-minute cache + in-flight
+// dedup pattern as employeeService/insuranceService/movementTracker.
+const CACHE_TTL_MS = 2 * 60 * 1000;
+let cache = { rows: null, fetchedAt: 0 };
+let inFlight = null;
+
+async function fetchRows() {
+  const sheets = getSheetsClient();
+  await ensureTab(sheets);
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${TAB}'!A2:B` });
   return res.data.values || [];
 }
 
-async function getPolicyInfo() {
-  const sheets = getSheetsClient();
-  await ensureTab(sheets);
-  const rows = await readRows(sheets);
+function refreshCache() {
+  if (inFlight) return inFlight;
+  inFlight = (async () => {
+    const rows = await fetchRows();
+    cache = { rows, fetchedAt: Date.now() };
+    return cache;
+  })();
+  return inFlight.finally(() => {
+    inFlight = null;
+  });
+}
+
+async function getCachedRows() {
+  const hasCache = Boolean(cache.rows);
+  const isStale = !hasCache || Date.now() - cache.fetchedAt >= CACHE_TTL_MS;
+  if (!hasCache) return (await refreshCache()).rows;
+  if (isStale) refreshCache().catch(() => {});
+  return cache.rows;
+}
+
+function rowsToValues(rows) {
   const byKey = new Map(rows.map((r) => [r[0], r[1] || '']));
   const values = {};
   FIELDS.forEach((f) => { values[f.key] = byKey.get(f.key) || ''; });
   return values;
 }
 
+async function getPolicyInfo() {
+  const rows = await getCachedRows();
+  return rowsToValues(rows);
+}
+
 async function savePolicyInfoField(key, value) {
   if (!FIELD_KEYS.has(key)) throw new Error('Unknown field: ' + key);
   const sheets = getSheetsClient();
   await ensureTab(sheets);
-  const rows = await readRows(sheets);
+  const rows = await getCachedRows();
   const rowIndex = rows.findIndex((r) => r[0] === key);
   if (rowIndex >= 0) {
     await sheets.spreadsheets.values.update({
@@ -71,6 +105,7 @@ async function savePolicyInfoField(key, value) {
       valueInputOption: 'RAW',
       requestBody: { values: [[value]] }
     });
+    rows[rowIndex] = [key, value];
   } else {
     await sheets.spreadsheets.values.append({
       spreadsheetId: TRACKER_SHEET_ID,
@@ -79,8 +114,13 @@ async function savePolicyInfoField(key, value) {
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [[key, value]] }
     });
+    rows.push([key, value]);
   }
-  return getPolicyInfo();
+  // Keep the cache in sync with what was just written instead of leaving it
+  // stale until the next refresh, or forcing an extra live read right after
+  // the write we just made.
+  cache = { rows, fetchedAt: Date.now() };
+  return rowsToValues(rows);
 }
 
 module.exports = { getPolicyInfo, savePolicyInfoField, FIELDS };

@@ -1139,12 +1139,18 @@ async function loadHealthInsuranceView(forceRefresh) {
       kpiCard({ key: 'hiPolicyInfo', label: 'Policy Information', tone: 'ins-blue', icon: 'info', noValue: true, deltaSub: 'Group Mediclaim Policy' }) +
       kpiCard({ key: 'hiTotalExits', label: 'Total Exits', value: data.exits, tone: 'ins-red', icon: 'exitDoor', deltaSub: 'From Insurance' });
 
+    // Derived from Policy Information's own Start/End Date fields - hidden
+    // rather than showing a fabricated countdown when either isn't set yet.
     const panel = document.getElementById('hiRenewalPanel');
-    panel.hidden = false;
-    document.getElementById('hiRenewalDue').textContent =
-      'Due in ' + data.renewal.daysRemaining + ' day' + (data.renewal.daysRemaining === 1 ? '' : 's');
-    document.getElementById('hiRenewalPct').textContent = data.renewal.progressPct + '%';
-    document.getElementById('hiRenewalBar').style.width = Math.min(100, data.renewal.progressPct) + '%';
+    if (data.renewal.hasDates) {
+      panel.hidden = false;
+      document.getElementById('hiRenewalDue').textContent =
+        'Due in ' + data.renewal.daysRemaining + ' day' + (data.renewal.daysRemaining === 1 ? '' : 's');
+      document.getElementById('hiRenewalPct').textContent = data.renewal.progressPct + '%';
+      document.getElementById('hiRenewalBar').style.width = Math.min(100, data.renewal.progressPct) + '%';
+    } else {
+      panel.hidden = true;
+    }
 
     renderHiCoverageDonut(data.coverage, data.totalInsuredLives);
   } catch (err) {
@@ -1167,6 +1173,11 @@ const POLICY_INFO_FIELD_STYLE = {
   totalEmployeesCovered: { icon: 'total', tone: 'ins-blue' },
   totalPremium: { icon: 'money', tone: 'ins-red' }
 };
+// Native date pickers for these two so the value they save is always a
+// clean, unambiguous YYYY-MM-DD - policyRenewalInfo() parses these directly
+// to drive the renewal countdown, so a free-typed date in some other format
+// would silently break that calculation.
+const POLICY_INFO_DATE_FIELDS = new Set(['policyStartDate', 'policyEndDate']);
 
 async function loadHiPolicyInfo() {
   const gridEl = document.getElementById('hiPolicyInfoGrid');
@@ -1187,6 +1198,8 @@ function renderHiPolicyInfo(fields, values) {
   document.getElementById('hiPolicyInfoGrid').innerHTML = fields
     .map((f) => {
       const value = values[f.key];
+      const isDateField = POLICY_INFO_DATE_FIELDS.has(f.key);
+      const displayValue = value ? (isDateField ? formatDate(value) : value) : '—';
       const style = POLICY_INFO_FIELD_STYLE[f.key] || { icon: 'total', tone: 'ins-blue' };
       return (
         '<div class="hi-policy-info-field">' +
@@ -1194,7 +1207,7 @@ function renderHiPolicyInfo(fields, values) {
           '<span class="hi-policy-info-body">' +
             '<span class="hi-policy-info-label">' + escapeHtml(f.label) + '</span>' +
             '<span class="hi-policy-info-value-row">' +
-              '<span class="hi-policy-info-value' + (value ? '' : ' na') + '" data-field="' + f.key + '">' + escapeHtml(value || '—') + '</span>' +
+              '<span class="hi-policy-info-value' + (value ? '' : ' na') + '" data-field="' + f.key + '" data-raw-value="' + escapeHtml(value || '') + '">' + escapeHtml(displayValue) + '</span>' +
               '<button class="hi-policy-info-edit-btn" data-edit-field="' + f.key + '" aria-label="Edit ' + escapeHtml(f.label) + '">' +
                 '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
               '</button>' +
@@ -1211,13 +1224,18 @@ function renderHiPolicyInfo(fields, values) {
 function renderHiPolicyInfoBanner(renewal) {
   const bannerEl = document.getElementById('hiPolicyInfoBanner');
   if (!renewal) { bannerEl.innerHTML = ''; return; }
-  const days = renewal.daysRemaining;
-  const message =
-    days <= 0
-      ? 'Policy has reached its end date. Renewal action is required.'
-      : days <= 30
-        ? 'Policy renewal is due in ' + days + ' day' + (days === 1 ? '' : 's') + '. Please review the renewal documents.'
-        : 'Policy details are active. No renewal action is required at this time.';
+  let message;
+  if (!renewal.hasDates) {
+    message = 'Enter both Policy Start Date and Policy End Date above to see renewal status.';
+  } else {
+    const days = renewal.daysRemaining;
+    message =
+      days <= 0
+        ? 'Policy has reached its end date. Renewal action is required.'
+        : days <= 30
+          ? 'Policy renewal is due in ' + days + ' day' + (days === 1 ? '' : 's') + '. Please review the renewal documents.'
+          : 'Policy details are active. No renewal action is required at this time.';
+  }
   bannerEl.innerHTML =
     '<div class="hi-policy-info-banner">' +
       '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' +
@@ -1229,24 +1247,29 @@ document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-edit-field]');
   if (!btn) return;
   const key = btn.dataset.editField;
+  const isDateField = POLICY_INFO_DATE_FIELDS.has(key);
   const row = btn.closest('.hi-policy-info-value-row');
   const valueEl = row.querySelector('.hi-policy-info-value');
-  const current = valueEl.classList.contains('na') ? '' : valueEl.textContent;
+  // The raw stored value (YYYY-MM-DD for date fields) - not necessarily
+  // what's on screen, since date fields display a friendlier formatted
+  // version (formatDate) while the input/save round-trip needs the raw one.
+  const current = valueEl.dataset.rawValue || '';
 
   const input = document.createElement('input');
-  input.type = 'text';
+  input.type = isDateField ? 'date' : 'text';
   input.className = 'hi-policy-info-input';
   input.value = current;
   valueEl.replaceWith(input);
   btn.hidden = true;
   input.focus();
-  input.select();
+  if (!isDateField) input.select();
 
-  function restoreValueSpan(text) {
+  function restoreValueSpan(rawValue) {
     const span = document.createElement('span');
-    span.className = 'hi-policy-info-value' + (text ? '' : ' na');
+    span.className = 'hi-policy-info-value' + (rawValue ? '' : ' na');
     span.dataset.field = key;
-    span.textContent = text || '—';
+    span.dataset.rawValue = rawValue;
+    span.textContent = rawValue ? (isDateField ? formatDate(rawValue) : rawValue) : '—';
     input.replaceWith(span);
     btn.hidden = false;
   }
@@ -1263,6 +1286,14 @@ document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value: newValue })
       });
+      // Start/End Date drive the renewal countdown shown both here and on
+      // the Dashboard - the server's own cache is already updated by the
+      // save above, so a plain re-fetch reflects it immediately instead of
+      // waiting for the next full page load.
+      if (isDateField) {
+        const fresh = await fetchJson('/api/insurance/policy-info');
+        renderHiPolicyInfoBanner(fresh.renewal);
+      }
     } catch (err) {
       alert('Failed to save: ' + err.message);
     }
@@ -1276,6 +1307,12 @@ document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
       restoreValueSpan(current);
     }
   });
+  if (isDateField) {
+    // <input type="date"> has no natural "Enter to commit" affordance in
+    // some browsers' picker UI - the change event (picking a date) covers
+    // that in addition to blur.
+    input.addEventListener('change', () => input.blur());
+  }
 });
 
 function renderHiCoverageDonut(coverage, total) {

@@ -179,24 +179,35 @@ function sortDeletionsSelfFirst(deletions) {
   return groups.flatMap((g) => g.rows);
 }
 
-// Fixed policy period (no start/end date exists anywhere in the sheet -
-// set directly per the real current policy, update here if it's ever
-// renewed on different dates).
-const POLICY_START = Date.UTC(2026, 5, 28); // 28 Jun 2026
-const POLICY_END = Date.UTC(2027, 5, 27); // 27 Jun 2027
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function policyRenewalInfo(now = new Date()) {
+// Derived from Policy Information's own Start/End Date fields (manually
+// entered there, no other live source exists) - not a fixed constant, so
+// editing either date immediately changes Due In/percentage/progress bar
+// everywhere they're shown. Returns hasDates: false (no days/percent) when
+// either date is missing or unparseable, rather than fabricating a period.
+function policyRenewalInfo(startDateStr, endDateStr, now = new Date()) {
+  const start = startDateStr ? new Date(startDateStr) : null;
+  const end = endDateStr ? new Date(endDateStr) : null;
+  const validStart = start && !isNaN(start.getTime());
+  const validEnd = end && !isNaN(end.getTime());
+  if (!validStart || !validEnd) {
+    return { hasDates: false, daysRemaining: null, progressPct: null, startDate: null, endDate: null };
+  }
+
   const nowMs = now.getTime();
-  const totalMs = POLICY_END - POLICY_START;
-  const elapsedMs = Math.max(0, Math.min(totalMs, nowMs - POLICY_START));
-  const daysRemaining = Math.max(0, Math.ceil((POLICY_END - nowMs) / DAY_MS));
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const totalMs = endMs - startMs;
+  const elapsedMs = Math.max(0, Math.min(totalMs, nowMs - startMs));
+  const daysRemaining = Math.max(0, Math.ceil((endMs - nowMs) / DAY_MS));
   const progressPct = totalMs > 0 ? Math.round((elapsedMs / totalMs) * 1000) / 10 : 0;
   return {
+    hasDates: true,
     daysRemaining,
     progressPct,
-    startDate: new Date(POLICY_START).toISOString(),
-    endDate: new Date(POLICY_END).toISOString()
+    startDate: start.toISOString(),
+    endDate: end.toISOString()
   };
 }
 
