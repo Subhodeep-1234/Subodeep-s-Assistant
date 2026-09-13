@@ -1727,7 +1727,14 @@ function renderHiTotalLivesList(items) {
 }
 
 document.getElementById('exportHiTlPdf').addEventListener('click', () => {
-  const rows = hiTlAllItems.slice().sort((a, b) => a.name.localeCompare(b.name));
+  // A-Z by employee code, with each family group's own Self row always
+  // first within that group (family members after, by name).
+  const isSelf = (r) => String(r.relationship || '').toLowerCase() === 'self';
+  const rows = hiTlAllItems.slice().sort((a, b) =>
+    a.employeeId.localeCompare(b.employeeId) ||
+    (isSelf(b) - isSelf(a)) ||
+    a.name.localeCompare(b.name)
+  );
   const totalPremium = rows.reduce((sum, r) => sum + r.premiumWithGST, 0);
   document.getElementById('printReportTitle').textContent = 'Total Insured Lives Report';
   document.getElementById('printReportSubtitle').textContent = rows.length + ' member' + (rows.length === 1 ? '' : 's') + ' · ';
