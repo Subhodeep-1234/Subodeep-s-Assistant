@@ -1312,6 +1312,13 @@ document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
       // since otherwise navigating back to it wouldn't re-fetch at all and
       // would keep showing whatever countdown was cached from before this edit.
       if (isDateField) {
+        // Health Insurance's own background prefetch (fired when that page
+        // opens) may have already queued or resolved a jsonPrefetchCache
+        // entry for this exact URL *before* this edit was saved - a plain
+        // fetchJson() call here could silently consume that stale, pre-edit
+        // response instead of a genuinely fresh one. Drop it first so this
+        // always hits the network for real.
+        jsonPrefetchCache.delete('/api/insurance/policy-info');
         const fresh = await fetchJson('/api/insurance/policy-info');
         renderHiPolicyInfoBanner(fresh.renewal);
         applyRenewalToDashboard(fresh.renewal);
