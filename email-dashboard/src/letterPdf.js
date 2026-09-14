@@ -46,8 +46,8 @@ function writeMixed(doc, segments) {
 
 // The notice-period clause is only meaningful when both halves of it are
 // actually set - if HR leaves that section on "Select" (either or both),
-// the whole clause (starting at "&") is left out rather than showing a
-// half-finished sentence.
+// just the "& accordingly...instead of X" part is left out; "effective
+// from <date>" still closes the sentence either way.
 function revisedCompSegments({ currentGrossText, revisedGrossText, currentNotice, revisedNotice, dateStr }) {
   const segments = [
     { text: currentGrossText, bold: true },
@@ -61,7 +61,7 @@ function revisedCompSegments({ currentGrossText, revisedGrossText, currentNotice
       { text: ' instead of ' + currentNotice + ', effective from ' + dateStr + '.' }
     );
   } else {
-    segments.push({ text: '.' });
+    segments.push({ text: ', effective from ' + dateStr + '.' });
   }
   return segments;
 }
