@@ -1078,13 +1078,14 @@ body {
 
 .wf-movement-count-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 10px;
 }
-.wf-generate-letter-hint { margin: 0; font-size: 0.74rem; font-weight: 600; color: var(--accent); text-align: right; }
+/* One line, not two - stacked under the count (instead of squeezed beside
+   it) so it gets the panel's full width to fit in, plus a slightly smaller
+   size so the full sentence clears even a narrow phone screen. */
+.wf-generate-letter-hint { margin: 0; font-size: 0.7rem; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wf-generate-letter-hint[hidden] { display: none; }
 
 /* Promotions-only: each row's name is clickable straight into Generate
