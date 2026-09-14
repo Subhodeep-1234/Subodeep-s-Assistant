@@ -191,15 +191,15 @@ function buildIncrementLetterPdf(fields) {
 // inconsistencies to reconcile): Date and Ref. No. sit on their own separate
 // lines instead of sharing one, the template's own top margin is smaller, the
 // designation change itself is stated as part of the letter (from/to, both
-// bold), there's no notice period sentence at all, and the footer carries an
-// extra "(LLPIN: AAC - 2250)" suffix.
+// bold) ahead of the same notice-period clause the Increment Letter has, and
+// the footer carries an extra "(LLPIN: AAC - 2250)" suffix.
 const PROMO_MARGIN_TOP = 92.15; // this template's own w:pgMar top (1843 twips / 20)
 
 function buildPromotionIncrementLetterPdf(fields) {
   const {
     title, employeeName, employeeId, department, companyName, refNo,
     fromDesignation, toDesignation, currentGross, revisedGross,
-    effectiveDate, incrementYear
+    currentNotice, revisedNotice, effectiveDate, incrementYear
   } = fields;
 
   return new Promise((resolve, reject) => {
@@ -280,7 +280,9 @@ function buildPromotionIncrementLetterPdf(fields) {
       { text: 'Rs. ' + currentGross + '/-', bold: true },
       { text: ' to ' },
       { text: 'Rs. ' + revisedGross + '/-', bold: true },
-      { text: '.' }
+      { text: ' & accordingly your notice period has been revised to ' },
+      { text: revisedNotice, bold: true },
+      { text: ' instead of ' + currentNotice + ', effective from ' + dateStr + '.' }
     ]);
     doc.moveDown(1.2);
 

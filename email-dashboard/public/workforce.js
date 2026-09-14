@@ -2804,7 +2804,7 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
         title, employeeName, employeeId, department, companyName, refNo,
         fromDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation),
         toDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation),
-        currentGross, revisedGross, effectiveDate, incrementYear
+        currentGross, revisedGross, currentNotice, revisedNotice, effectiveDate, incrementYear
       }
     : {
         title, employeeName, employeeId, department, companyName, refNo,

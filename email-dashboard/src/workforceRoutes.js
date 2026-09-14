@@ -390,7 +390,7 @@ router.post('/letters/promotion-increment', async (req, res) => {
     const {
       title, employeeName, employeeId, department, companyName, refNo,
       fromDesignation, toDesignation, currentGross, revisedGross,
-      effectiveDate, incrementYear
+      currentNotice, revisedNotice, effectiveDate, incrementYear
     } = req.body || {};
     if (!employeeName || !companyName || !refNo || !fromDesignation || !toDesignation ||
         !currentGross || !revisedGross || !effectiveDate) {
@@ -407,6 +407,8 @@ router.post('/letters/promotion-increment', async (req, res) => {
       toDesignation,
       currentGross,
       revisedGross,
+      currentNotice: currentNotice || '',
+      revisedNotice: revisedNotice || '',
       effectiveDate,
       incrementYear: incrementYear || ''
     });
