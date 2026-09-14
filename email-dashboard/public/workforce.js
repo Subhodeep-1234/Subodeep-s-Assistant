@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterType'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterType', 'letterForm', 'letterSuccess'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -2575,6 +2575,11 @@ document.getElementById('movementBreakdownGrid').addEventListener('click', (e) =
 });
 
 let movementDetailType = 'department';
+// The rows currently on-screen for Promotions (see loadMovementDetail) and
+// which one was clicked into Generate Letter - both read back by
+// openLetterForm() when building the form.
+let currentPromotionItems = [];
+let letterEmployeeContext = null;
 
 function openMovementDetail(type) {
   movementDetailType = type;
@@ -2595,16 +2600,20 @@ async function loadMovementDetail() {
     const days = meta.daysCap || 365;
     const data = await fetchJson(meta.endpoint + '?days=' + days);
     const items = data.items.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Read back by index when a row is clicked (see movementDetailListEl's
+    // click handler below) - simpler than round-tripping every field
+    // through data-* attributes on the <li>.
+    currentPromotionItems = meta.lettersEnabled ? items : [];
     document.getElementById('movementDetailCount').textContent = meta.lettersEnabled
       // Promotions isn't windowed to 12 months (see daysCap above), so the
       // count shouldn't claim it is either.
       ? data.total + ' ' + meta.noun + (data.total === 1 ? '' : 's')
       : data.total + ' ' + meta.noun + (data.total === 1 ? '' : 's') + ' in the last 12 months';
     listEl.innerHTML = items.length
-      ? items.map((it) => {
+      ? items.map((it, idx) => {
           const badge = joinDateBadge(it.date);
           const clickableAttrs = meta.lettersEnabled
-            ? ' class="clickable" tabindex="0" role="button" data-employee-id="' + escapeHtml(it.employeeId) + '"'
+            ? ' class="clickable" tabindex="0" role="button" data-idx="' + idx + '"'
             : '';
           return (
             '<li' + clickableAttrs + '>' +
@@ -2630,12 +2639,14 @@ async function loadMovementDetail() {
 
 // Promotions only (see the "clickable" class added in loadMovementDetail) -
 // clicking a name is how Generate Letter is reached now, instead of a
-// separate button. Which employee was clicked is read back later, when
-// Proceed's destination is wired up.
+// separate button.
 const movementDetailListEl = document.getElementById('movementDetailList');
 movementDetailListEl.addEventListener('click', (e) => {
   const row = e.target.closest('li.clickable');
   if (!row) return;
+  const it = currentPromotionItems[Number(row.dataset.idx)];
+  if (!it) return;
+  letterEmployeeContext = { name: it.name, fromDesignation: it.fromDesignation, toDesignation: it.toDesignation };
   setView('letterType');
 });
 movementDetailListEl.addEventListener('keydown', (e) => {
@@ -2647,13 +2658,107 @@ movementDetailListEl.addEventListener('keydown', (e) => {
 });
 
 // Single-select: clicking a card marks it pressed and un-presses the other.
-// Which one ends up selected is read back later, when Proceed's destination
-// (and what it needs to submit) is wired up.
 document.getElementById('letterTypeOptions').addEventListener('click', (e) => {
   const card = e.target.closest('.wf-letter-type-card');
   if (!card) return;
   document.querySelectorAll('#letterTypeOptions .wf-letter-type-card').forEach((c) => {
     c.setAttribute('aria-pressed', String(c === card));
+  });
+});
+
+const LETTER_TYPE_META = {
+  promotion_increment: {
+    title: 'Promotion & Increment Letter',
+    sub: 'Designation change with revised compensation',
+    tone: 'move-blue',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h1"/><path d="M15 20l3-3-3-3"/><line x1="18" y1="17" x2="10" y2="17"/></svg>',
+    showDesignation: true
+  },
+  increment_only: {
+    title: 'Increment Letter',
+    sub: 'Salary revision without designation change',
+    tone: 'move-green',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/><path d="M9 6.5v5M6.5 9h5"/></svg>',
+    showDesignation: false
+  }
+};
+let activeLetterType = 'promotion_increment';
+
+document.getElementById('letterProceedBtn').addEventListener('click', () => {
+  const selected = document.querySelector('#letterTypeOptions .wf-letter-type-card[aria-pressed="true"]');
+  openLetterForm(selected ? selected.dataset.letterType : 'promotion_increment');
+});
+
+function openLetterForm(type) {
+  activeLetterType = type;
+  const meta = LETTER_TYPE_META[type];
+
+  const headerIcon = document.getElementById('letterFormHeaderIcon');
+  headerIcon.className = 'wf-letter-type-icon tone-' + meta.tone;
+  headerIcon.innerHTML = meta.icon;
+  document.getElementById('letterFormHeaderTitle').textContent = meta.title;
+  document.getElementById('letterFormHeaderSub').textContent = meta.sub;
+  document.getElementById('letterFormDesignationSection').hidden = !meta.showDesignation;
+  document.getElementById('letterFormNoticeSection').hidden = !meta.showDesignation;
+
+  document.getElementById('letterFormFromDesignation').textContent =
+    (letterEmployeeContext && letterEmployeeContext.fromDesignation) || '—';
+  document.getElementById('letterFormToDesignation').textContent =
+    (letterEmployeeContext && letterEmployeeContext.toDesignation) || '—';
+
+  // Compensation/Notice Period/Increment Year have no real data source
+  // anywhere in the sheets - fresh, blank manual-entry fields every time
+  // the form is opened, rather than carrying over a previous letter's
+  // leftover values.
+  document.getElementById('letterFormCurrentGross').value = '';
+  document.getElementById('letterFormRevisedGross').value = '';
+  document.getElementById('letterFormCurrentNotice').value = '';
+  document.getElementById('letterFormRevisedNotice').value = '';
+  document.getElementById('letterFormEffectiveDate').value = '';
+  const yearSelect = document.getElementById('letterFormIncrementYear');
+  const currentYear = new Date().getFullYear();
+  yearSelect.innerHTML = [currentYear, currentYear + 1, currentYear + 2]
+    .map((y) => '<option value="' + y + '">' + y + '</option>')
+    .join('');
+  document.getElementById('letterFormError').hidden = true;
+
+  setView('letterForm');
+}
+
+function formatLongDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => {
+  const currentGross = document.getElementById('letterFormCurrentGross').value.trim();
+  const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
+  const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
+  const errorEl = document.getElementById('letterFormError');
+  if (!currentGross || !revisedGross || !effectiveDate) {
+    errorEl.textContent = 'Please fill in Compensation and Effective Date before generating the letter.';
+    errorEl.hidden = false;
+    return;
+  }
+  errorEl.hidden = true;
+
+  const meta = LETTER_TYPE_META[activeLetterType];
+  document.getElementById('letterSuccessSub').textContent = meta.title + ' has been generated successfully.';
+  document.getElementById('letterSuccessEmployee').textContent = (letterEmployeeContext && letterEmployeeContext.name) || '—';
+  document.getElementById('letterSuccessType').textContent = meta.title;
+  document.getElementById('letterSuccessDate').textContent = formatLongDate(effectiveDate);
+  document.getElementById('letterPdfNote').hidden = true;
+
+  setView('letterSuccess');
+});
+
+// Not wired to a real file yet - there's no actual letter template/wording
+// to render into a PDF, so these just surface an honest note instead of
+// pretending to produce a document.
+['letterViewPdfBtn', 'letterDownloadBtn'].forEach((id) => {
+  document.getElementById(id).addEventListener('click', () => {
+    document.getElementById('letterPdfNote').hidden = false;
   });
 });
 

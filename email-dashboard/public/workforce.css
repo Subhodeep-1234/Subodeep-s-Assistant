@@ -1734,6 +1734,7 @@ body {
 }
 .wf-letter-type-icon.tone-move-blue { background: var(--move-blue-bg); color: var(--move-blue); }
 .wf-letter-type-icon.tone-move-green { background: var(--move-green-bg); color: var(--move-green); }
+.wf-letter-type-icon.tone-move-purple { background: var(--move-purple-bg); color: var(--move-purple); }
 .wf-letter-type-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .wf-letter-type-title { font-size: 0.92rem; font-weight: 700; color: var(--ink); }
 .wf-letter-type-sub { font-size: 0.78rem; color: var(--muted); }
@@ -1773,3 +1774,75 @@ body {
   box-shadow: 0 6px 14px var(--shadow);
 }
 .wf-letter-proceed-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Generate Letter, step 2 - the form. Reuses .wf-letter-type-card as a
+   static (non-interactive) header instead of a new card style. */
+.wf-letter-form-header { cursor: default; margin-bottom: 18px; }
+.wf-letter-form-section-title { font-size: 0.82rem; font-weight: 700; color: var(--ink); margin: 18px 0 10px; }
+.wf-letter-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wf-letter-form-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wf-letter-form-field label { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+.wf-letter-form-field input,
+.wf-letter-form-field select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.wf-letter-form-field input:focus-visible,
+.wf-letter-form-field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Current Designation / Promoted To are known, fixed facts from the
+   promotion that was clicked - shown read-only rather than as editable
+   fields with no real option list behind them. */
+.wf-letter-form-static {
+  background: var(--other-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.wf-letter-form-caption { margin: 10px 0 0; font-size: 0.76rem; color: var(--muted); text-align: center; }
+
+/* Generate Letter, step 3 - success. */
+.wf-letter-success { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 4px 4px; }
+.wf-letter-success-icon {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--resolved-bg);
+  color: var(--resolved);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.wf-letter-success h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.wf-letter-success > .wf-note { margin: 0 0 18px; max-width: 320px; }
+.wf-letter-success-card { width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; margin-bottom: 18px; }
+.wf-letter-success-row { display: flex; align-items: center; gap: 12px; }
+.wf-letter-success-actions { display: flex; gap: 10px; width: 100%; }
+.wf-letter-success-actions .wf-letter-outline-btn,
+.wf-letter-success-actions .wf-letter-proceed-btn { flex: 1; margin: 0; }
+.wf-letter-outline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  padding: 13px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wf-letter-outline-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wf-letter-success-note { margin-top: 14px; font-size: 0.76rem; }
+.wf-letter-success-note[hidden] { display: none; }

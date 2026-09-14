@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=76" />
+  <link rel="stylesheet" href="workforce.css?v=77" />
 </head>
 <body>
   <div class="wf-shell">
@@ -368,8 +368,8 @@
     </section>
 
     <!-- Generate Letter, step 1: pick which kind of letter to generate.
-         What happens after Proceed is wired up separately later - for now
-         this screen only lets the user select a type and highlights it. -->
+         Proceed reads whichever card is aria-pressed="true" and opens the
+         matching form below. -->
     <section id="letterTypeView" class="wf-view" hidden>
       <div class="wf-page-head">
         <button class="wf-icon-btn" data-back aria-label="Back">
@@ -413,6 +413,164 @@
         <span>Proceed</span>
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
       </button>
+    </section>
+
+    <!-- Generate Letter, step 2: one shared form for both letter types -
+         the Designation/Notice Period sections only apply to Promotion &
+         Increment, so openLetterForm() hides them for Increment-only.
+         Compensation/Notice Period/Increment Year have no real data source
+         anywhere in the sheets, so they're genuine manual-entry fields, not
+         prefilled guesses. -->
+    <section id="letterFormView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Generate Letter</h2>
+      </div>
+
+      <div class="wf-panel">
+        <div class="wf-letter-type-card wf-letter-form-header" aria-pressed="true">
+          <span class="wf-letter-type-icon" id="letterFormHeaderIcon"></span>
+          <span class="wf-letter-type-body">
+            <span class="wf-letter-type-title" id="letterFormHeaderTitle">Promotion &amp; Increment Letter</span>
+            <span class="wf-letter-type-sub" id="letterFormHeaderSub">Designation change with revised compensation</span>
+          </span>
+        </div>
+
+        <div id="letterFormDesignationSection">
+          <h3 class="wf-letter-form-section-title">Designation</h3>
+          <div class="wf-letter-form-row">
+            <div class="wf-letter-form-field">
+              <label>Current Designation</label>
+              <div class="wf-letter-form-static" id="letterFormFromDesignation">—</div>
+            </div>
+            <div class="wf-letter-form-field">
+              <label>Promoted To</label>
+              <div class="wf-letter-form-static" id="letterFormToDesignation">—</div>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="wf-letter-form-section-title">Compensation</h3>
+        <div class="wf-letter-form-row">
+          <div class="wf-letter-form-field">
+            <label for="letterFormCurrentGross">Current Monthly Gross</label>
+            <input type="number" id="letterFormCurrentGross" placeholder="₹ 0" min="0" inputmode="numeric" />
+          </div>
+          <div class="wf-letter-form-field">
+            <label for="letterFormRevisedGross">Revised Monthly Gross</label>
+            <input type="number" id="letterFormRevisedGross" placeholder="₹ 0" min="0" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div id="letterFormNoticeSection">
+          <h3 class="wf-letter-form-section-title">Notice Period</h3>
+          <div class="wf-letter-form-row">
+            <div class="wf-letter-form-field">
+              <label for="letterFormCurrentNotice">Current Notice Period</label>
+              <select id="letterFormCurrentNotice">
+                <option value="">Select</option>
+                <option>15 Days</option>
+                <option>1 Month</option>
+                <option>2 Months</option>
+                <option>3 Months</option>
+              </select>
+            </div>
+            <div class="wf-letter-form-field">
+              <label for="letterFormRevisedNotice">Revised To</label>
+              <select id="letterFormRevisedNotice">
+                <option value="">Select</option>
+                <option>15 Days</option>
+                <option>1 Month</option>
+                <option>2 Months</option>
+                <option>3 Months</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="wf-letter-form-section-title">Effective Date</h3>
+        <div class="wf-letter-form-field">
+          <input type="date" id="letterFormEffectiveDate" />
+        </div>
+
+        <h3 class="wf-letter-form-section-title">Eligible for next Increment</h3>
+        <div class="wf-letter-form-field">
+          <label for="letterFormIncrementYear">Year</label>
+          <select id="letterFormIncrementYear"></select>
+        </div>
+
+        <div class="error-banner" id="letterFormError" hidden></div>
+      </div>
+
+      <button type="button" class="wf-letter-proceed-btn" id="letterGeneratePdfBtn">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+        <span>Generate PDF</span>
+      </button>
+      <p class="wf-letter-form-caption">Review the details before generating the final letter.</p>
+    </section>
+
+    <!-- Generate Letter, step 3: success. View PDF / Download aren't wired
+         to a real file yet - there's no actual letter template/wording to
+         render, so they show a short note instead of pretending to work. -->
+    <section id="letterSuccessView" class="wf-view" hidden>
+      <div class="wf-page-head">
+        <button class="wf-icon-btn" data-back aria-label="Back">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <h2>Generate Letter</h2>
+      </div>
+
+      <div class="wf-letter-success">
+        <div class="wf-letter-success-icon">
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h3>Letter Generated Successfully</h3>
+        <p class="wf-note" id="letterSuccessSub"></p>
+
+        <div class="wf-panel wf-letter-success-card">
+          <div class="wf-letter-success-row">
+            <span class="wf-letter-type-icon tone-move-blue">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
+            </span>
+            <span class="wf-letter-type-body">
+              <span class="wf-letter-type-sub">Employee</span>
+              <span class="wf-letter-type-title" id="letterSuccessEmployee">—</span>
+            </span>
+          </div>
+          <div class="wf-letter-success-row">
+            <span class="wf-letter-type-icon tone-move-purple">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </span>
+            <span class="wf-letter-type-body">
+              <span class="wf-letter-type-sub">Letter Type</span>
+              <span class="wf-letter-type-title" id="letterSuccessType">—</span>
+            </span>
+          </div>
+          <div class="wf-letter-success-row">
+            <span class="wf-letter-type-icon tone-move-green">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <span class="wf-letter-type-body">
+              <span class="wf-letter-type-sub">Effective Date</span>
+              <span class="wf-letter-type-title" id="letterSuccessDate">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="wf-letter-success-actions">
+          <button type="button" class="wf-letter-outline-btn" id="letterViewPdfBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>View PDF</span>
+          </button>
+          <button type="button" class="wf-letter-proceed-btn" id="letterDownloadBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download</span>
+          </button>
+        </div>
+        <p class="wf-note wf-letter-success-note" id="letterPdfNote" hidden>PDF download will be wired up once the letter template is finalised.</p>
+      </div>
     </section>
 
     <!-- Tenure -->
@@ -934,6 +1092,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=159"></script>
+  <script src="workforce.js?v=160"></script>
 </body>
 </html>
