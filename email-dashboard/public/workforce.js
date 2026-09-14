@@ -2751,10 +2751,24 @@ async function loadFilterOptions() {
     data.locations.forEach((l) => filterLocation.add(new Option(l, l)));
     data.reportingManagers.forEach((m) => filterReportingManager.add(new Option(m, m)));
     data.collars.forEach((c) => filterCollar.add(new Option(c, c)));
-    const orgChartSelect = document.getElementById('orgChartDeptSelect');
-    if (orgChartSelect) data.departments.forEach((d) => orgChartSelect.add(new Option(d, d)));
   } catch {
     // Filter dropdowns just stay at "All" — not fatal.
+  }
+
+  // Org Chart's own "Select a department" list is deliberately narrower
+  // than Employee Data's Department filter above: only departments that
+  // currently have at least one Active employee - a department with none
+  // has nothing meaningful to chart.
+  try {
+    const orgChartSelect = document.getElementById('orgChartDeptSelect');
+    if (!orgChartSelect) return;
+    const activeBreakdowns = await fetchJson('/api/workforce/breakdowns?status=ACTIVE');
+    activeBreakdowns.departments
+      .map((d) => d.name)
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((d) => orgChartSelect.add(new Option(d, d)));
+  } catch {
+    // Org Chart's dropdown just stays at "Select a department" - not fatal.
   }
 }
 
