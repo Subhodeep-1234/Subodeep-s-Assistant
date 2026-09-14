@@ -1792,7 +1792,12 @@ async function loadHiFamilyPremiumBreakdown() {
   rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await fetchJson('/api/insurance/family-premium-breakdown');
-    const palette = distributionPalette();
+    // Same colors as Coverage Overview's own donut/legend for these exact
+    // groups (c.warning/c.candidate/c.important/c.muted) - not the generic
+    // distributionPalette(), so a relationship reads as the same color on
+    // both pages.
+    const c = chartColors();
+    const groupColors = { spouse: c.warning, children: c.candidate, parents: c.important, other: c.muted };
     const groupKeys = Object.keys(FAMILY_PREMIUM_GROUP_LABELS).filter((k) => k !== 'other' || data.groups.other.count > 0);
     const totalCount = groupKeys.reduce((sum, k) => sum + data.groups[k].count, 0);
     const totalPremium = groupKeys.reduce((sum, k) => sum + data.groups[k].premium, 0);
@@ -1804,9 +1809,9 @@ async function loadHiFamilyPremiumBreakdown() {
         '<span class="wf-dist-num-col">Total Premium</span>' +
       '</div>' +
       groupKeys
-        .map((key, i) => (
+        .map((key) => (
           '<div class="wf-dist-row">' +
-            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + FAMILY_PREMIUM_GROUP_LABELS[key] + '</span>' +
+            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + groupColors[key] + '"></span>' + FAMILY_PREMIUM_GROUP_LABELS[key] + '</span>' +
             '<span class="wf-dist-num-col">' + data.groups[key].count + '</span>' +
             '<span class="wf-dist-num-col">₹' + Math.round(data.groups[key].premium).toLocaleString('en-IN') + '</span>' +
           '</div>'
