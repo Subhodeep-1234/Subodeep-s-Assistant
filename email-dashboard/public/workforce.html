@@ -416,11 +416,12 @@
     </section>
 
     <!-- Generate Letter, step 2: one shared form for both letter types -
-         the Designation/Notice Period sections only apply to Promotion &
-         Increment, so openLetterForm() hides them for Increment-only.
-         Compensation/Notice Period/Increment Year have no real data source
-         anywhere in the sheets, so they're genuine manual-entry fields, not
-         prefilled guesses. -->
+         only the Designation section is Promotion & Increment-specific
+         (openLetterForm() hides it for Increment-only); every other
+         section, including Notice Period, applies to both. Compensation/
+         Notice Period/Increment Year have no real data source anywhere in
+         the sheets, so they're genuine manual-entry fields, not prefilled
+         guesses. -->
     <section id="letterFormView" class="wf-view" hidden>
       <div class="wf-page-head">
         <button class="wf-icon-btn" data-back aria-label="Back">
@@ -1120,6 +1121,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=166"></script>
+  <script src="workforce.js?v=167"></script>
 </body>
 </html>
