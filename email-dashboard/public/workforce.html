@@ -454,14 +454,14 @@
           </select>
         </div>
 
-        <!-- Promotion & Increment only - Increment-only letters don't carry
-             this reference number. -->
+        <!-- Both letter types get this - the prefix itself switches
+             between AR/HR/Pro./ and AR/HR/Inc./ in openLetterForm(). -->
         <div id="letterFormRefNoSection">
           <h3 class="wf-letter-form-section-title">Ref. No.</h3>
           <div class="wf-letter-form-field">
             <div class="wf-letter-refno-row">
-              <span class="wf-letter-refno-prefix">AR/HR/Pro./</span>
-              <input type="text" id="letterFormRefNo" placeholder="2026-27/208" />
+              <span class="wf-letter-refno-prefix" id="letterFormRefNoPrefix">AR/HR/Pro./</span>
+              <input type="text" id="letterFormRefNo" placeholder="2026-27/000" />
             </div>
           </div>
         </div>
@@ -1120,6 +1120,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=165"></script>
+  <script src="workforce.js?v=166"></script>
 </body>
 </html>

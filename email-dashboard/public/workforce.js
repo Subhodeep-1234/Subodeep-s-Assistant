@@ -2672,14 +2672,16 @@ const LETTER_TYPE_META = {
     sub: 'Designation change with revised compensation',
     tone: 'move-blue',
     icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h1"/><path d="M15 20l3-3-3-3"/><line x1="18" y1="17" x2="10" y2="17"/></svg>',
-    showDesignation: true
+    showDesignation: true,
+    refPrefix: 'AR/HR/Pro./'
   },
   increment_only: {
     title: 'Increment Letter',
     sub: 'Salary revision without designation change',
     tone: 'move-green',
     icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/><path d="M9 6.5v5M6.5 9h5"/></svg>',
-    showDesignation: false
+    showDesignation: false,
+    refPrefix: 'AR/HR/Inc./'
   }
 };
 let activeLetterType = 'promotion_increment';
@@ -2698,7 +2700,7 @@ function openLetterForm(type) {
   headerIcon.innerHTML = meta.icon;
   document.getElementById('letterFormHeaderTitle').textContent = meta.title;
   document.getElementById('letterFormHeaderSub').textContent = meta.sub;
-  document.getElementById('letterFormRefNoSection').hidden = !meta.showDesignation;
+  document.getElementById('letterFormRefNoPrefix').textContent = meta.refPrefix;
   document.getElementById('letterFormDesignationSection').hidden = !meta.showDesignation;
   document.getElementById('letterFormNoticeSection').hidden = !meta.showDesignation;
 
@@ -2771,10 +2773,8 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
   const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
   const errorEl = document.getElementById('letterFormError');
-  if ((meta.showDesignation && !refNo) || !companyName || !currentGross || !revisedGross || !effectiveDate) {
-    errorEl.textContent = meta.showDesignation
-      ? 'Please fill in Ref. No., Company Name, Compensation, and Effective Date before generating the letter.'
-      : 'Please fill in Company Name, Compensation, and Effective Date before generating the letter.';
+  if (!refNo || !companyName || !currentGross || !revisedGross || !effectiveDate) {
+    errorEl.textContent = 'Please fill in Ref. No., Company Name, Compensation, and Effective Date before generating the letter.';
     errorEl.hidden = false;
     return;
   }
