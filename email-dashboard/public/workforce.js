@@ -2698,6 +2698,7 @@ function openLetterForm(type) {
   headerIcon.innerHTML = meta.icon;
   document.getElementById('letterFormHeaderTitle').textContent = meta.title;
   document.getElementById('letterFormHeaderSub').textContent = meta.sub;
+  document.getElementById('letterFormRefNoSection').hidden = !meta.showDesignation;
   document.getElementById('letterFormDesignationSection').hidden = !meta.showDesignation;
   document.getElementById('letterFormNoticeSection').hidden = !meta.showDesignation;
 
@@ -2711,6 +2712,7 @@ function openLetterForm(type) {
   // the form is opened, rather than carrying over a previous letter's
   // leftover values.
   document.getElementById('letterFormTitle').value = 'Mr.';
+  document.getElementById('letterFormRefNo').value = '';
   document.getElementById('letterFormCurrentGross').value = '';
   document.getElementById('letterFormRevisedGross').value = '';
   document.getElementById('letterFormCurrentNotice').value = '';
@@ -2762,19 +2764,22 @@ function formatLongDate(iso) {
 }
 
 document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => {
+  const meta = LETTER_TYPE_META[activeLetterType];
+  const refNo = document.getElementById('letterFormRefNo').value.trim();
   const companyName = document.getElementById('letterFormCompanyName').value;
   const currentGross = document.getElementById('letterFormCurrentGross').value.trim();
   const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
   const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
   const errorEl = document.getElementById('letterFormError');
-  if (!companyName || !currentGross || !revisedGross || !effectiveDate) {
-    errorEl.textContent = 'Please fill in Company Name, Compensation, and Effective Date before generating the letter.';
+  if ((meta.showDesignation && !refNo) || !companyName || !currentGross || !revisedGross || !effectiveDate) {
+    errorEl.textContent = meta.showDesignation
+      ? 'Please fill in Ref. No., Company Name, Compensation, and Effective Date before generating the letter.'
+      : 'Please fill in Company Name, Compensation, and Effective Date before generating the letter.';
     errorEl.hidden = false;
     return;
   }
   errorEl.hidden = true;
 
-  const meta = LETTER_TYPE_META[activeLetterType];
   document.getElementById('letterSuccessSub').textContent = meta.title + ' has been generated successfully.';
   document.getElementById('letterSuccessEmployee').textContent = (letterEmployeeContext && letterEmployeeContext.name) || '—';
   document.getElementById('letterSuccessType').textContent = meta.title;

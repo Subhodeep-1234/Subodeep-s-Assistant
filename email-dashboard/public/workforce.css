@@ -1809,6 +1809,31 @@ body {
 }
 .wf-letter-form-caption { margin: 10px 0 0; font-size: 0.76rem; color: var(--muted); text-align: center; }
 
+/* Ref. No. - a fixed prefix ("AR/HR/Pro./") the letter's own numbering
+   convention never changes, plus the one part that actually changes per
+   letter, both inside one bordered box so it reads as a single field. */
+.wf-letter-refno-row {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+}
+.wf-letter-refno-row:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.wf-letter-refno-prefix { font-size: 0.85rem; font-weight: 600; color: var(--muted); white-space: nowrap; padding: 10px 0; }
+.wf-letter-refno-row input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 10px 0 10px 2px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.wf-letter-refno-row input:focus-visible { outline: none; }
+
 /* Generate Letter, step 3 - success. */
 .wf-letter-success { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 4px 4px; }
 .wf-letter-success-icon {
