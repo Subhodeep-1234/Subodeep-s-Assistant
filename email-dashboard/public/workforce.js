@@ -1214,37 +1214,66 @@ async function loadHiPolicyInfo() {
   }
 }
 
+// Shared by both a standalone field and a sub-field inside a group box -
+// just the label/value/pencil part, without the outer field-box wrapper.
+function policyInfoSubfieldHtml(f, values) {
+  const value = values[f.key];
+  const isDateField = POLICY_INFO_DATE_FIELDS.has(f.key);
+  const displayValue = value ? (isDateField ? formatDate(value) : value) : '—';
+  return (
+    '<span class="hi-policy-info-label">' + escapeHtml(f.label) + '</span>' +
+    '<span class="hi-policy-info-value-row">' +
+      '<span class="hi-policy-info-value' + (value ? '' : ' na') + '" data-field="' + f.key + '" data-raw-value="' + escapeHtml(value || '') + '">' + escapeHtml(displayValue) + '</span>' +
+      '<button class="hi-policy-info-edit-btn" data-edit-field="' + f.key + '" aria-label="Edit ' + escapeHtml(f.label) + '">' +
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+      '</button>' +
+    '</span>'
+  );
+}
+
 function renderHiPolicyInfo(fields, values) {
-  // A field's optional `group` (e.g. "Sum Insured") renders as its own
-  // heading - a label only, no value/pencil of its own - right before the
-  // first sub-field that belongs to it.
-  let lastGroup = null;
-  document.getElementById('hiPolicyInfoGrid').innerHTML = fields
-    .map((f) => {
-      const value = values[f.key];
-      const isDateField = POLICY_INFO_DATE_FIELDS.has(f.key);
-      const displayValue = value ? (isDateField ? formatDate(value) : value) : '—';
-      const style = POLICY_INFO_FIELD_STYLE[f.key] || { icon: 'total', tone: 'ins-blue' };
-
-      let groupHeaderHtml = '';
-      if (f.group && f.group !== lastGroup) {
-        groupHeaderHtml = '<div class="hi-policy-info-group-header">' + escapeHtml(f.group) + '</div>';
+  // Consecutive fields sharing the same `group` (e.g. "Sum Insured") render
+  // together as ONE box - a heading with no value/pencil of its own,
+  // followed by its sub-fields inside that same card - instead of each
+  // sub-field getting its own separate box.
+  const blocks = [];
+  let i = 0;
+  while (i < fields.length) {
+    const f = fields[i];
+    if (f.group) {
+      const groupName = f.group;
+      const groupFields = [];
+      while (i < fields.length && fields[i].group === groupName) {
+        groupFields.push(fields[i]);
+        i++;
       }
-      lastGroup = f.group || null;
+      blocks.push({ group: groupName, fields: groupFields });
+    } else {
+      blocks.push({ field: f });
+      i++;
+    }
+  }
 
+  document.getElementById('hiPolicyInfoGrid').innerHTML = blocks
+    .map((block) => {
+      if (block.field) {
+        const f = block.field;
+        const style = POLICY_INFO_FIELD_STYLE[f.key] || { icon: 'total', tone: 'ins-blue' };
+        return (
+          '<div class="hi-policy-info-field">' +
+            '<span class="hi-policy-info-icon tone-' + style.tone + '">' + icon(style.icon, 16) + '</span>' +
+            '<span class="hi-policy-info-body">' + policyInfoSubfieldHtml(f, values) + '</span>' +
+          '</div>'
+        );
+      }
       return (
-        groupHeaderHtml +
-        '<div class="hi-policy-info-field">' +
-          '<span class="hi-policy-info-icon tone-' + style.tone + '">' + icon(style.icon, 16) + '</span>' +
-          '<span class="hi-policy-info-body">' +
-            '<span class="hi-policy-info-label">' + escapeHtml(f.label) + '</span>' +
-            '<span class="hi-policy-info-value-row">' +
-              '<span class="hi-policy-info-value' + (value ? '' : ' na') + '" data-field="' + f.key + '" data-raw-value="' + escapeHtml(value || '') + '">' + escapeHtml(displayValue) + '</span>' +
-              '<button class="hi-policy-info-edit-btn" data-edit-field="' + f.key + '" aria-label="Edit ' + escapeHtml(f.label) + '">' +
-                '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
-              '</button>' +
-            '</span>' +
-          '</span>' +
+        '<div class="hi-policy-info-field hi-policy-info-group-box">' +
+          '<span class="hi-policy-info-label hi-policy-info-group-title">' + escapeHtml(block.group) + '</span>' +
+          '<div class="hi-policy-info-subgrid">' +
+            block.fields
+              .map((f) => '<span class="hi-policy-info-subfield">' + policyInfoSubfieldHtml(f, values) + '</span>')
+              .join('') +
+          '</div>' +
         '</div>'
       );
     })

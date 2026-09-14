@@ -494,17 +494,20 @@ body {
    move-blue/purple/green/orange/red tones the rest of Health Insurance
    already uses) so the page reads as a lively info card, not a plain list. */
 .hi-policy-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-/* A field's optional group (e.g. "Sum Insured") - a heading only, no value
-   or pencil of its own, sitting right above its sub-fields. Spans both
-   grid columns so it reads as a section title, not another field. */
-.hi-policy-info-group-header {
+/* A field's optional group (e.g. "Sum Insured") renders as ONE shared box -
+   a heading with no value/pencil of its own, followed by its sub-fields
+   inside that same card - instead of each sub-field getting its own box.
+   Spans both grid columns and stacks vertically (title, then a mini-grid
+   of sub-fields), unlike a plain .hi-policy-info-field's icon+label row. */
+.hi-policy-info-group-box {
   grid-column: 1 / -1;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--ink);
-  margin-top: 4px;
-  padding-left: 2px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
+.hi-policy-info-group-title { font-size: 0.85rem; color: var(--ink); margin-bottom: 0; }
+.hi-policy-info-subgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
+.hi-policy-info-subfield { min-width: 0; }
 .hi-policy-info-field {
   display: flex;
   align-items: flex-start;
