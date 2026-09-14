@@ -1796,17 +1796,6 @@ body {
 }
 .wf-letter-form-field input:focus-visible,
 .wf-letter-form-field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* Current Designation / Promoted To are known, fixed facts from the
-   promotion that was clicked - shown read-only rather than as editable
-   fields with no real option list behind them. */
-.wf-letter-form-static {
-  background: var(--other-bg);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.85rem;
-  font-weight: 400;
-  color: var(--ink);
-}
 .wf-letter-form-caption { margin: 10px 0 0; font-size: 0.76rem; color: var(--muted); text-align: center; }
 
 /* Ref. No. - a fixed prefix ("AR/HR/Pro./") the letter's own numbering

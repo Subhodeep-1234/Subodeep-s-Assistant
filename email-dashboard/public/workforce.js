@@ -2721,10 +2721,14 @@ function openLetterForm(type) {
   document.getElementById('letterFormRefNoPrefix').textContent = meta.refPrefix;
   document.getElementById('letterFormDesignationSection').hidden = !meta.showDesignation;
 
-  document.getElementById('letterFormFromDesignation').textContent =
-    toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation) || '—';
-  document.getElementById('letterFormToDesignation').textContent =
-    toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation) || '—';
+  // Editable (not read-only) since Letter Generator's general employee
+  // picker has no "from/to" promotion record to source these from - only
+  // a Promotions-row click (a real log entry) has one, and even then HR
+  // can still correct it here before generating.
+  document.getElementById('letterFormFromDesignation').value =
+    toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation);
+  document.getElementById('letterFormToDesignation').value =
+    toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation);
 
   // Compensation/Notice Period/Increment Year have no real data source
   // anywhere in the sheets - fresh, blank manual-entry fields every time
@@ -2793,6 +2797,12 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   const title = document.getElementById('letterFormTitle').value;
   const refNo = document.getElementById('letterFormRefNo').value.trim();
   const companyName = document.getElementById('letterFormCompanyName').value;
+  // Read live from the form - not from letterEmployeeContext's initial
+  // prefill - since HR can edit these (there's often no real "from/to"
+  // promotion record behind them when this form was reached via Letter
+  // Generator's general employee picker instead of a Promotions-row click).
+  const fromDesignation = document.getElementById('letterFormFromDesignation').value.trim();
+  const toDesignation = document.getElementById('letterFormToDesignation').value.trim();
   const currentGross = document.getElementById('letterFormCurrentGross').value.trim();
   const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
   const currentNotice = document.getElementById('letterFormCurrentNotice').value;
@@ -2800,8 +2810,11 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
   const incrementYear = document.getElementById('letterFormIncrementYear').value;
   const errorEl = document.getElementById('letterFormError');
-  if (!refNo || !companyName || !currentGross || !revisedGross || !effectiveDate) {
-    errorEl.textContent = 'Please fill in Ref. No., Company Name, Compensation, and Effective Date before generating the letter.';
+  if (!refNo || !companyName || !currentGross || !revisedGross || !effectiveDate ||
+      (meta.showDesignation && (!fromDesignation || !toDesignation))) {
+    errorEl.textContent = meta.showDesignation
+      ? 'Please fill in Current Designation, Promoted To, Ref. No., Company Name, Compensation, and Effective Date before generating the letter.'
+      : 'Please fill in Ref. No., Company Name, Compensation, and Effective Date before generating the letter.';
     errorEl.hidden = false;
     return;
   }
@@ -2814,8 +2827,7 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   lastLetterPayload = meta.showDesignation
     ? {
         title, employeeName, employeeId, department, companyName, refNo,
-        fromDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation),
-        toDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation),
+        fromDesignation, toDesignation,
         currentGross, revisedGross, currentNotice, revisedNotice, effectiveDate, incrementYear
       }
     : {
@@ -2949,6 +2961,14 @@ document.addEventListener('click', (e) => {
   if (!picker.contains(e.target)) document.getElementById('letterGenEmployeeList').hidden = true;
 });
 
+// Maps Letter Generator's dropdown text to the internal keys
+// openLetterForm()/LETTER_TYPE_META already use - only these two have a
+// real form + PDF behind them so far.
+const LETTER_GEN_TYPE_KEYS = {
+  'Increment Letter': 'increment_only',
+  'Promotion & Increment': 'promotion_increment'
+};
+
 document.getElementById('letterGenProceedBtn').addEventListener('click', () => {
   const type = document.getElementById('letterGenType').value;
   const employeeId = document.getElementById('letterGenEmployeeId').value;
@@ -2961,11 +2981,33 @@ document.getElementById('letterGenProceedBtn').addEventListener('click', () => {
     return;
   }
   errorEl.hidden = true;
-  // What each letter type actually does next (its own form, its own PDF)
-  // is wired up separately, type by type - same incremental approach as
-  // Promotions' own Generate Letter flow.
-  noteEl.textContent = 'Generating a "' + type + '" letter isn’t wired up yet from here - tell me what should happen next for this type.';
-  noteEl.hidden = false;
+
+  const internalType = LETTER_GEN_TYPE_KEYS[type];
+  if (!internalType) {
+    // What each of the other letter types actually does next (its own
+    // form, its own PDF) is wired up separately, type by type - same
+    // incremental approach used for Increment/Promotion & Increment.
+    noteEl.textContent = 'Generating a "' + type + '" letter isn’t wired up yet from here - tell me what should happen next for this type.';
+    noteEl.hidden = false;
+    return;
+  }
+
+  // Same form, same PDF, same everything as Promotions' own Generate
+  // Letter flow (openLetterForm/LETTER_TYPE_META are shared) - the only
+  // difference is where the employee context comes from: a real
+  // promotion log entry there, the active-employee picker here, so
+  // there's no real "from/to" designation pair to prefill (Current
+  // Designation is the employee's real one; Promoted To is left for HR
+  // to type on the form itself).
+  const employee = (letterGenActiveEmployees || []).find((e) => e.employeeId === employeeId);
+  letterEmployeeContext = {
+    name: (employee && employee.name) || '',
+    employeeId,
+    department: (employee && employee.department) || '',
+    fromDesignation: (employee && employee.designation) || '',
+    toDesignation: internalType === 'increment_only' ? ((employee && employee.designation) || '') : ''
+  };
+  openLetterForm(internalType);
 });
 
 function renderMovementTab(tab) {
