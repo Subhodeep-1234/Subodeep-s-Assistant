@@ -2,7 +2,7 @@ const express = require('express');
 const employeeService = require('./employeeService');
 const analytics = require('./workforceAnalytics');
 const movementTracker = require('./movementTracker');
-const { buildIncrementLetterPdf } = require('./letterPdf');
+const { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf } = require('./letterPdf');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -346,8 +346,7 @@ router.get('/location-transfers', async (req, res) => {
 
 // Increment Letter PDF - a real, final-format document (see letterPdf.js
 // for why it reproduces the company's own Word template exactly rather
-// than a generic layout). Promotion & Increment's own template hasn't
-// been provided yet, so only this one letter type is wired to a real file.
+// than a generic layout).
 router.post('/letters/increment', async (req, res) => {
   try {
     const {
@@ -377,6 +376,44 @@ router.post('/letters/increment', async (req, res) => {
     res.setHeader(
       'Content-Disposition',
       'inline; filename="Increment_Letter_' + employeeName.replace(/[^a-z0-9]+/gi, '_') + '.pdf"'
+    );
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Promotion & Increment Letter PDF - same idea, its own template (see
+// letterPdf.js).
+router.post('/letters/promotion-increment', async (req, res) => {
+  try {
+    const {
+      title, employeeName, employeeId, department, companyName, refNo,
+      fromDesignation, toDesignation, currentGross, revisedGross,
+      effectiveDate, incrementYear
+    } = req.body || {};
+    if (!employeeName || !companyName || !refNo || !fromDesignation || !toDesignation ||
+        !currentGross || !revisedGross || !effectiveDate) {
+      return res.status(400).json({ error: 'Missing required letter fields' });
+    }
+    const buffer = await buildPromotionIncrementLetterPdf({
+      title: title || 'Mr.',
+      employeeName,
+      employeeId: employeeId || '',
+      department: department || '',
+      companyName,
+      refNo,
+      fromDesignation,
+      toDesignation,
+      currentGross,
+      revisedGross,
+      effectiveDate,
+      incrementYear: incrementYear || ''
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'inline; filename="Promotion_Increment_Letter_' + employeeName.replace(/[^a-z0-9]+/gi, '_') + '.pdf"'
     );
     res.send(buffer);
   } catch (err) {

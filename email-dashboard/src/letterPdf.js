@@ -44,6 +44,44 @@ function writeMixed(doc, segments) {
   });
 }
 
+// Shared by both letters - identical wording/spacing in both templates,
+// only the signing company name changes.
+function drawClosing(doc, companyName) {
+  doc.font(BODY_FONT).fontSize(BODY_SIZE)
+    .text('We are confident that you will bring the same high level of professionalism and hard work to the role assigned to you.');
+  doc.moveDown(1.2);
+
+  doc.text('We hope that you will continue to put in your best efforts with greater zeal and enthusiasm during the ensuing year too.');
+  doc.moveDown(1.2);
+
+  doc.text('Wish you a rewarding career with us.');
+  doc.moveDown(2.5);
+
+  writeMixed(doc, [{ text: 'For ' }, { text: companyName, bold: true }]);
+  // Wider gap - room for an actual pen signature between the company
+  // name and "(Authorized Signatory)".
+  doc.moveDown(6);
+
+  doc.font(BODY_FONT_ITALIC).fontSize(BODY_SIZE).text('(Authorized Signatory)');
+}
+
+// Footer - centered, Helvetica, same fixed address/contact block for every
+// company (only the company name itself changes). The Promotion &
+// Increment template's footer includes an "(LLPIN: AAC - 2250)" suffix
+// the Increment Letter's own footer doesn't have - a real difference
+// between the two templates, not an inconsistency to "fix".
+function drawFooter(doc, companyName, bodyWidth, includeLLPIN) {
+  const footerY = doc.page.height - 42;
+  doc.font('Helvetica-Bold').fontSize(9).fillColor('#0070C0')
+    .text(companyName, MARGIN_LEFT, footerY, { width: bodyWidth, align: 'center' });
+  doc.fillColor('#000').fontSize(7).font('Helvetica')
+    .text(
+      'Ganapati, 68/2 Harish Mukherjee Road, Kolkata -700025  P +91 33 6684 2100  F +91 2455 7052  ' +
+      'E hr@alcoverealty.in  W alcoverealty.in' + (includeLLPIN ? '  (LLPIN: AAC - 2250)' : ''),
+      MARGIN_LEFT, footerY + 12, { width: bodyWidth, align: 'center' }
+    );
+}
+
 function buildIncrementLetterPdf(fields) {
   const {
     title, employeeName, employeeId, department, companyName, refNo,
@@ -140,38 +178,124 @@ function buildIncrementLetterPdf(fields) {
     ]);
     doc.moveDown(1.2);
 
-    doc.font(BODY_FONT).fontSize(BODY_SIZE)
-      .text('We are confident that you will bring the same high level of professionalism and hard work to the role assigned to you.');
-    doc.moveDown(1.2);
-
-    doc.text('We hope that you will continue to put in your best efforts with greater zeal and enthusiasm during the ensuing year too.');
-    doc.moveDown(1.2);
-
-    doc.text('Wish you a rewarding career with us.');
-    doc.moveDown(2.5);
-
-    writeMixed(doc, [{ text: 'For ' }, { text: companyName, bold: true }]);
-    // Wider gap - room for an actual pen signature between the company
-    // name and "(Authorized Signatory)".
-    doc.moveDown(6);
-
-    doc.font(BODY_FONT_ITALIC).fontSize(BODY_SIZE).text('(Authorized Signatory)');
-
-    // Footer - centered, Helvetica, matches the template's footer2 exactly
-    // (same fixed address/contact block for every company; only the
-    // company name itself changes).
-    const footerY = doc.page.height - 42;
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#0070C0')
-      .text(companyName, MARGIN_LEFT, footerY, { width: bodyWidth, align: 'center' });
-    doc.fillColor('#000').fontSize(7).font('Helvetica')
-      .text(
-        'Ganapati, 68/2 Harish Mukherjee Road, Kolkata -700025  P +91 33 6684 2100  F +91 2455 7052  ' +
-        'E hr@alcoverealty.in  W alcoverealty.in',
-        MARGIN_LEFT, footerY + 12, { width: bodyWidth, align: 'center' }
-      );
+    drawClosing(doc, companyName);
+    drawFooter(doc, companyName, bodyWidth, false);
 
     doc.end();
   });
 }
 
-module.exports = { buildIncrementLetterPdf };
+// Promotion & Increment Letter PDF - reproduces the company's own
+// finalized Word template (Promotion & Increment Letter- Dwiptesh Dey.docx)
+// exactly. Differs from the plain Increment Letter in a few real ways (not
+// inconsistencies to reconcile): Date and Ref. No. sit on their own separate
+// lines instead of sharing one, the template's own top margin is smaller, the
+// designation change itself is stated as part of the letter (from/to, both
+// bold), there's no notice period sentence at all, and the footer carries an
+// extra "(LLPIN: AAC - 2250)" suffix.
+const PROMO_MARGIN_TOP = 92.15; // this template's own w:pgMar top (1843 twips / 20)
+
+function buildPromotionIncrementLetterPdf(fields) {
+  const {
+    title, employeeName, employeeId, department, companyName, refNo,
+    fromDesignation, toDesignation, currentGross, revisedGross,
+    effectiveDate, incrementYear
+  } = fields;
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: PROMO_MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT }
+    });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    const bodyWidth = doc.page.width - MARGIN_LEFT - MARGIN_RIGHT;
+    const dateStr = ddmmyyyy(effectiveDate);
+
+    // Logo - identical size/position to the Increment Letter's own header.
+    doc.image(LOGO_PATH, 28, 21.25, { width: 110.25, height: 56.9 });
+
+    doc.y = PROMO_MARGIN_TOP;
+    doc.moveDown(1);
+
+    // Date - its own right-aligned line (unlike the Increment Letter,
+    // nothing shares this line with it). Combining an align:'right' box
+    // with a continued chain garbles the two runs together (pdfkit bug/
+    // quirk), so the right-aligned x is computed by hand instead.
+    const dateLineY = doc.y;
+    const dateLabel = 'Date: ';
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE).fillColor('#000');
+    const dateLabelWidth = doc.widthOfString(dateLabel);
+    doc.font(BODY_FONT).fontSize(BODY_SIZE);
+    const dateValueWidth = doc.widthOfString(dateStr);
+    const dateStartX = MARGIN_LEFT + bodyWidth - dateLabelWidth - dateValueWidth;
+    doc.font(BODY_FONT_BOLD).text(dateLabel, dateStartX, dateLineY, { continued: true, lineBreak: false });
+    doc.font(BODY_FONT).text(dateStr, { lineBreak: false });
+    // The positioned call above leaves doc.x wherever that line ended (near
+    // the right margin) - every subsequent plain .text() call has no
+    // explicit x, so without this reset they'd all inherit that leftover x
+    // and word-wrap into a near-zero-width column.
+    doc.x = MARGIN_LEFT;
+    doc.y = dateLineY + doc.currentLineHeight() + 2;
+    doc.moveDown(1.2);
+
+    // Ref. No. - its own left-aligned line.
+    doc.font(BODY_FONT).text('Ref. No: AR/HR/Pro./' + refNo);
+    doc.moveDown(1.5);
+
+    // Recipient block.
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE);
+    doc.text(title + ' ' + employeeName);
+    doc.text('Emp ID: ' + employeeId);
+    doc.text('Department: ' + department);
+    doc.moveDown(1.5);
+
+    // Subject - centered, bold, underlined.
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE).text('SUB: - Promotion & Increment letter', { align: 'center', underline: true });
+    doc.moveDown(3.5);
+
+    // Salutation.
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE).text('Dear ' + title + ' ' + employeeName + ',');
+    doc.moveDown(1.2);
+
+    writeMixed(doc, [
+      { text: 'We are pleased to inform you that you have been promoted from ' },
+      { text: fromDesignation, bold: true },
+      { text: ' to ' },
+      { text: toDesignation, bold: true },
+      { text: ', effective from ' + dateStr + '.' }
+    ]);
+    doc.moveDown(1.2);
+
+    writeMixed(doc, [
+      {
+        text:
+          'Congratulations on this well-deserved promotion. We take this opportunity to congratulate you and ' +
+          'express our appreciation for your valuable contribution to achieving company objectives. Specific ' +
+          'terms relating to your monthly gross remuneration have been revised from '
+      },
+      { text: 'Rs. ' + currentGross + '/-', bold: true },
+      { text: ' to ' },
+      { text: 'Rs. ' + revisedGross + '/-', bold: true },
+      { text: '.' }
+    ]);
+    doc.moveDown(1.2);
+
+    writeMixed(doc, [
+      { text: 'You shall be eligible for your next increment in ' },
+      { text: incrementYear, bold: true },
+      { text: ', as per company policy.' }
+    ]);
+    doc.moveDown(1.2);
+
+    drawClosing(doc, companyName);
+    drawFooter(doc, companyName, bodyWidth, true);
+
+    doc.end();
+  });
+}
+
+module.exports = { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf };

@@ -2772,10 +2772,8 @@ function formatLongDate(iso) {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-// Increment Letter is the only type with a real generated PDF so far (see
-// letterPdf.js) - Promotion & Increment's own template hasn't been
-// provided yet, so it still falls back to this placeholder note.
-const LETTER_PDF_PLACEHOLDER_NOTE = 'PDF download will be wired up once the letter template is finalised.';
+// Both letter types now have a real generated PDF (see letterPdf.js) -
+// which endpoint/payload shape to use is decided by activeLetterType.
 let lastLetterPayload = null;
 
 document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => {
@@ -2797,35 +2795,44 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   }
   errorEl.hidden = true;
 
-  lastLetterPayload = {
-    title,
-    employeeName: (letterEmployeeContext && letterEmployeeContext.name) || '',
-    employeeId: (letterEmployeeContext && letterEmployeeContext.employeeId) || '',
-    department: toProperCase(letterEmployeeContext && letterEmployeeContext.department),
-    companyName,
-    refNo,
-    currentDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation),
-    currentGross,
-    revisedGross,
-    currentNotice,
-    revisedNotice,
-    effectiveDate,
-    incrementYear
-  };
+  const employeeName = (letterEmployeeContext && letterEmployeeContext.name) || '';
+  const employeeId = (letterEmployeeContext && letterEmployeeContext.employeeId) || '';
+  const department = toProperCase(letterEmployeeContext && letterEmployeeContext.department);
+
+  lastLetterPayload = meta.showDesignation
+    ? {
+        title, employeeName, employeeId, department, companyName, refNo,
+        fromDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation),
+        toDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation),
+        currentGross, revisedGross, effectiveDate, incrementYear
+      }
+    : {
+        title, employeeName, employeeId, department, companyName, refNo,
+        currentDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation),
+        currentGross, revisedGross, currentNotice, revisedNotice, effectiveDate, incrementYear
+      };
 
   document.getElementById('letterSuccessSub').textContent = meta.title + ' has been generated successfully.';
-  document.getElementById('letterSuccessEmployee').textContent = lastLetterPayload.employeeName || '—';
+  document.getElementById('letterSuccessEmployee').textContent = employeeName || '—';
   document.getElementById('letterSuccessType').textContent = meta.title;
   document.getElementById('letterSuccessDate').textContent = formatLongDate(effectiveDate);
-  const noteEl = document.getElementById('letterPdfNote');
-  noteEl.textContent = LETTER_PDF_PLACEHOLDER_NOTE;
-  noteEl.hidden = true;
+  document.getElementById('letterPdfNote').hidden = true;
 
   setView('letterSuccess');
 });
 
+function letterPdfEndpoint() {
+  return activeLetterType === 'promotion_increment'
+    ? '/api/workforce/letters/promotion-increment'
+    : '/api/workforce/letters/increment';
+}
+
+function letterPdfFilenamePrefix() {
+  return activeLetterType === 'promotion_increment' ? 'Promotion_Increment_Letter_' : 'Increment_Letter_';
+}
+
 async function fetchLetterPdfBlob() {
-  const res = await fetch('/api/workforce/letters/increment', {
+  const res = await fetch(letterPdfEndpoint(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(lastLetterPayload)
@@ -2836,11 +2843,6 @@ async function fetchLetterPdfBlob() {
 
 document.getElementById('letterViewPdfBtn').addEventListener('click', async () => {
   const noteEl = document.getElementById('letterPdfNote');
-  if (activeLetterType !== 'increment_only') {
-    noteEl.textContent = LETTER_PDF_PLACEHOLDER_NOTE;
-    noteEl.hidden = false;
-    return;
-  }
   try {
     const blob = await fetchLetterPdfBlob();
     window.open(URL.createObjectURL(blob), '_blank');
@@ -2852,17 +2854,12 @@ document.getElementById('letterViewPdfBtn').addEventListener('click', async () =
 
 document.getElementById('letterDownloadBtn').addEventListener('click', async () => {
   const noteEl = document.getElementById('letterPdfNote');
-  if (activeLetterType !== 'increment_only') {
-    noteEl.textContent = LETTER_PDF_PLACEHOLDER_NOTE;
-    noteEl.hidden = false;
-    return;
-  }
   try {
     const blob = await fetchLetterPdfBlob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Increment_Letter_' + (lastLetterPayload.employeeName || 'letter').replace(/\s+/g, '_') + '.pdf';
+    a.download = letterPdfFilenamePrefix() + (lastLetterPayload.employeeName || 'letter').replace(/\s+/g, '_') + '.pdf';
     document.body.appendChild(a);
     a.click();
     a.remove();

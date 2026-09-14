@@ -538,9 +538,9 @@
       <p class="wf-letter-form-caption">Review the details before generating the final letter.</p>
     </section>
 
-    <!-- Generate Letter, step 3: success. View PDF / Download aren't wired
-         to a real file yet - there's no actual letter template/wording to
-         render, so they show a short note instead of pretending to work. -->
+    <!-- Generate Letter, step 3: success. View PDF / Download fetch and
+         open/save a real generated PDF (see letterPdf.js) - #letterPdfNote
+         only shows up if that request actually fails. -->
     <section id="letterSuccessView" class="wf-view" hidden>
       <div class="wf-page-head">
         <button class="wf-icon-btn" data-back aria-label="Back">
@@ -596,7 +596,7 @@
             <span>Download</span>
           </button>
         </div>
-        <p class="wf-note wf-letter-success-note" id="letterPdfNote" hidden>PDF download will be wired up once the letter template is finalised.</p>
+        <p class="wf-note wf-letter-success-note" id="letterPdfNote" hidden></p>
       </div>
     </section>
 
@@ -1119,6 +1119,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=168"></script>
+  <script src="workforce.js?v=169"></script>
 </body>
 </html>
