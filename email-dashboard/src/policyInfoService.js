@@ -12,12 +12,17 @@ const TAB = 'Policy_Info';
 // Covered/Total Premium were also removed per request - both already exist
 // as their own live, computed KPI cards/breakdown pages elsewhere in Health
 // Insurance, so they didn't belong here as manually-entered fields anyway.
+// Sum Insured is a group heading with no value/edit of its own - just a
+// label - followed by 4 per-collar sub-fields, each independently editable.
 const FIELDS = [
   { key: 'insurerName', label: 'Insurer Name' },
   { key: 'tpaName', label: 'TPA Name' },
   { key: 'policyStartDate', label: 'Policy Start Date' },
   { key: 'policyEndDate', label: 'Policy End Date' },
-  { key: 'sumInsured', label: 'Sum Insured' }
+  { key: 'sumInsuredDirectors', label: 'Directors', group: 'Sum Insured' },
+  { key: 'sumInsuredWhiteCollar', label: 'White Collar', group: 'Sum Insured' },
+  { key: 'sumInsuredBlueCollar', label: 'Blue Collar', group: 'Sum Insured' },
+  { key: 'sumInsuredGroupD', label: 'Group-D', group: 'Sum Insured' }
 ];
 const FIELD_KEYS = new Set(FIELDS.map((f) => f.key));
 

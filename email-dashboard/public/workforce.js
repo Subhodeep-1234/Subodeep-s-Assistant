@@ -1188,7 +1188,10 @@ const POLICY_INFO_FIELD_STYLE = {
   tpaName: { icon: 'building', tone: 'ins-purple' },
   policyStartDate: { icon: 'calendar', tone: 'ins-green' },
   policyEndDate: { icon: 'calendar', tone: 'ins-orange' },
-  sumInsured: { icon: 'money', tone: 'ins-green' }
+  sumInsuredDirectors: { icon: 'money', tone: 'ins-blue' },
+  sumInsuredWhiteCollar: { icon: 'money', tone: 'ins-purple' },
+  sumInsuredBlueCollar: { icon: 'money', tone: 'ins-green' },
+  sumInsuredGroupD: { icon: 'money', tone: 'ins-orange' }
 };
 // Native date pickers for these two so the value they save is always a
 // clean, unambiguous YYYY-MM-DD - policyRenewalInfo() parses these directly
@@ -1212,13 +1215,25 @@ async function loadHiPolicyInfo() {
 }
 
 function renderHiPolicyInfo(fields, values) {
+  // A field's optional `group` (e.g. "Sum Insured") renders as its own
+  // heading - a label only, no value/pencil of its own - right before the
+  // first sub-field that belongs to it.
+  let lastGroup = null;
   document.getElementById('hiPolicyInfoGrid').innerHTML = fields
     .map((f) => {
       const value = values[f.key];
       const isDateField = POLICY_INFO_DATE_FIELDS.has(f.key);
       const displayValue = value ? (isDateField ? formatDate(value) : value) : '—';
       const style = POLICY_INFO_FIELD_STYLE[f.key] || { icon: 'total', tone: 'ins-blue' };
+
+      let groupHeaderHtml = '';
+      if (f.group && f.group !== lastGroup) {
+        groupHeaderHtml = '<div class="hi-policy-info-group-header">' + escapeHtml(f.group) + '</div>';
+      }
+      lastGroup = f.group || null;
+
       return (
+        groupHeaderHtml +
         '<div class="hi-policy-info-field">' +
           '<span class="hi-policy-info-icon tone-' + style.tone + '">' + icon(style.icon, 16) + '</span>' +
           '<span class="hi-policy-info-body">' +
