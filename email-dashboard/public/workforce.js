@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -1142,7 +1142,8 @@ async function loadHealthInsuranceView(forceRefresh) {
       '/api/insurance/family-members',
       '/api/insurance/total-insured-lives',
       '/api/insurance/policy-info',
-      '/api/insurance/family-premium-breakdown'
+      '/api/insurance/family-premium-breakdown',
+      '/api/insurance/annual-premium-breakdown'
     ], 2, 500);
 
     // clickable deliberately omitted (not set to false) - these cards are
@@ -1414,6 +1415,11 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
   if (e.target.closest('[data-kpi="hiFamPremium"]')) {
     setView('hiFamilyPremium');
     loadHiFamilyPremiumBreakdown();
+    return;
+  }
+  if (e.target.closest('[data-kpi="hiAnnualPremium"]')) {
+    setView('hiAnnualPremium');
+    loadHiAnnualPremiumBreakdown();
   }
 });
 
@@ -1812,6 +1818,51 @@ async function loadHiFamilyPremiumBreakdown() {
         .map((key) => (
           '<div class="wf-dist-row">' +
             '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + groupColors[key] + '"></span>' + FAMILY_PREMIUM_GROUP_LABELS[key] + '</span>' +
+            '<span class="wf-dist-num-col">' + data.groups[key].count + '</span>' +
+            '<span class="wf-dist-num-col">₹' + Math.round(data.groups[key].premium).toLocaleString('en-IN') + '</span>' +
+          '</div>'
+        ))
+        .join('') +
+      '<div class="wf-dist-row wf-dist-total-row">' +
+        '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-dist-num-col">' + totalCount + '</span>' +
+        '<span class="wf-dist-num-col">₹' + Math.round(totalPremium).toLocaleString('en-IN') + '</span>' +
+      '</div>';
+  } catch (err) {
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+// ---------- Annual Premium breakdown (Health Insurance drill-down) ----------
+// Same design as Family Premium, but covers every status (Active, Notice
+// Period, Inactive) and includes the Employees group - matching how Annual
+// Premium itself is totalled (see buildHealthInsuranceSummary), so this
+// page's Total always equals the Annual Premium card exactly.
+
+const ANNUAL_PREMIUM_GROUP_LABELS = { employees: 'Employees', spouse: 'Spouse', children: 'Children', parents: 'Parents', other: 'Other' };
+
+async function loadHiAnnualPremiumBreakdown() {
+  const rowsEl = document.getElementById('hiAnnualPremiumRows');
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetchJson('/api/insurance/annual-premium-breakdown');
+    // Same colors as Coverage Overview's own donut/legend.
+    const c = chartColors();
+    const groupColors = { employees: c.accent, spouse: c.warning, children: c.candidate, parents: c.important, other: c.muted };
+    const groupKeys = Object.keys(ANNUAL_PREMIUM_GROUP_LABELS).filter((k) => k !== 'other' || data.groups.other.count > 0);
+    const totalCount = groupKeys.reduce((sum, k) => sum + data.groups[k].count, 0);
+    const totalPremium = groupKeys.reduce((sum, k) => sum + data.groups[k].premium, 0);
+
+    rowsEl.innerHTML =
+      '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Relationship</span>' +
+        '<span class="wf-dist-num-col">Members</span>' +
+        '<span class="wf-dist-num-col">Total Premium</span>' +
+      '</div>' +
+      groupKeys
+        .map((key) => (
+          '<div class="wf-dist-row">' +
+            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + groupColors[key] + '"></span>' + ANNUAL_PREMIUM_GROUP_LABELS[key] + '</span>' +
             '<span class="wf-dist-num-col">' + data.groups[key].count + '</span>' +
             '<span class="wf-dist-num-col">₹' + Math.round(data.groups[key].premium).toLocaleString('en-IN') + '</span>' +
           '</div>'

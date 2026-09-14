@@ -103,6 +103,20 @@ router.get('/family-premium-breakdown', async (req, res) => {
   }
 });
 
+// Count + total premium per relationship group, across every member
+// regardless of status - the Annual Premium drill-down (Annual Premium
+// itself is the one figure that isn't Active-only, see
+// buildHealthInsuranceSummary's own comment on it).
+router.get('/annual-premium-breakdown', async (req, res) => {
+  try {
+    const insuranceData = await insuranceService.getInsuranceData({ forceRefresh: wantsForceRefresh(req) });
+    const groups = analytics.buildAnnualPremiumBreakdown(insuranceData.members);
+    res.json({ groups });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Every Active member (Self + family) flat - the Total Insured Lives
 // drill-down.
 router.get('/total-insured-lives', async (req, res) => {

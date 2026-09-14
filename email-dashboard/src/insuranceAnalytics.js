@@ -135,6 +135,31 @@ function buildFamilyPremiumBreakdown(members) {
   return groups;
 }
 
+// Count + total premium per relationship group (Employees/Spouse/Children/
+// Parents/Other), across every member regardless of status - the Annual
+// Premium drill-down. Unlike buildFamilyPremiumBreakdown, this includes the
+// Employees (Self) group and isn't Active-only, matching how annualPremium
+// itself is summed in buildHealthInsuranceSummary (every status, not just
+// Active) - so this breakdown's total always matches the Annual Premium
+// card exactly.
+function buildAnnualPremiumBreakdown(members) {
+  const groups = {
+    employees: { count: 0, premium: 0 },
+    spouse: { count: 0, premium: 0 },
+    children: { count: 0, premium: 0 },
+    parents: { count: 0, premium: 0 },
+    other: { count: 0, premium: 0 }
+  };
+
+  members.forEach((m) => {
+    const group = relationshipGroup(m.relationship);
+    groups[group].count += 1;
+    groups[group].premium += m.premiumWithGST;
+  });
+
+  return groups;
+}
+
 // Every Active member (Self + family) flat, one row each - the Total
 // Insured Lives drill-down.
 function buildTotalInsuredLivesList(members) {
@@ -238,6 +263,7 @@ module.exports = {
   buildCoveredEmployeesList,
   buildFamilyMembersList,
   buildFamilyPremiumBreakdown,
+  buildAnnualPremiumBreakdown,
   buildTotalInsuredLivesList,
   buildExitsList,
   sortDeletionsSelfFirst,
