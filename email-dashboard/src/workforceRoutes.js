@@ -96,6 +96,18 @@ router.get('/filters', async (req, res) => {
   }
 });
 
+// Company Name dropdown on Generate Letter's forms - the MASTER tab's own
+// company list (column Q), not Employee_Master's per-employee Company
+// column, since the user wants the sheet's maintained master list here.
+router.get('/companies', async (req, res) => {
+  try {
+    const companies = await employeeService.getCompanyList();
+    res.json({ companies });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 function matchesFilters(emp, query, normalizeKey) {
   if (query.status && emp.status !== String(query.status).toUpperCase()) return false;
   if (query.department && emp.departmentKey !== normalizeKey(query.department)) return false;

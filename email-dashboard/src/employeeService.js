@@ -213,9 +213,44 @@ function getConfigStatus() {
   };
 }
 
+// The Company Name dropdown on Generate Letter's forms - a separate tab
+// (row 1 is just the "Company" header) from Employee_Master, own tiny
+// cache rather than piggybacking on the employee cache above since it's
+// a completely different range/shape.
+const COMPANY_LIST_TAB = 'MASTER';
+const COMPANY_LIST_RANGE = `'${COMPANY_LIST_TAB}'!Q2:Q`;
+let companyListCache = { companies: null, fetchedAt: 0 };
+let companyListInFlight = null;
+
+function refreshCompanyListCache() {
+  if (companyListInFlight) return companyListInFlight;
+  companyListInFlight = (async () => {
+    const sheets = getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: COMPANY_LIST_RANGE });
+    const companies = (res.data.values || [])
+      .map((r) => (r[0] || '').trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+    companyListCache = { companies, fetchedAt: Date.now() };
+    return companyListCache;
+  })();
+  return companyListInFlight.finally(() => {
+    companyListInFlight = null;
+  });
+}
+
+async function getCompanyList() {
+  const hasCache = Boolean(companyListCache.companies);
+  const isStale = !hasCache || Date.now() - companyListCache.fetchedAt >= CACHE_TTL_MS;
+  if (!hasCache) return (await refreshCompanyListCache()).companies;
+  if (isStale) refreshCompanyListCache().catch(() => {});
+  return companyListCache.companies;
+}
+
 module.exports = {
   getEmployeeData,
   getConfigStatus,
   normalizeKey,
+  getCompanyList,
   CACHE_TTL_MS
 };

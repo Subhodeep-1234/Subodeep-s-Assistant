@@ -2710,6 +2710,7 @@ function openLetterForm(type) {
   // anywhere in the sheets - fresh, blank manual-entry fields every time
   // the form is opened, rather than carrying over a previous letter's
   // leftover values.
+  document.getElementById('letterFormTitle').value = 'Mr.';
   document.getElementById('letterFormCurrentGross').value = '';
   document.getElementById('letterFormRevisedGross').value = '';
   document.getElementById('letterFormCurrentNotice').value = '';
@@ -2721,8 +2722,30 @@ function openLetterForm(type) {
     .map((y) => '<option value="' + y + '">' + y + '</option>')
     .join('');
   document.getElementById('letterFormError').hidden = true;
+  populateCompanyDropdown();
 
   setView('letterForm');
+}
+
+// Company Name dropdown - the MASTER tab's own maintained company list
+// (see employeeService.getCompanyList), fetched once and reused rather
+// than re-fetched on every visit to the form.
+let companyListCache = null;
+async function populateCompanyDropdown() {
+  const select = document.getElementById('letterFormCompanyName');
+  try {
+    if (!companyListCache) {
+      const data = await fetchJson('/api/workforce/companies');
+      companyListCache = data.companies;
+    }
+    // Blank every time the form opens, same as every other manual-entry
+    // field here - not carried over from whatever was picked last time.
+    select.innerHTML =
+      '<option value="">Select</option>' +
+      companyListCache.map((c) => '<option>' + escapeHtml(c) + '</option>').join('');
+  } catch (err) {
+    select.innerHTML = '<option value="">Select</option>';
+  }
 }
 
 // The sheet stores designations in ALL CAPS ("ASSISTANT MANAGER") - fine
@@ -2739,12 +2762,13 @@ function formatLongDate(iso) {
 }
 
 document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => {
+  const companyName = document.getElementById('letterFormCompanyName').value;
   const currentGross = document.getElementById('letterFormCurrentGross').value.trim();
   const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
   const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
   const errorEl = document.getElementById('letterFormError');
-  if (!currentGross || !revisedGross || !effectiveDate) {
-    errorEl.textContent = 'Please fill in Compensation and Effective Date before generating the letter.';
+  if (!companyName || !currentGross || !revisedGross || !effectiveDate) {
+    errorEl.textContent = 'Please fill in Company Name, Compensation, and Effective Date before generating the letter.';
     errorEl.hidden = false;
     return;
   }
