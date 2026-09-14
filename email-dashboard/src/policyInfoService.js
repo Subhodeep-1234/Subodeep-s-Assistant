@@ -8,15 +8,16 @@ const { getSheetsClient } = require('./sheetsAuth');
 const TRACKER_SHEET_ID = process.env.MOVEMENT_TRACKER_SHEET_ID || '1cvPSC1djocn2mLkccUX9Q2euAU0DwOQBPlssPWeWgWY';
 const TAB = 'Policy_Info';
 
-// Deliberately no Policy Number field, per explicit request.
+// Deliberately no Policy Number field, per explicit request. Total Employees
+// Covered/Total Premium were also removed per request - both already exist
+// as their own live, computed KPI cards/breakdown pages elsewhere in Health
+// Insurance, so they didn't belong here as manually-entered fields anyway.
 const FIELDS = [
   { key: 'insurerName', label: 'Insurer Name' },
   { key: 'tpaName', label: 'TPA Name' },
   { key: 'policyStartDate', label: 'Policy Start Date' },
   { key: 'policyEndDate', label: 'Policy End Date' },
-  { key: 'sumInsured', label: 'Sum Insured' },
-  { key: 'totalEmployeesCovered', label: 'Total Employees Covered' },
-  { key: 'totalPremium', label: 'Total Premium' }
+  { key: 'sumInsured', label: 'Sum Insured' }
 ];
 const FIELD_KEYS = new Set(FIELDS.map((f) => f.key));
 

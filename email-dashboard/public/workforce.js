@@ -1188,9 +1188,7 @@ const POLICY_INFO_FIELD_STYLE = {
   tpaName: { icon: 'building', tone: 'ins-purple' },
   policyStartDate: { icon: 'calendar', tone: 'ins-green' },
   policyEndDate: { icon: 'calendar', tone: 'ins-orange' },
-  sumInsured: { icon: 'money', tone: 'ins-green' },
-  totalEmployeesCovered: { icon: 'total', tone: 'ins-blue' },
-  totalPremium: { icon: 'money', tone: 'ins-red' }
+  sumInsured: { icon: 'money', tone: 'ins-green' }
 };
 // Native date pickers for these two so the value they save is always a
 // clean, unambiguous YYYY-MM-DD - policyRenewalInfo() parses these directly
