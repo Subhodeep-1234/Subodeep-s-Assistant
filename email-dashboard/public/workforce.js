@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterType', 'letterForm', 'letterSuccess'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterType', 'letterForm', 'letterSuccess', 'letterGenerator'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -330,6 +330,17 @@ function setView(view, opts = {}) {
     document.getElementById('orgChartContent').innerHTML = '';
     document.getElementById('exportOrgChartPdf').hidden = true;
   }
+  if (view === 'letterGenerator') {
+    // Same idea - the active-employee list itself is fetched once and
+    // cached (see loadLetterGeneratorView), but the picked type/employee
+    // shouldn't carry over from a previous visit.
+    document.getElementById('letterGenType').value = '';
+    document.getElementById('letterGenEmployeeSearch').value = '';
+    document.getElementById('letterGenEmployeeId').value = '';
+    document.getElementById('letterGenEmployeeList').hidden = true;
+    document.getElementById('letterGenError').hidden = true;
+    document.getElementById('letterGenNote').hidden = true;
+  }
   // All views live in the same scrolling document (sections are toggled via
   // [hidden], not real navigation), so the old scroll position otherwise
   // carries over - e.g. leaving a long list scrolled down, then reopening
@@ -356,6 +367,7 @@ function loadView(view, forceRefresh) {
   if (view === 'genderDistribution') return loadGenderDistributionView();
   if (view === 'profile') return loadProfile();
   if (view === 'movement') return loadMovementView();
+  if (view === 'letterGenerator') return loadLetterGeneratorView();
   // exit / attrition are static "not available" panels — nothing to fetch.
   return Promise.resolve();
 }
@@ -2868,6 +2880,92 @@ document.getElementById('letterDownloadBtn').addEventListener('click', async () 
     noteEl.textContent = err.message;
     noteEl.hidden = false;
   }
+});
+
+// ---------- Letter Generator (general entry point) ----------
+
+// Fetched once per session and cached - active employees only, per
+// explicit request (an exited employee has no business getting an HR
+// letter generated for them from this picker).
+let letterGenActiveEmployees = null;
+
+async function loadLetterGeneratorView() {
+  try {
+    const data = await fetchJson('/api/workforce/employees?status=ACTIVE');
+    letterGenActiveEmployees = data.items;
+  } catch (err) {
+    letterGenActiveEmployees = [];
+  }
+}
+
+function renderLetterGenEmployeeList(query) {
+  const listEl = document.getElementById('letterGenEmployeeList');
+  if (!letterGenActiveEmployees) {
+    listEl.innerHTML = '<li class="empty">Loading…</li>';
+    listEl.hidden = false;
+    return;
+  }
+  const needle = query.trim().toLowerCase();
+  const matches = (needle
+    ? letterGenActiveEmployees.filter((e) =>
+        (e.name || '').toLowerCase().includes(needle) || (e.employeeId || '').toLowerCase().includes(needle)
+      )
+    : letterGenActiveEmployees
+  ).slice(0, 50);
+
+  listEl.innerHTML = matches.length
+    ? matches
+        .map(
+          (e) =>
+            '<li data-employee-id="' + escapeHtml(e.employeeId) + '" data-employee-name="' + escapeHtml(e.name) + '">' +
+              escapeHtml(e.name) +
+              '<span class="wf-emp-picker-sub">' + escapeHtml(e.employeeId) + (e.designation ? ' · ' + escapeHtml(e.designation) : '') + '</span>' +
+            '</li>'
+        )
+        .join('')
+    : '<li class="empty">No matching active employees</li>';
+  listEl.hidden = false;
+}
+
+const letterGenEmployeeSearch = document.getElementById('letterGenEmployeeSearch');
+letterGenEmployeeSearch.addEventListener('input', () => {
+  // Typing invalidates whatever was previously picked - Proceed re-checks
+  // the hidden id, so a typed-but-not-selected name can't sneak through.
+  document.getElementById('letterGenEmployeeId').value = '';
+  renderLetterGenEmployeeList(letterGenEmployeeSearch.value);
+});
+letterGenEmployeeSearch.addEventListener('focus', () => renderLetterGenEmployeeList(letterGenEmployeeSearch.value));
+
+document.getElementById('letterGenEmployeeList').addEventListener('click', (e) => {
+  const row = e.target.closest('li[data-employee-id]');
+  if (!row) return;
+  document.getElementById('letterGenEmployeeId').value = row.dataset.employeeId;
+  letterGenEmployeeSearch.value = row.dataset.employeeName;
+  document.getElementById('letterGenEmployeeList').hidden = true;
+});
+
+document.addEventListener('click', (e) => {
+  const picker = document.getElementById('letterGenEmployeePicker');
+  if (!picker.contains(e.target)) document.getElementById('letterGenEmployeeList').hidden = true;
+});
+
+document.getElementById('letterGenProceedBtn').addEventListener('click', () => {
+  const type = document.getElementById('letterGenType').value;
+  const employeeId = document.getElementById('letterGenEmployeeId').value;
+  const errorEl = document.getElementById('letterGenError');
+  const noteEl = document.getElementById('letterGenNote');
+  noteEl.hidden = true;
+  if (!type || !employeeId) {
+    errorEl.textContent = 'Please select both a letter type and an employee before proceeding.';
+    errorEl.hidden = false;
+    return;
+  }
+  errorEl.hidden = true;
+  // What each letter type actually does next (its own form, its own PDF)
+  // is wired up separately, type by type - same incremental approach as
+  // Promotions' own Generate Letter flow.
+  noteEl.textContent = 'Generating a "' + type + '" letter isn’t wired up yet from here - tell me what should happen next for this type.';
+  noteEl.hidden = false;
 });
 
 function renderMovementTab(tab) {

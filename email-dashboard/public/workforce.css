@@ -1872,3 +1872,42 @@ body {
 .wf-letter-outline-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wf-letter-success-note { margin-top: 14px; font-size: 0.76rem; }
 .wf-letter-success-note[hidden] { display: none; }
+
+/* Letter Generator's employee picker - a search box + a floating results
+   list (native <select> can't have a search box inside it), restricted to
+   active employees only. */
+.wf-emp-picker { position: relative; }
+.wf-emp-picker input[type="text"] {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.wf-emp-picker input[type="text"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.wf-emp-picker-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 6px 16px var(--shadow);
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  z-index: 20;
+}
+.wf-emp-picker-list[hidden] { display: none; }
+.wf-emp-picker-list li { padding: 9px 12px; cursor: pointer; font-size: 0.85rem; color: var(--ink); }
+.wf-emp-picker-list li:hover, .wf-emp-picker-list li.active { background: var(--accent-bg); color: var(--accent); }
+.wf-emp-picker-sub { display: block; font-size: 0.72rem; color: var(--muted); }
+.wf-emp-picker-list li:hover .wf-emp-picker-sub, .wf-emp-picker-list li.active .wf-emp-picker-sub { color: inherit; opacity: 0.8; }
+.wf-emp-picker-list li.empty { color: var(--muted); cursor: default; }
+.wf-emp-picker-list li.empty:hover { background: none; color: var(--muted); }
