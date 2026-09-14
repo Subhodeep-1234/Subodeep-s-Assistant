@@ -102,7 +102,10 @@ function buildIncrementLetterPdf(fields) {
 
     // Subject - centered, bold, underlined.
     doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE).text('SUB: - Increment letter', { align: 'center', underline: true });
-    doc.moveDown(1.5);
+    // Extra gap here (vs. the other section gaps) - the page had a lot of
+    // unused space at the bottom, so the rest of the letter is pushed down
+    // rather than sitting bunched up at the top.
+    doc.moveDown(3.5);
 
     // Salutation.
     doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE).text('Dear ' + title + ' ' + employeeName + ',');
@@ -148,7 +151,9 @@ function buildIncrementLetterPdf(fields) {
     doc.moveDown(2.5);
 
     writeMixed(doc, [{ text: 'For ' }, { text: companyName, bold: true }]);
-    doc.moveDown(2.5);
+    // Wider gap - room for an actual pen signature between the company
+    // name and "(Authorized Signatory)".
+    doc.moveDown(6);
 
     doc.font(BODY_FONT_ITALIC).fontSize(BODY_SIZE).text('(Authorized Signatory)');
 
