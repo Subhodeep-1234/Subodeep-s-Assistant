@@ -91,6 +91,18 @@ router.get('/family-members', async (req, res) => {
   }
 });
 
+// Count + total premium per family relationship group (Spouse/Children/
+// Parents/Other) - the Family Premium drill-down.
+router.get('/family-premium-breakdown', async (req, res) => {
+  try {
+    const insuranceData = await insuranceService.getInsuranceData({ forceRefresh: wantsForceRefresh(req) });
+    const groups = analytics.buildFamilyPremiumBreakdown(insuranceData.members);
+    res.json({ groups });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Every Active member (Self + family) flat - the Total Insured Lives
 // drill-down.
 router.get('/total-insured-lives', async (req, res) => {

@@ -113,6 +113,28 @@ function buildFamilyMembersList(members) {
     .sort((a, b) => a.employeeId.localeCompare(b.employeeId));
 }
 
+// Count + total premium per family relationship group (Spouse/Children/
+// Parents/Other) - the Family Premium drill-down. Self rows are excluded
+// entirely (that's Employee Premium's own figure, not part of this).
+function buildFamilyPremiumBreakdown(members) {
+  const activeMembers = members.filter((m) => m.status === 'Active');
+  const groups = {
+    spouse: { count: 0, premium: 0 },
+    children: { count: 0, premium: 0 },
+    parents: { count: 0, premium: 0 },
+    other: { count: 0, premium: 0 }
+  };
+
+  activeMembers.forEach((m) => {
+    const group = relationshipGroup(m.relationship);
+    if (group === 'employees') return; // Self - not part of the family premium breakdown
+    groups[group].count += 1;
+    groups[group].premium += m.premiumWithGST;
+  });
+
+  return groups;
+}
+
 // Every Active member (Self + family) flat, one row each - the Total
 // Insured Lives drill-down.
 function buildTotalInsuredLivesList(members) {
@@ -215,6 +237,7 @@ module.exports = {
   buildHealthInsuranceSummary,
   buildCoveredEmployeesList,
   buildFamilyMembersList,
+  buildFamilyPremiumBreakdown,
   buildTotalInsuredLivesList,
   buildExitsList,
   sortDeletionsSelfFirst,

@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'ageDistribution', 'genderDistribution', 'profile'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -1141,7 +1141,8 @@ async function loadHealthInsuranceView(forceRefresh) {
       '/api/insurance/exits',
       '/api/insurance/family-members',
       '/api/insurance/total-insured-lives',
-      '/api/insurance/policy-info'
+      '/api/insurance/policy-info',
+      '/api/insurance/family-premium-breakdown'
     ], 2, 500);
 
     // clickable deliberately omitted (not set to false) - these cards are
@@ -1408,6 +1409,11 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
   if (e.target.closest('[data-kpi="hiPolicyInfo"]')) {
     setView('hiPolicyInfo');
     loadHiPolicyInfo();
+    return;
+  }
+  if (e.target.closest('[data-kpi="hiFamPremium"]')) {
+    setView('hiFamilyPremium');
+    loadHiFamilyPremiumBreakdown();
   }
 });
 
@@ -1774,6 +1780,47 @@ document.getElementById('hiTlClearFilters').addEventListener('click', () => {
   document.getElementById('hiTlRelationFilter').value = '';
   applyHiTotalLivesFilters();
 });
+
+// ---------- Family Premium breakdown (Health Insurance drill-down) ----------
+// Same distribution-table design as Age/Gender Distribution/Tenure, minus
+// the donut chart underneath, per explicit request.
+
+const FAMILY_PREMIUM_GROUP_LABELS = { spouse: 'Spouse', children: 'Children', parents: 'Parents', other: 'Other' };
+
+async function loadHiFamilyPremiumBreakdown() {
+  const rowsEl = document.getElementById('hiFamilyPremiumRows');
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetchJson('/api/insurance/family-premium-breakdown');
+    const palette = distributionPalette();
+    const groupKeys = Object.keys(FAMILY_PREMIUM_GROUP_LABELS).filter((k) => k !== 'other' || data.groups.other.count > 0);
+    const totalCount = groupKeys.reduce((sum, k) => sum + data.groups[k].count, 0);
+    const totalPremium = groupKeys.reduce((sum, k) => sum + data.groups[k].premium, 0);
+
+    rowsEl.innerHTML =
+      '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Relationship</span>' +
+        '<span class="wf-dist-num-col">Members</span>' +
+        '<span class="wf-dist-num-col">Total Premium</span>' +
+      '</div>' +
+      groupKeys
+        .map((key, i) => (
+          '<div class="wf-dist-row">' +
+            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + FAMILY_PREMIUM_GROUP_LABELS[key] + '</span>' +
+            '<span class="wf-dist-num-col">' + data.groups[key].count + '</span>' +
+            '<span class="wf-dist-num-col">₹' + Math.round(data.groups[key].premium).toLocaleString('en-IN') + '</span>' +
+          '</div>'
+        ))
+        .join('') +
+      '<div class="wf-dist-row wf-dist-total-row">' +
+        '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-dist-num-col">' + totalCount + '</span>' +
+        '<span class="wf-dist-num-col">₹' + Math.round(totalPremium).toLocaleString('en-IN') + '</span>' +
+      '</div>';
+  } catch (err) {
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
 
 // ---------- Exits (Health Insurance drill-down, from the Deletions tab) ----------
 
