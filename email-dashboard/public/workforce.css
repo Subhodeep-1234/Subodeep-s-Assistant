@@ -1683,30 +1683,9 @@ body {
 }
 
 /* "Generate Letter" entry point, shown only on the Promotions movement-detail
-   page (see generateLetterBtn.hidden in loadMovementDetail) - a full-width
-   accent pill above that list rather than another plain kpi/panel row, so it
-   reads as an action, not another stat. */
-.wf-generate-letter-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: none;
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin: 14px 0;
-  font: inherit;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 6px 14px var(--shadow);
-}
-.wf-generate-letter-btn[hidden] { display: none; }
-.wf-generate-letter-btn svg:last-child { margin-left: auto; }
-.wf-generate-letter-icon { display: flex; }
-.wf-generate-letter-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+   page (see generateLetterBtn.hidden in loadMovementDetail) - reuses
+   .wf-send-mail-btn's small inline pill look (same as Health Insurance
+   Exits' own "Send Mail" button) instead of a full-width bar. */
 
 /* Select Letter Type screen (step 1 of Generate Letter) - a heading, two
    single-select cards, and a Proceed button pinned to the bottom of its own

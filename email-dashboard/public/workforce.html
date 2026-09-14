@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=74" />
+  <link rel="stylesheet" href="workforce.css?v=75" />
 </head>
 <body>
   <div class="wf-shell">
@@ -353,19 +353,17 @@
         </button>
         <h2 id="movementDetailTitle">Inter-Department Transfers</h2>
       </div>
-      <!-- Only shown for Promotions (movementDetailType === 'designation') -
-           lets HR jump straight from the Promotions list into generating a
-           Promotion & Increment / Increment-only letter. -->
-      <button type="button" class="wf-generate-letter-btn" id="generateLetterBtn" hidden>
-        <span class="wf-generate-letter-icon">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
-        </span>
-        <span>Generate Letter</span>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </button>
-
       <div class="wf-panel">
-        <p class="wf-note" id="movementDetailCount" style="margin-top:0; margin-bottom:10px;"></p>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+          <p class="wf-note" id="movementDetailCount" style="margin:0;"></p>
+          <!-- Only shown for Promotions (movementDetailType === 'designation') -
+               lets HR jump straight from the Promotions list into generating a
+               Promotion & Increment / Increment-only letter. -->
+          <button type="button" class="wf-send-mail-btn" id="generateLetterBtn" hidden>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+            <span>Generate Letter</span>
+          </button>
+        </div>
         <ul class="wf-join-list" id="movementDetailList">
           <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
         </ul>
