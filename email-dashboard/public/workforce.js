@@ -1268,7 +1268,10 @@ function renderHiPolicyInfo(fields, values) {
       }
       return (
         '<div class="hi-policy-info-field hi-policy-info-group-box">' +
-          '<span class="hi-policy-info-label hi-policy-info-group-title">' + escapeHtml(block.group) + '</span>' +
+          '<span class="hi-policy-info-group-title-row">' +
+            '<span class="hi-policy-info-icon tone-ins-green">' + icon('money', 16) + '</span>' +
+            '<span class="hi-policy-info-label hi-policy-info-group-title">' + escapeHtml(block.group) + '</span>' +
+          '</span>' +
           '<div class="hi-policy-info-subgrid">' +
             block.fields
               .map((f) => '<span class="hi-policy-info-subfield">' + policyInfoSubfieldHtml(f, values) + '</span>')

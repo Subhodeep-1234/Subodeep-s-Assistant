@@ -505,6 +505,7 @@ body {
   align-items: stretch;
   gap: 8px;
 }
+.hi-policy-info-group-title-row { display: flex; align-items: center; gap: 10px; }
 .hi-policy-info-group-title { font-size: 0.85rem; color: var(--ink); margin-bottom: 0; }
 .hi-policy-info-subgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
 .hi-policy-info-subfield { min-width: 0; }
