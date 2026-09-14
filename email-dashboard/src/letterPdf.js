@@ -44,6 +44,40 @@ function writeMixed(doc, segments) {
   });
 }
 
+// The notice-period clause is only meaningful when both halves of it are
+// actually set - if HR leaves that section on "Select" (either or both),
+// the whole clause (starting at "&") is left out rather than showing a
+// half-finished sentence.
+function revisedCompSegments({ currentGrossText, revisedGrossText, currentNotice, revisedNotice, dateStr }) {
+  const segments = [
+    { text: currentGrossText, bold: true },
+    { text: ' to ' },
+    { text: revisedGrossText, bold: true }
+  ];
+  if (currentNotice && revisedNotice) {
+    segments.push(
+      { text: ' & accordingly your notice period has been revised to ' },
+      { text: revisedNotice, bold: true },
+      { text: ' instead of ' + currentNotice + ', effective from ' + dateStr + '.' }
+    );
+  } else {
+    segments.push({ text: '.' });
+  }
+  return segments;
+}
+
+// Same idea for "Eligible for next Increment" - left on "Select", the
+// entire sentence (not just the year) is omitted.
+function drawIncrementYearParagraph(doc, incrementYear) {
+  if (!incrementYear) return;
+  writeMixed(doc, [
+    { text: 'You shall be eligible for your next increment in ' },
+    { text: incrementYear, bold: true },
+    { text: ', as per company policy.' }
+  ]);
+  doc.moveDown(1.2);
+}
+
 // Shared by both letters - identical wording/spacing in both templates,
 // only the signing company name changes.
 function drawClosing(doc, companyName) {
@@ -162,21 +196,17 @@ function buildIncrementLetterPdf(fields) {
           'express our appreciation for your valuable contribution to achieving company objectives. Specific ' +
           'terms relating to your monthly gross remuneration have been revised from '
       },
-      { text: 'Rs. ' + currentGross + ' /-', bold: true },
-      { text: ' to ' },
-      { text: 'Rs. ' + revisedGross + '/-', bold: true },
-      { text: ' & accordingly your notice period has been revised to ' },
-      { text: revisedNotice, bold: true },
-      { text: ' instead of ' + currentNotice + ', effective from ' + dateStr + '.' }
+      ...revisedCompSegments({
+        currentGrossText: 'Rs. ' + currentGross + ' /-',
+        revisedGrossText: 'Rs. ' + revisedGross + '/-',
+        currentNotice,
+        revisedNotice,
+        dateStr
+      })
     ]);
     doc.moveDown(1.2);
 
-    writeMixed(doc, [
-      { text: 'You shall be eligible for your next increment in ' },
-      { text: incrementYear, bold: true },
-      { text: ', as per company policy.' }
-    ]);
-    doc.moveDown(1.2);
+    drawIncrementYearParagraph(doc, incrementYear);
 
     drawClosing(doc, companyName);
     drawFooter(doc, companyName, bodyWidth, false);
@@ -277,21 +307,17 @@ function buildPromotionIncrementLetterPdf(fields) {
           'express our appreciation for your valuable contribution to achieving company objectives. Specific ' +
           'terms relating to your monthly gross remuneration have been revised from '
       },
-      { text: 'Rs. ' + currentGross + '/-', bold: true },
-      { text: ' to ' },
-      { text: 'Rs. ' + revisedGross + '/-', bold: true },
-      { text: ' & accordingly your notice period has been revised to ' },
-      { text: revisedNotice, bold: true },
-      { text: ' instead of ' + currentNotice + ', effective from ' + dateStr + '.' }
+      ...revisedCompSegments({
+        currentGrossText: 'Rs. ' + currentGross + '/-',
+        revisedGrossText: 'Rs. ' + revisedGross + '/-',
+        currentNotice,
+        revisedNotice,
+        dateStr
+      })
     ]);
     doc.moveDown(1.2);
 
-    writeMixed(doc, [
-      { text: 'You shall be eligible for your next increment in ' },
-      { text: incrementYear, bold: true },
-      { text: ', as per company policy.' }
-    ]);
-    doc.moveDown(1.2);
+    drawIncrementYearParagraph(doc, incrementYear);
 
     drawClosing(doc, companyName);
     drawFooter(doc, companyName, bodyWidth, true);
