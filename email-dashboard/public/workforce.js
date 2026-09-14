@@ -2717,7 +2717,7 @@ function openLetterForm(type) {
   document.getElementById('letterFormEffectiveDate').value = '';
   const yearSelect = document.getElementById('letterFormIncrementYear');
   const currentYear = new Date().getFullYear();
-  yearSelect.innerHTML = [currentYear, currentYear + 1, currentYear + 2]
+  yearSelect.innerHTML = [currentYear, currentYear + 1, currentYear + 2, currentYear + 3]
     .map((y) => '<option value="' + y + '">' + y + '</option>')
     .join('');
   document.getElementById('letterFormError').hidden = true;
