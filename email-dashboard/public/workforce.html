@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=75" />
+  <link rel="stylesheet" href="workforce.css?v=76" />
 </head>
 <body>
   <div class="wf-shell">
@@ -354,15 +354,12 @@
         <h2 id="movementDetailTitle">Inter-Department Transfers</h2>
       </div>
       <div class="wf-panel">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+        <div class="wf-movement-count-row">
           <p class="wf-note" id="movementDetailCount" style="margin:0;"></p>
           <!-- Only shown for Promotions (movementDetailType === 'designation') -
-               lets HR jump straight from the Promotions list into generating a
-               Promotion & Increment / Increment-only letter. -->
-          <button type="button" class="wf-send-mail-btn" id="generateLetterBtn" hidden>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
-            <span>Generate Letter</span>
-          </button>
+               clicking a name in the list below is how a letter gets
+               generated now, so this just points HR at that. -->
+          <p class="wf-generate-letter-hint" id="movementDetailHint" hidden>To generate the letter, kindly click on the employee name.</p>
         </div>
         <ul class="wf-join-list" id="movementDetailList">
           <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
@@ -937,6 +934,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=158"></script>
+  <script src="workforce.js?v=159"></script>
 </body>
 </html>

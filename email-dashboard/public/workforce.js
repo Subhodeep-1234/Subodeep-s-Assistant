@@ -2519,7 +2519,14 @@ const MOVEMENT_TYPES = {
   designation: {
     kpiKey: 'promotions', label: 'Promotions', tone: 'move-green', icon: 'star',
     endpoint: '/api/workforce/promotions', fromKey: 'fromDesignation', toKey: 'toDesignation',
-    noun: 'change', clickTitle: 'View who changed designation', emptyText: 'No designation changes in the last 12 months'
+    noun: 'promotion', clickTitle: 'View who was promoted', emptyText: 'No promotions recorded yet',
+    // Every other movement type stays windowed to the last 12 months - this
+    // one deliberately isn't, since HR needs the complete promotions list
+    // (not just a recent slice) to generate letters from. 3650 is the
+    // server route's own max (see workforceRoutes.js), effectively "all of
+    // it" given the tracker log only started recording a few days ago.
+    daysCap: 3650,
+    lettersEnabled: true
   },
   company: {
     kpiKey: 'exit', label: 'Company Transfers', tone: 'move-red', icon: 'transfer',
@@ -2540,11 +2547,12 @@ async function renderMovementBreakdown() {
 
   await Promise.all(Object.entries(MOVEMENT_TYPES).map(async ([type, m]) => {
     try {
-      const data = await fetchJson(m.endpoint + '?days=365');
+      const days = m.daysCap || 365;
+      const data = await fetchJson(m.endpoint + '?days=' + days);
       // loadMovementDetail fetches this exact same URL when its card is
       // clicked - hand it the response already in hand instead of a second
-      // round trip for the same 12-month tracker data.
-      jsonPrefetchCache.set(m.endpoint + '?days=365', Promise.resolve(data));
+      // round trip for the same tracker data.
+      jsonPrefetchCache.set(m.endpoint + '?days=' + days, Promise.resolve(data));
       const card = document.querySelector('#movementBreakdownGrid [data-kpi="' + m.kpiKey + '"]');
       if (card) {
         card.outerHTML = kpiCard({
@@ -2579,20 +2587,27 @@ async function loadMovementDetail() {
   document.getElementById('movementDetailTitle').textContent = meta.label;
   // Generate Letter only makes sense for Promotions - the other three
   // movement types (department/company/location transfers) have no letter
-  // to generate.
-  document.getElementById('generateLetterBtn').hidden = movementDetailType !== 'designation';
+  // to generate, and their rows stay plain/non-clickable.
+  document.getElementById('movementDetailHint').hidden = !meta.lettersEnabled;
   const listEl = document.getElementById('movementDetailList');
   listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
   try {
-    const data = await fetchJson(meta.endpoint + '?days=365');
+    const days = meta.daysCap || 365;
+    const data = await fetchJson(meta.endpoint + '?days=' + days);
     const items = data.items.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-    document.getElementById('movementDetailCount').textContent =
-      data.total + ' ' + meta.noun + (data.total === 1 ? '' : 's') + ' in the last 12 months';
+    document.getElementById('movementDetailCount').textContent = meta.lettersEnabled
+      // Promotions isn't windowed to 12 months (see daysCap above), so the
+      // count shouldn't claim it is either.
+      ? data.total + ' ' + meta.noun + (data.total === 1 ? '' : 's')
+      : data.total + ' ' + meta.noun + (data.total === 1 ? '' : 's') + ' in the last 12 months';
     listEl.innerHTML = items.length
       ? items.map((it) => {
           const badge = joinDateBadge(it.date);
+          const clickableAttrs = meta.lettersEnabled
+            ? ' class="clickable" tabindex="0" role="button" data-employee-id="' + escapeHtml(it.employeeId) + '"'
+            : '';
           return (
-            '<li>' +
+            '<li' + clickableAttrs + '>' +
               '<span class="wf-join-badge-wrap">' +
                 '<span class="wf-join-badge"><b>' + badge.day + '</b><span>' + badge.month + '</span></span>' +
               '</span>' +
@@ -2613,8 +2628,22 @@ async function loadMovementDetail() {
   }
 }
 
-document.getElementById('generateLetterBtn').addEventListener('click', () => {
+// Promotions only (see the "clickable" class added in loadMovementDetail) -
+// clicking a name is how Generate Letter is reached now, instead of a
+// separate button. Which employee was clicked is read back later, when
+// Proceed's destination is wired up.
+const movementDetailListEl = document.getElementById('movementDetailList');
+movementDetailListEl.addEventListener('click', (e) => {
+  const row = e.target.closest('li.clickable');
+  if (!row) return;
   setView('letterType');
+});
+movementDetailListEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('li.clickable');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
 });
 
 // Single-select: clicking a card marks it pressed and un-presses the other.
