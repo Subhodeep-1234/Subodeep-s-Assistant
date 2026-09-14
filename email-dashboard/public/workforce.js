@@ -2646,7 +2646,13 @@ movementDetailListEl.addEventListener('click', (e) => {
   if (!row) return;
   const it = currentPromotionItems[Number(row.dataset.idx)];
   if (!it) return;
-  letterEmployeeContext = { name: it.name, fromDesignation: it.fromDesignation, toDesignation: it.toDesignation };
+  letterEmployeeContext = {
+    name: it.name,
+    employeeId: it.employeeId,
+    department: it.department,
+    fromDesignation: it.fromDesignation,
+    toDesignation: it.toDesignation
+  };
   setView('letterType');
 });
 movementDetailListEl.addEventListener('keydown', (e) => {
@@ -2766,13 +2772,23 @@ function formatLongDate(iso) {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
+// Increment Letter is the only type with a real generated PDF so far (see
+// letterPdf.js) - Promotion & Increment's own template hasn't been
+// provided yet, so it still falls back to this placeholder note.
+const LETTER_PDF_PLACEHOLDER_NOTE = 'PDF download will be wired up once the letter template is finalised.';
+let lastLetterPayload = null;
+
 document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => {
   const meta = LETTER_TYPE_META[activeLetterType];
+  const title = document.getElementById('letterFormTitle').value;
   const refNo = document.getElementById('letterFormRefNo').value.trim();
   const companyName = document.getElementById('letterFormCompanyName').value;
   const currentGross = document.getElementById('letterFormCurrentGross').value.trim();
   const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
+  const currentNotice = document.getElementById('letterFormCurrentNotice').value;
+  const revisedNotice = document.getElementById('letterFormRevisedNotice').value;
   const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
+  const incrementYear = document.getElementById('letterFormIncrementYear').value;
   const errorEl = document.getElementById('letterFormError');
   if (!refNo || !companyName || !currentGross || !revisedGross || !effectiveDate) {
     errorEl.textContent = 'Please fill in Ref. No., Company Name, Compensation, and Effective Date before generating the letter.';
@@ -2781,22 +2797,80 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   }
   errorEl.hidden = true;
 
+  lastLetterPayload = {
+    title,
+    employeeName: (letterEmployeeContext && letterEmployeeContext.name) || '',
+    employeeId: (letterEmployeeContext && letterEmployeeContext.employeeId) || '',
+    department: toProperCase(letterEmployeeContext && letterEmployeeContext.department),
+    companyName,
+    refNo,
+    currentDesignation: toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation),
+    currentGross,
+    revisedGross,
+    currentNotice,
+    revisedNotice,
+    effectiveDate,
+    incrementYear
+  };
+
   document.getElementById('letterSuccessSub').textContent = meta.title + ' has been generated successfully.';
-  document.getElementById('letterSuccessEmployee').textContent = (letterEmployeeContext && letterEmployeeContext.name) || '—';
+  document.getElementById('letterSuccessEmployee').textContent = lastLetterPayload.employeeName || '—';
   document.getElementById('letterSuccessType').textContent = meta.title;
   document.getElementById('letterSuccessDate').textContent = formatLongDate(effectiveDate);
-  document.getElementById('letterPdfNote').hidden = true;
+  const noteEl = document.getElementById('letterPdfNote');
+  noteEl.textContent = LETTER_PDF_PLACEHOLDER_NOTE;
+  noteEl.hidden = true;
 
   setView('letterSuccess');
 });
 
-// Not wired to a real file yet - there's no actual letter template/wording
-// to render into a PDF, so these just surface an honest note instead of
-// pretending to produce a document.
-['letterViewPdfBtn', 'letterDownloadBtn'].forEach((id) => {
-  document.getElementById(id).addEventListener('click', () => {
-    document.getElementById('letterPdfNote').hidden = false;
+async function fetchLetterPdfBlob() {
+  const res = await fetch('/api/workforce/letters/increment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(lastLetterPayload)
   });
+  if (!res.ok) throw new Error((await res.json()).error || 'Failed to generate PDF');
+  return res.blob();
+}
+
+document.getElementById('letterViewPdfBtn').addEventListener('click', async () => {
+  const noteEl = document.getElementById('letterPdfNote');
+  if (activeLetterType !== 'increment_only') {
+    noteEl.textContent = LETTER_PDF_PLACEHOLDER_NOTE;
+    noteEl.hidden = false;
+    return;
+  }
+  try {
+    const blob = await fetchLetterPdfBlob();
+    window.open(URL.createObjectURL(blob), '_blank');
+  } catch (err) {
+    noteEl.textContent = err.message;
+    noteEl.hidden = false;
+  }
+});
+
+document.getElementById('letterDownloadBtn').addEventListener('click', async () => {
+  const noteEl = document.getElementById('letterPdfNote');
+  if (activeLetterType !== 'increment_only') {
+    noteEl.textContent = LETTER_PDF_PLACEHOLDER_NOTE;
+    noteEl.hidden = false;
+    return;
+  }
+  try {
+    const blob = await fetchLetterPdfBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Increment_Letter_' + (lastLetterPayload.employeeName || 'letter').replace(/\s+/g, '_') + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    noteEl.textContent = err.message;
+    noteEl.hidden = false;
+  }
 });
 
 function renderMovementTab(tab) {

@@ -2,6 +2,7 @@ const express = require('express');
 const employeeService = require('./employeeService');
 const analytics = require('./workforceAnalytics');
 const movementTracker = require('./movementTracker');
+const { buildIncrementLetterPdf } = require('./letterPdf');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -301,11 +302,23 @@ router.get('/dept-transfers', async (req, res) => {
   }
 });
 
+// Department is cross-referenced from the HR Master sheet by Employee ID,
+// the same way covered-employees/family-members do it - Generate Letter
+// needs it (for the letter's own recipient block) and the tracker log
+// itself has no department column.
 router.get('/promotions', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
-    const data = await movementTracker.getPromotionsInLastDays(days);
-    res.json(data);
+    const [data, hrData] = await Promise.all([
+      movementTracker.getPromotionsInLastDays(days),
+      employeeService.getEmployeeData({})
+    ]);
+    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+    const items = data.items.map((it) => {
+      const hr = hrByEmployeeId.get(it.employeeId);
+      return { ...it, department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '' };
+    });
+    res.json({ total: data.total, items });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -326,6 +339,46 @@ router.get('/location-transfers', async (req, res) => {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
     const data = await movementTracker.getLocationTransfersInLastDays(days);
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Increment Letter PDF - a real, final-format document (see letterPdf.js
+// for why it reproduces the company's own Word template exactly rather
+// than a generic layout). Promotion & Increment's own template hasn't
+// been provided yet, so only this one letter type is wired to a real file.
+router.post('/letters/increment', async (req, res) => {
+  try {
+    const {
+      title, employeeName, employeeId, department, companyName, refNo,
+      currentDesignation, currentGross, revisedGross, currentNotice, revisedNotice,
+      effectiveDate, incrementYear
+    } = req.body || {};
+    if (!employeeName || !companyName || !refNo || !currentGross || !revisedGross || !effectiveDate) {
+      return res.status(400).json({ error: 'Missing required letter fields' });
+    }
+    const buffer = await buildIncrementLetterPdf({
+      title: title || 'Mr.',
+      employeeName,
+      employeeId: employeeId || '',
+      department: department || '',
+      companyName,
+      refNo,
+      currentDesignation: currentDesignation || '',
+      currentGross,
+      revisedGross,
+      currentNotice: currentNotice || '',
+      revisedNotice: revisedNotice || '',
+      effectiveDate,
+      incrementYear: incrementYear || ''
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'inline; filename="Increment_Letter_' + employeeName.replace(/[^a-z0-9]+/gi, '_') + '.pdf"'
+    );
+    res.send(buffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
