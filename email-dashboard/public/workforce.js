@@ -2702,9 +2702,9 @@ function openLetterForm(type) {
   document.getElementById('letterFormNoticeSection').hidden = !meta.showDesignation;
 
   document.getElementById('letterFormFromDesignation').textContent =
-    (letterEmployeeContext && letterEmployeeContext.fromDesignation) || '—';
+    toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation) || '—';
   document.getElementById('letterFormToDesignation').textContent =
-    (letterEmployeeContext && letterEmployeeContext.toDesignation) || '—';
+    toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation) || '—';
 
   // Compensation/Notice Period/Increment Year have no real data source
   // anywhere in the sheets - fresh, blank manual-entry fields every time
@@ -2723,6 +2723,13 @@ function openLetterForm(type) {
   document.getElementById('letterFormError').hidden = true;
 
   setView('letterForm');
+}
+
+// The sheet stores designations in ALL CAPS ("ASSISTANT MANAGER") - fine
+// for the raw movement log, but reads better as Proper Case on the letter
+// form itself.
+function toProperCase(str) {
+  return String(str || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatLongDate(iso) {
