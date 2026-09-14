@@ -537,10 +537,11 @@ body {
 /* Combined-class override: the "Sum Insured" group heading carries both
    .hi-policy-info-label and .hi-policy-info-group-title, and this rule
    (equal specificity, declared last) is what actually wins the cascade -
-   without it, .hi-policy-info-label's smaller/muted styling above was
-   silently overriding .hi-policy-info-group-title's intended larger,
-   ink-colored heading size, no matter which order the two rules were in. */
-.hi-policy-info-label.hi-policy-info-group-title { font-size: 0.85rem; color: var(--ink); font-weight: 700; margin-bottom: 0; }
+   without it, .hi-policy-info-label's smaller styling above was silently
+   overriding .hi-policy-info-group-title's intended larger heading size,
+   no matter which order the two rules were in. Color stays the same
+   muted tone as the other field labels above it - only size/weight differ. */
+.hi-policy-info-label.hi-policy-info-group-title { font-size: 0.85rem; color: var(--muted); font-weight: 700; margin-bottom: 0; }
 .hi-policy-info-value-row { display: flex; align-items: center; gap: 6px; }
 .hi-policy-info-value { font-size: 0.88rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
 .hi-policy-info-value.na { color: var(--muted); font-weight: 500; }
