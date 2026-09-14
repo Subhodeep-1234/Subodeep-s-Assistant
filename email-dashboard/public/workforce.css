@@ -1681,3 +1681,103 @@ body {
     padding: 16px;
   }
 }
+
+/* "Generate Letter" entry point, shown only on the Promotions movement-detail
+   page (see generateLetterBtn.hidden in loadMovementDetail) - a full-width
+   accent pill above that list rather than another plain kpi/panel row, so it
+   reads as an action, not another stat. */
+.wf-generate-letter-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 14px 0;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px var(--shadow);
+}
+.wf-generate-letter-btn[hidden] { display: none; }
+.wf-generate-letter-btn svg:last-child { margin-left: auto; }
+.wf-generate-letter-icon { display: flex; }
+.wf-generate-letter-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Select Letter Type screen (step 1 of Generate Letter) - a heading, two
+   single-select cards, and a Proceed button pinned to the bottom of its own
+   panel-less flow, matching the reference mockup. */
+.wf-letter-type-head { margin-bottom: 14px; }
+.wf-letter-type-head h3 { margin: 0 0 4px; }
+.wf-letter-type-options { display: flex; flex-direction: column; gap: 12px; }
+.wf-letter-type-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--other-bg);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.wf-letter-type-card[aria-pressed="true"] {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+.wf-letter-type-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wf-letter-type-icon.tone-move-blue { background: var(--move-blue-bg); color: var(--move-blue); }
+.wf-letter-type-icon.tone-move-green { background: var(--move-green-bg); color: var(--move-green); }
+.wf-letter-type-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.wf-letter-type-title { font-size: 0.92rem; font-weight: 700; color: var(--ink); }
+.wf-letter-type-sub { font-size: 0.78rem; color: var(--muted); }
+.wf-letter-type-radio {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  position: relative;
+}
+.wf-letter-type-card[aria-pressed="true"] .wf-letter-type-radio { border-color: var(--accent); }
+.wf-letter-type-card[aria-pressed="true"] .wf-letter-type-radio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.wf-letter-proceed-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 14px;
+  padding: 15px;
+  margin-top: 18px;
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px var(--shadow);
+}
+.wf-letter-proceed-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterType'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -2577,6 +2577,10 @@ function openMovementDetail(type) {
 async function loadMovementDetail() {
   const meta = MOVEMENT_TYPES[movementDetailType];
   document.getElementById('movementDetailTitle').textContent = meta.label;
+  // Generate Letter only makes sense for Promotions - the other three
+  // movement types (department/company/location transfers) have no letter
+  // to generate.
+  document.getElementById('generateLetterBtn').hidden = movementDetailType !== 'designation';
   const listEl = document.getElementById('movementDetailList');
   listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
   try {
@@ -2608,6 +2612,21 @@ async function loadMovementDetail() {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }
 }
+
+document.getElementById('generateLetterBtn').addEventListener('click', () => {
+  setView('letterType');
+});
+
+// Single-select: clicking a card marks it pressed and un-presses the other.
+// Which one ends up selected is read back later, when Proceed's destination
+// (and what it needs to submit) is wired up.
+document.getElementById('letterTypeOptions').addEventListener('click', (e) => {
+  const card = e.target.closest('.wf-letter-type-card');
+  if (!card) return;
+  document.querySelectorAll('#letterTypeOptions .wf-letter-type-card').forEach((c) => {
+    c.setAttribute('aria-pressed', String(c === card));
+  });
+});
 
 function renderMovementTab(tab) {
   if (!movementTrendBuckets) return;
