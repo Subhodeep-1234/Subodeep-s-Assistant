@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterForm', 'letterSuccess', 'letterGenerator'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiAdditions', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterForm', 'letterSuccess', 'letterGenerator'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -1441,6 +1441,11 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
     loadCoveredEmployeesView();
     return;
   }
+  if (e.target.closest('[data-kpi="hiAdditions"]')) {
+    setView('hiAdditions');
+    loadHiAdditionsView();
+    return;
+  }
   if (e.target.closest('[data-kpi="hiExits"]')) {
     setView('hiExits');
     loadHiExitsView();
@@ -2070,6 +2075,154 @@ document.getElementById('sendHiExitsMail').addEventListener('click', async () =>
   label.textContent = 'Sending…';
   try {
     const res = await fetch('/api/insurance/exits/send-mail', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
+    label.textContent = 'Sent ✓';
+    setTimeout(() => {
+      label.textContent = originalLabel;
+      btn.disabled = false;
+    }, 3000);
+  } catch (err) {
+    alert('Failed to send mail: ' + err.message);
+    label.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
+
+// ---------- New Addition Requests (Health Insurance drill-down, from the
+// Additions tab) ---------- Same design/logic as Pending Exits above,
+// including its own Send Mail button - only the data source and PDF
+// columns differ.
+
+let hiAdditionsAllItems = [];
+let hiAdditionsRawRows = [];
+
+async function loadHiAdditionsView() {
+  const listEl = document.getElementById('hiAdditionsList');
+  listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  document.getElementById('hiAdditionsSearch').value = '';
+  document.getElementById('hiAdditionsDeptFilter').value = '';
+  document.getElementById('hiAdditionsDesigFilter').value = '';
+  document.getElementById('hiAdditionsStatusFilter').value = '';
+  try {
+    const data = await fetchJson('/api/insurance/additions');
+    hiAdditionsAllItems = data.items;
+    hiAdditionsRawRows = data.rawRows;
+
+    const depts = Array.from(new Set(hiAdditionsAllItems.map((e) => e.department).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const desigs = Array.from(new Set(hiAdditionsAllItems.map((e) => e.designation).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const statuses = Array.from(new Set(hiAdditionsAllItems.map((e) => e.status).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    document.getElementById('hiAdditionsDeptFilter').innerHTML =
+      '<option value="">Department</option>' +
+      depts.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiAdditionsDesigFilter').innerHTML =
+      '<option value="">Designation</option>' +
+      desigs.map((d) => '<option value="' + escapeHtml(d) + '">' + escapeHtml(titleCase(d)) + '</option>').join('');
+    document.getElementById('hiAdditionsStatusFilter').innerHTML =
+      '<option value="">Status</option>' +
+      statuses.map((s) => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
+
+    renderHiAdditionsList(hiAdditionsAllItems);
+  } catch (err) {
+    listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function applyHiAdditionsFilters() {
+  const q = document.getElementById('hiAdditionsSearch').value.trim().toLowerCase();
+  const dept = document.getElementById('hiAdditionsDeptFilter').value;
+  const desig = document.getElementById('hiAdditionsDesigFilter').value;
+  const status = document.getElementById('hiAdditionsStatusFilter').value;
+
+  const filtered = hiAdditionsAllItems.filter((e) => {
+    if (q && !(e.name.toLowerCase().includes(q) || e.employeeId.toLowerCase().includes(q))) return false;
+    if (dept && e.department !== dept) return false;
+    if (desig && e.designation !== desig) return false;
+    if (status && e.status !== status) return false;
+    return true;
+  });
+  renderHiAdditionsList(filtered);
+}
+
+function renderHiAdditionsList(items) {
+  document.getElementById('hiAdditionsTotalCount').textContent = hiAdditionsAllItems.length;
+  const listEl = document.getElementById('hiAdditionsList');
+  listEl.innerHTML = items.length
+    ? items
+        .map(
+          (e) =>
+            '<li>' +
+              '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+              '<span class="wf-emp-main">' +
+                '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
+                '<span class="wf-emp-meta">' + escapeHtml(e.employeeId) +
+                  (e.status ? ' · <span class="wf-status-chip ' + statusChipClass(e.status) + '">' + escapeHtml(e.status) + '</span>' : '') +
+                '</span>' +
+                '<span class="wf-emp-role">' + escapeHtml(titleCase(e.designation) || '—') + '</span>' +
+                '<span class="hi-ce-sub">' + (e.familyCount > 0 ? 'Self + ' + e.familyCount + ' Family' : 'Self only') + '</span>' +
+              '</span>' +
+              '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+            '</li>'
+        )
+        .join('')
+    : '<li class="empty">No addition requests found</li>';
+}
+
+document.getElementById('exportHiAdditionsPdf').addEventListener('click', () => {
+  document.getElementById('printReportTitle').textContent = 'Health Insurance New Addition Requests';
+  document.getElementById('printReportSubtitle').textContent = hiAdditionsRawRows.length + ' record' + (hiAdditionsRawRows.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Sl. No.</th><th>Corporate_name</th><th>Emp ID</th><th>Full Name</th><th>DOJ/DOM</th><th>DOB</th><th>Gender</th><th>Relationship</th><th>Sum Insured</th>';
+  document.getElementById('printReportBody').innerHTML = hiAdditionsRawRows.length
+    ? hiAdditionsRawRows
+        .map((r, i) => (
+          '<tr>' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td>' + escapeHtml(r.corporateName) + '</td>' +
+            '<td>' + escapeHtml(r.employeeId) + '</td>' +
+            '<td>' + escapeHtml(r.name) + '</td>' +
+            '<td>' + escapeHtml(r.doj) + '</td>' +
+            '<td>' + escapeHtml(r.dob) + '</td>' +
+            '<td>' + escapeHtml(r.gender) + '</td>' +
+            '<td>' + escapeHtml(r.relationship) + '</td>' +
+            '<td>' + escapeHtml(r.sumInsured) + '</td>' +
+          '</tr>'
+        ))
+        .join('')
+    : '<tr><td colspan="9">No addition requests found</td></tr>';
+  window.print();
+});
+
+document.getElementById('hiAdditionsSearch').addEventListener('input', applyHiAdditionsFilters);
+document.getElementById('hiAdditionsDeptFilter').addEventListener('change', applyHiAdditionsFilters);
+document.getElementById('hiAdditionsDesigFilter').addEventListener('change', applyHiAdditionsFilters);
+document.getElementById('hiAdditionsStatusFilter').addEventListener('change', applyHiAdditionsFilters);
+
+document.getElementById('hiAdditionsFilterToggleBtn').addEventListener('click', () => {
+  const btn = document.getElementById('hiAdditionsFilterToggleBtn');
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  document.getElementById('hiAdditionsFilterbar').hidden = expanded;
+  btn.setAttribute('aria-expanded', String(!expanded));
+});
+document.getElementById('hiAdditionsClearFilters').addEventListener('click', () => {
+  document.getElementById('hiAdditionsDeptFilter').value = '';
+  document.getElementById('hiAdditionsDesigFilter').value = '';
+  document.getElementById('hiAdditionsStatusFilter').value = '';
+  applyHiAdditionsFilters();
+});
+
+document.getElementById('sendHiAdditionsMail').addEventListener('click', async () => {
+  const btn = document.getElementById('sendHiAdditionsMail');
+  const label = btn.querySelector('span');
+  if (btn.disabled) return;
+  const originalLabel = label.textContent;
+  btn.disabled = true;
+  label.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/insurance/additions/send-mail', { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to send mail');
     label.textContent = 'Sent ✓';

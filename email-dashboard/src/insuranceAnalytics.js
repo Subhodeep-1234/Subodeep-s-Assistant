@@ -226,6 +226,58 @@ function sortDeletionsSelfFirst(deletions) {
   return groups.flatMap((g) => g.rows);
 }
 
+// Same "Self row anchors the group, family rows roll into a count" shape as
+// buildExitsList, but over the Additions tab instead of Deletions - no
+// dateOfLeaving here, Additions carries DOJ/DOM instead.
+function buildAdditionsList(additions) {
+  const byEmployee = new Map();
+  additions.forEach((a) => {
+    if (!byEmployee.has(a.employeeId)) byEmployee.set(a.employeeId, []);
+    byEmployee.get(a.employeeId).push(a);
+  });
+
+  const result = [];
+  byEmployee.forEach((rows, employeeId) => {
+    const selfRow = rows.find((r) => String(r.relationship || '').toLowerCase() === 'self');
+    if (!selfRow) return; // family-only rows with no matching Self row - nothing to anchor an addition entry on
+    result.push({
+      employeeId,
+      name: selfRow.name,
+      doj: selfRow.doj,
+      familyCount: rows.length - 1
+    });
+  });
+
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Same grouping as buildAdditionsList, but returns the raw rows themselves
+// (for the PDF export) instead of a summary - each employee's Self row
+// first, immediately followed by their own family rows, one employee
+// group after another (ordered the same way the on-screen list is:
+// alphabetically by the Self row's name). Mirrors sortDeletionsSelfFirst.
+function sortAdditionsSelfFirst(additions) {
+  const byEmployee = new Map();
+  const order = [];
+  additions.forEach((a) => {
+    if (!byEmployee.has(a.employeeId)) {
+      byEmployee.set(a.employeeId, []);
+      order.push(a.employeeId);
+    }
+    byEmployee.get(a.employeeId).push(a);
+  });
+
+  const groups = order.map((employeeId) => {
+    const rows = byEmployee.get(employeeId);
+    const selfRow = rows.find((r) => String(r.relationship || '').toLowerCase() === 'self');
+    const rest = rows.filter((r) => r !== selfRow);
+    return { sortName: selfRow ? selfRow.name : rows[0].name, rows: selfRow ? [selfRow, ...rest] : rest };
+  });
+  groups.sort((a, b) => a.sortName.localeCompare(b.sortName));
+
+  return groups.flatMap((g) => g.rows);
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Derived from Policy Information's own Start/End Date fields (manually
@@ -267,5 +319,7 @@ module.exports = {
   buildTotalInsuredLivesList,
   buildExitsList,
   sortDeletionsSelfFirst,
+  buildAdditionsList,
+  sortAdditionsSelfFirst,
   policyRenewalInfo
 };

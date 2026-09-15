@@ -67,6 +67,25 @@ function parseDeletionRow(row) {
   };
 }
 
+// 0-based column indexes within the "Additions" tab's real header row
+// (Sl. No., Corporate_name, Policy No, Emp ID, Full Name, DOJ/DOM, DOB,
+// Gender, Relationship, Phone Number, Mail ID, Sum Insured, Submitted
+// Date & Time) - only the fields actually used (on-screen list + PDF
+// export) are parsed here, same minimalism as parseDeletionRow.
+function parseAdditionRow(row) {
+  return {
+    srNo: cleanValue(row[0]),
+    corporateName: cleanValue(row[1]),
+    employeeId: cleanValue(row[3]),
+    name: cleanValue(row[4]),
+    doj: cleanValue(row[5]),
+    dob: cleanValue(row[6]),
+    gender: cleanValue(row[7]),
+    relationship: cleanValue(row[8]),
+    sumInsured: cleanValue(row[11])
+  };
+}
+
 function parseActiveEmployeeRow(row) {
   return {
     employeeId: cleanValue(row[0]),
@@ -87,7 +106,7 @@ async function fetchRaw() {
   ]);
 
   const members = (memberRes.data.values || []).filter(isRowPopulated).map(parseMemberRow);
-  const additions = (additionsRes.data.values || []).filter(isRowPopulated);
+  const additions = (additionsRes.data.values || []).filter(isRowPopulated).map(parseAdditionRow);
   const deletions = (deletionsRes.data.values || [])
     .filter(isRowPopulated)
     .filter((r) => cleanValue(r[0]) !== '' && !isNaN(Number(cleanValue(r[0]))))
