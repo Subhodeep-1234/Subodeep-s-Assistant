@@ -934,10 +934,15 @@ const ORG_CARD_PALETTE = [
 ];
 
 let lastOrgChartData = null;
+// Survives a manual refresh of the already-open view (loadOrgChartView,
+// below) so re-clicking Refresh doesn't silently drop back to the
+// whole-department view - reset to null (department-wide) whenever the
+// department itself changes, see the select's own change handler.
+let lastSelectedHodKey = null;
 
 function loadOrgChartView() {
   const select = document.getElementById('orgChartDeptSelect');
-  if (select.value) return loadOrgChartForDepartment(select.value);
+  if (select.value) return loadOrgChartForDepartment(select.value, lastSelectedHodKey);
   document.getElementById('orgChartContent').innerHTML = '';
   document.getElementById('exportOrgChartPdf').hidden = true;
   return Promise.resolve();
@@ -949,15 +954,21 @@ function loadOrgChartView() {
 // director watching an up-to-2-minutes-stale name during a real handover
 // is a worse experience than the extra ~1-2s Sheets round trip on every
 // department switch, for a low-traffic internal view like this one.
-async function loadOrgChartForDepartment(department) {
+// hodKey narrows the chart to one specific HOD's own tagged staff, for
+// departments with more than one real HOD (see the server's own
+// hodOptions) - omitted (or not a valid HOD for this department, which
+// the server falls back on its own) shows the default whole-department
+// view, same as before this existed.
+async function loadOrgChartForDepartment(department, hodKey) {
   const content = document.getElementById('orgChartContent');
   const exportBtn = document.getElementById('exportOrgChartPdf');
   content.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   exportBtn.hidden = true;
+  lastSelectedHodKey = hodKey || null;
   try {
-    const data = await fetchJson(
-      '/api/workforce/org-chart?department=' + encodeURIComponent(department) + '&refresh=1'
-    );
+    let url = '/api/workforce/org-chart?department=' + encodeURIComponent(department) + '&refresh=1';
+    if (hodKey) url += '&hod=' + encodeURIComponent(hodKey);
+    const data = await fetchJson(url);
     lastOrgChartData = data;
     content.innerHTML = renderOrgChartHtml(data);
     exportBtn.hidden = false;
@@ -970,9 +981,40 @@ document.getElementById('orgChartDeptSelect').addEventListener('change', (e) => 
   if (!e.target.value) {
     document.getElementById('orgChartContent').innerHTML = '';
     document.getElementById('exportOrgChartPdf').hidden = true;
+    lastSelectedHodKey = null;
     return;
   }
-  loadOrgChartForDepartment(e.target.value);
+  // A new department always starts on its own default (whole-department)
+  // view, never carrying over the previous department's HOD selection.
+  loadOrgChartForDepartment(e.target.value, null);
+});
+
+// The picker button/list are recreated on every renderOrgChartHtml call
+// (innerHTML swap), so this is delegated on the stable content container
+// rather than bound directly to elements that get thrown away.
+document.getElementById('orgChartContent').addEventListener('click', (e) => {
+  const btn = e.target.closest('#orgChartHodPickerBtn');
+  if (btn) {
+    const list = document.getElementById('orgChartHodPickerList');
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    list.hidden = expanded;
+    btn.setAttribute('aria-expanded', String(!expanded));
+    return;
+  }
+  const item = e.target.closest('#orgChartHodPickerList li');
+  if (item) {
+    const dept = document.getElementById('orgChartDeptSelect').value;
+    if (dept) loadOrgChartForDepartment(dept, item.dataset.hodKey || null);
+  }
+});
+
+// Same click-outside-closes pattern as Letter Generator's employee search
+// list.
+document.addEventListener('click', (e) => {
+  const btn = document.getElementById('orgChartHodPickerBtn');
+  if (!btn || e.target.closest('.org-chart-hod-picker')) return;
+  document.getElementById('orgChartHodPickerList').hidden = true;
+  btn.setAttribute('aria-expanded', 'false');
 });
 
 function orgChartInfoRow(iconPath, label, value) {
@@ -982,6 +1024,38 @@ function orgChartInfoRow(iconPath, label, value) {
       '<span class="org-chart-info-label">' + escapeHtml(label) + '</span>' +
       '<span class="org-chart-info-sep">:</span>' +
       '<span class="org-chart-info-value">' + escapeHtml(value) + '</span>' +
+    '</div>'
+  );
+}
+
+// Same layout as a plain orgChartInfoRow, except the HOD's own row gets a
+// small triangle/caret next to the name whenever this department actually
+// has more than one real HOD (data.hodOptions is only ever populated in
+// that case - see buildOrgChart) - clicking it opens a list of all of
+// them plus an "All" option to go back to the whole-department view.
+function orgChartHodInfoRow(data) {
+  const value = data.hod ? data.hod.name : '';
+  if (!data.hodOptions || data.hodOptions.length < 2) {
+    return orgChartInfoRow(FIELD_ICONS.badge, 'HOD', value || '—');
+  }
+  const selectedKey = data.selectedHodKey || '';
+  return (
+    '<div class="org-chart-info-row">' +
+      '<span class="org-chart-info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + FIELD_ICONS.badge + '</svg></span>' +
+      '<span class="org-chart-info-label">HOD</span>' +
+      '<span class="org-chart-info-sep">:</span>' +
+      '<span class="org-chart-hod-picker">' +
+        '<button type="button" class="org-chart-hod-picker-btn" id="orgChartHodPickerBtn" aria-expanded="false">' +
+          '<span class="org-chart-info-value">' + escapeHtml(value || '—') + '</span>' +
+          '<svg class="org-chart-hod-picker-caret" viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><polygon points="2,6 22,6 12,19"/></svg>' +
+        '</button>' +
+        '<ul class="org-chart-hod-picker-list" id="orgChartHodPickerList" hidden>' +
+          '<li data-hod-key=""' + (selectedKey ? '' : ' class="active"') + '>All (Department-wide)</li>' +
+          data.hodOptions.map((o) =>
+            '<li data-hod-key="' + escapeHtml(o.key) + '"' + (o.key === selectedKey ? ' class="active"' : '') + '>' + escapeHtml(o.name) + '</li>'
+          ).join('') +
+        '</ul>' +
+      '</span>' +
     '</div>'
   );
 }
@@ -1071,7 +1145,7 @@ function renderOrgChartHtml(data) {
         '</div>' +
         '<div class="org-chart-info-card">' +
           orgChartInfoRow(FIELD_ICONS.users, 'Total Employees', String(data.totalEmployees)) +
-          orgChartInfoRow(FIELD_ICONS.badge, 'HOD', data.hod ? data.hod.name : '—') +
+          orgChartHodInfoRow(data) +
           orgChartInfoRow(FIELD_ICONS.calendar, 'Generated On', generatedOn) +
         '</div>' +
       '</div>' +

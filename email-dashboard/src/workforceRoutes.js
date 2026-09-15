@@ -211,7 +211,12 @@ router.get('/org-chart', async (req, res) => {
       forceRefresh: wantsForceRefresh(req)
     });
     const targetKey = employeeService.normalizeKey(req.query.department);
-    res.json(analytics.buildOrgChart(employees, departmentNames, targetKey));
+    // Optional: narrow the chart to one specific HOD's own tagged staff,
+    // for departments with more than one real HOD (see buildOrgChart's own
+    // hodOptions) - omitted or not one of that department's actual HODs,
+    // falls back to the default whole-department view.
+    const hodKey = req.query.hod ? employeeService.normalizeKey(req.query.hod) : null;
+    res.json(analytics.buildOrgChart(employees, departmentNames, targetKey, hodKey));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

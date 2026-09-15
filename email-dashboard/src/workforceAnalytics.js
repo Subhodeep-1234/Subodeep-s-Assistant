@@ -376,12 +376,23 @@ function groupByDesignation(list) {
     });
 }
 
+// Looks a person up by name across the WHOLE company (not just one
+// department) for their real Employee ID and Designation - they're usually
+// their own employee record elsewhere, not counted inside the department/
+// group they oversee. If their own record has gone Inactive, returns a
+// blank (not null) name so the box stays rendered but without a departed
+// person's stale info - null is reserved for "no one identified at all".
+function resolvePersonByName(name, allEmployees) {
+  if (!name) return null;
+  const key = name.trim().toLowerCase();
+  const match = allEmployees.find((e) => e.name && e.name.trim().toLowerCase() === key);
+  if (match && match.status === 'INACTIVE') return { name: '', employeeId: null, designation: null };
+  return { name, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
+}
+
 // Finds whichever value of employeeField (e.g. "reportingManager" for HOD,
 // "reportingDoer" for the Director-level DOER) is most common among a
-// department's own employees, then looks that person up by name across
-// the WHOLE company (not just this department) for their real Employee ID
-// and Designation - they're usually their own employee record elsewhere,
-// not counted inside the department they oversee.
+// department's own employees, then resolves that name to a real person.
 function findMostCommonPerson(deptEmployees, allEmployees, employeeField) {
   const counts = {};
   deptEmployees.forEach((e) => {
@@ -392,18 +403,36 @@ function findMostCommonPerson(deptEmployees, allEmployees, employeeField) {
   Object.entries(counts).forEach(([n, count]) => {
     if (count > bestCount) { name = n; bestCount = count; }
   });
-  if (!name) return null;
-  const key = name.trim().toLowerCase();
-  const match = allEmployees.find((e) => e.name && e.name.trim().toLowerCase() === key);
-  // If the identified person's own record has gone Inactive, the box stays
-  // exactly as it is (same design, still rendered) but with a blank name/
-  // designation instead of a departed person's stale info - an empty (not
-  // null) name here keeps it out of the "Not identified" fallback, which
-  // is reserved for when no one could be identified at all. Once the
-  // department's staff get retagged to a new (active) HOD/DOER in the
-  // sheet, that new name naturally takes over here.
-  if (match && match.status === 'INACTIVE') return { name: '', employeeId: null, designation: null };
-  return { name, employeeId: match ? match.employeeId : null, designation: match ? match.designation : null };
+  return resolvePersonByName(name, allEmployees);
+}
+
+// A department's HOD-1 tagging isn't always one person - some departments
+// have several real HODs, each with their own subset of staff tagged to
+// them (rather than one HOD for the whole department). Groups this
+// department's employees by their own reportingManagerKey (already
+// normalized in employeeService) and, for each distinct one, resolves the
+// real person plus picks whichever original spelling of the name is most
+// common for that key - same "most common variant wins" idea
+// buildDisplayNames uses for department/location names.
+function findHodOptions(deptEmployees, allEmployees) {
+  const variantCountsByKey = new Map();
+  deptEmployees.forEach((e) => {
+    if (!e.reportingManagerKey) return;
+    if (!variantCountsByKey.has(e.reportingManagerKey)) variantCountsByKey.set(e.reportingManagerKey, new Map());
+    const variants = variantCountsByKey.get(e.reportingManagerKey);
+    variants.set(e.reportingManager, (variants.get(e.reportingManager) || 0) + 1);
+  });
+
+  const options = [];
+  variantCountsByKey.forEach((variants, key) => {
+    let bestName = null;
+    let bestCount = 0;
+    variants.forEach((count, name) => { if (count > bestCount) { bestName = name; bestCount = count; } });
+    const person = resolvePersonByName(bestName, allEmployees);
+    options.push({ key, name: bestName, employeeId: person ? person.employeeId : null, designation: person ? person.designation : null });
+  });
+
+  return options.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Active and Notice Period stay on the Org Chart - only Inactive staff
@@ -414,32 +443,57 @@ function findMostCommonPerson(deptEmployees, allEmployees, employeeField) {
 // reappears the moment someone with that designation does - no extra
 // logic needed for that, it falls out of filtering from the current list
 // every time this runs.
-function buildOrgChart(employees, departmentNames, targetDepartmentKey) {
+function buildOrgChart(employees, departmentNames, targetDepartmentKey, selectedHodKey) {
   const deptEmployees = employees.filter((e) => e.status !== 'INACTIVE' && e.departmentKey === targetDepartmentKey);
   const departmentName =
     departmentNames.get(targetDepartmentKey) || (deptEmployees[0] && deptEmployees[0].department) || '';
 
-  // HOD = whichever Reporting Manager (HOD-1) name is most common among
-  // this department's own employees. Doer = same technique against
-  // Reporting DOER - shown as the Director-level box above the HOD, since
-  // that's the same real oversight hierarchy Doer Management already uses.
-  const hod = findMostCommonPerson(deptEmployees, employees, 'reportingManager');
+  // Some departments have more than one real HOD, each with their own
+  // subset of staff tagged to them in HOD-1 - hodOptions lists all of
+  // them (only surfaced to the client when there's actually more than
+  // one, see below) so the on-screen view can offer a picker instead of
+  // always collapsing to a single majority-vote HOD.
+  const hodOptions = findHodOptions(deptEmployees, employees);
+  const selectedHodOption = selectedHodKey ? hodOptions.find((o) => o.key === selectedHodKey) : null;
+
+  // With a specific HOD selected, everything below (headcount, HOD box,
+  // White/Blue Collar cards) narrows to just that HOD's own tagged staff
+  // instead of the whole department - Doer stays department-wide either
+  // way, that oversight level doesn't change per-HOD.
+  const scopedEmployees = selectedHodOption
+    ? deptEmployees.filter((e) => e.reportingManagerKey === selectedHodKey)
+    : deptEmployees;
+
+  // HOD = the selected option's own person info if one was picked,
+  // otherwise the same majority-vote default as before (whichever HOD-1
+  // name is most common among the whole department). Doer = same
+  // majority-vote technique against Reporting DOER - shown as the
+  // Director-level box above the HOD, since that's the same real
+  // oversight hierarchy Doer Management already uses.
+  const hod = selectedHodOption
+    ? resolvePersonByName(selectedHodOption.name, employees)
+    : findMostCommonPerson(deptEmployees, employees, 'reportingManager');
   const doer = findMostCommonPerson(deptEmployees, employees, 'reportingDoer');
 
   // Both already get their own boxes up top - if either is also counted
-  // among this department's own employees, drop them from the card lists
-  // below so their name/designation isn't shown a second time. totalEmployees
-  // still counts them - they ARE part of the department's real headcount.
+  // among the employees shown below, drop them from the card lists so
+  // their name/designation isn't shown a second time. totalEmployees
+  // still counts them - they ARE part of the real headcount being shown.
   const excludeIds = new Set([hod && hod.employeeId, doer && doer.employeeId].filter(Boolean));
-  const cardEmployees = excludeIds.size ? deptEmployees.filter((e) => !excludeIds.has(e.employeeId)) : deptEmployees;
+  const cardEmployees = excludeIds.size ? scopedEmployees.filter((e) => !excludeIds.has(e.employeeId)) : scopedEmployees;
   const whiteCollar = cardEmployees.filter((e) => formatCollarForChart(e.groupD) === 'White');
   const blueGroupD = cardEmployees.filter((e) => formatCollarForChart(e.groupD) !== 'White');
 
   return {
     department: departmentName,
-    totalEmployees: deptEmployees.length,
+    totalEmployees: scopedEmployees.length,
     doer,
     hod,
+    // Only worth the client rendering a picker when there's an actual
+    // choice to make - a single-HOD department gets an empty array, same
+    // as today's plain single-HOD view.
+    hodOptions: hodOptions.length > 1 ? hodOptions : [],
+    selectedHodKey: selectedHodOption ? selectedHodKey : null,
     whiteCollarGroups: groupByDesignation(whiteCollar),
     blueGroupDGroups: groupByDesignation(blueGroupD)
   };

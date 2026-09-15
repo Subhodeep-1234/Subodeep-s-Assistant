@@ -1445,6 +1445,53 @@ body {
 .org-chart-info-sep { color: var(--muted); }
 .org-chart-info-value { font-weight: 700; color: var(--ink); }
 
+/* HOD picker - only rendered (see orgChartHodInfoRow) when a department
+   actually has more than one real HOD tagged to it. The trigger button
+   is deliberately styled to look identical to the plain HOD text next to
+   it (same .org-chart-info-value inside it), just with a small caret
+   added, so it doesn't look like a form control sitting oddly in an
+   otherwise plain info row. */
+.org-chart-hod-picker { position: relative; display: inline-flex; }
+.org-chart-hod-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.org-chart-hod-picker-caret { color: var(--accent); flex-shrink: 0; }
+.org-chart-hod-picker-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  max-width: 260px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px var(--shadow);
+  padding: 4px;
+  z-index: 20;
+  list-style: none;
+}
+.org-chart-hod-picker-list li {
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.org-chart-hod-picker-list li:hover { background: var(--surface-hover, rgba(0, 0, 0, 0.04)); }
+.org-chart-hod-picker-list li.active { background: var(--accent); color: #fff; }
+
 .org-chart-tree {
   padding: 26px 20px 6px;
   display: flex;
@@ -1931,6 +1978,15 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-info-row { font-size: 0.6rem; gap: 5px; }
   body.printing-org-chart .org-chart-info-icon { width: 11px; height: 11px; }
   body.printing-org-chart .org-chart-info-label { min-width: 62px; }
+  /* The HOD picker is a screen-only interaction (per explicit request,
+     the PDF stays exactly as it already was) - the caret and dropdown
+     never show here, and the trigger button collapses back to looking
+     like the same plain text every other info row value already is. */
+  body.printing-org-chart .org-chart-hod-picker-caret,
+  body.printing-org-chart .org-chart-hod-picker-list {
+    display: none !important;
+  }
+  body.printing-org-chart .org-chart-hod-picker-btn { cursor: default; }
 
   body.printing-org-chart .org-chart-tree { padding: 6px 4px 2px; }
   body.printing-org-chart .org-chart-hod-box { padding: 4px 12px; border-radius: 6px; max-width: none; gap: 1px; }
