@@ -1680,6 +1680,39 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 .org-chart-card-emp-text b { color: var(--ink); font-weight: 700; }
 .org-chart-card-emp-text span { color: var(--muted); font-size: 0.72rem; }
 
+/* Below 480px (two 210px cards + a 16px gap no longer fit side by side),
+   every card in a row wraps onto its own line - the bus line above them
+   (built for fanning out sideways into several cards on the SAME line)
+   has nothing left to fan out to, and just shows as a stray horizontal
+   bar with its own arrowhead sitting right above each card's own
+   arrowhead, i.e. one visible gap-with-a-line looking like two broken
+   arrows instead of one. Below this width there's exactly one column,
+   so it's simpler to just chain each card straight to the one above it
+   (or to the pill, for the very first) with a single arrow each,
+   correctly sized to the smaller actual gaps involved instead of the
+   bus line's larger one. */
+@media (max-width: 480px) {
+  .org-chart-cards-row::before { display: none; }
+  /* No bus line to arrive at any more - let the line run the full 20px
+     down to where the first card's own arrow takes over instead of
+     stopping partway for an arrowhead that's now redundant. */
+  .org-chart-pill-connector::before { height: 20px; }
+  .org-chart-pill-connector::after { content: none; }
+  /* The first card's own arrow (unchanged - still sized for the row's
+     26px padding-top above it) is now the only arrowhead completing
+     this descent. Every card after it, though, sits only 16px (the
+     row's own flex gap) below the card before it, not 26px - resize
+     just those so the tip still lands exactly on the next card instead
+     of overshooting up into the previous one. */
+  .org-chart-cards-row .org-chart-card:not(:first-child)::before {
+    top: -16px;
+    height: 10px;
+  }
+  .org-chart-cards-row .org-chart-card:not(:first-child)::after {
+    top: -6px;
+  }
+}
+
 .org-chart-footer {
   display: flex;
   align-items: center;
