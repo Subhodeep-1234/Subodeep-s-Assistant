@@ -1594,104 +1594,6 @@ body {
 }
 .org-chart-footer-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
-/* ---------- Organization Chart PDF export (print-only tree) ----------
-   A traditional straight-line-connector org chart, built to fit one
-   landscape page: Director -> HOD (each its own row, single connector),
-   then HOD branches into two boxes - White Collar and Blue Collar &
-   Group D - side by side (plenty of spare width in landscape), and each
-   of those branches into a vertical list of its own designation boxes
-   via a simple spine-and-tick connector (a continuous left border on the
-   list + a short horizontal tick per item - the standard CSS tree-line
-   technique, and it adapts to any item count/height with no manual
-   position math). Same White/Blue Collar designation-group segregation
-   as the on-screen view - only the visual presentation differs. Employee
-   names aren't listed inside each box here (unlike on-screen) - a
-   designation held by 20 people would make that one box balloon past
-   anything else on the page, and a real org chart shows roles, not a
-   name-by-name roster (that's what the Directory/Covered Employees
-   exports are for). */
-.org-chart-print { font-family: inherit; color: #1a1a1a; }
-.ocp-header { text-align: center; margin-bottom: 14px; }
-.ocp-header-title { display: block; font-size: 1.15rem; font-weight: 800; }
-.ocp-header-meta { display: block; font-size: 0.72rem; color: #555; margin-top: 2px; }
-
-.ocp-level { display: flex; justify-content: center; }
-.ocp-connector-v { width: 1.5px; height: 16px; background: #555; margin: 0 auto; }
-
-.ocp-box {
-  border-radius: 8px;
-  padding: 7px 14px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-}
-.ocp-box-leader {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 150px;
-  background: #2563eb;
-  color: #fff;
-}
-.ocp-box-leader .ocp-box-role { font-size: 0.68rem; font-weight: 600; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.02em; }
-.ocp-box-leader .ocp-box-name { font-size: 0.82rem; }
-
-.ocp-branch-2 { display: flex; justify-content: center; gap: 60px; position: relative; padding-top: 16px; }
-.ocp-branch-2::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 25%;
-  right: 25%;
-  height: 1.5px;
-  background: #555;
-}
-.ocp-branch-child { position: relative; width: 46%; max-width: 420px; }
-.ocp-branch-child::before {
-  content: '';
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  width: 1.5px;
-  height: 16px;
-  background: #555;
-}
-.ocp-box-section {
-  display: block;
-  width: 100%;
-  color: #1a1a1a;
-}
-.ocp-box-section.tone-white { background: #fbbf24; }
-.ocp-box-section.tone-blue { background: #93c5fd; }
-
-.ocp-spine {
-  margin: 10px 0 0 22px;
-  padding-top: 2px;
-  border-left: 1.5px solid #555;
-}
-.ocp-spine-item { position: relative; padding-left: 18px; margin-bottom: 5px; }
-.ocp-spine-item:last-child { margin-bottom: 0; }
-.ocp-spine-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 18px;
-  border-top: 1.5px solid #555;
-}
-.ocp-box-role {
-  display: block;
-  background: #fde3c4;
-  border: 1px solid #f0b970;
-  font-weight: 600;
-  font-size: 0.74rem;
-  padding: 5px 10px;
-  text-align: left;
-}
-
-.ocp-footer { text-align: center; margin-top: 14px; font-size: 0.68rem; font-style: italic; color: #2563eb; font-weight: 700; }
-
 /* ---------- Printable report (Upcoming Joinings) ---------- */
 
 #printReport { display: none; }
@@ -1771,44 +1673,100 @@ body {
   #printReport td.print-signature-col { min-width: 170px; height: 46px; }
 }
 
-/* Organization Chart export prints #orgChartPrintContent - a separate
-   purpose-built landscape tree (see renderOrgChartPrintHtml), not the
-   on-screen #orgChartContent cards view. Toggled by adding
-   "printing-org-chart" to <body> right before window.print() (which also
-   un-hides #orgChartPrintContent and fills it) and removing/re-hiding
-   both again on afterprint. #printReport is force-hidden here too (with
-   !important, since its own unconditional "#printReport { visibility:
-   visible }" rule above would otherwise outrank a plain class selector)
-   so a stale table from a previously-generated report can't leak into
-   this export. */
+/* Organization Chart export prints #orgChartContent - the same cards view
+   shown on screen (design/logic untouched), just re-styled and compacted
+   under this print block so the whole department fits one landscape
+   page. Toggled by adding "printing-org-chart" to <body> right before
+   window.print() and removing it again on afterprint. #printReport is
+   force-hidden here too (with !important, since its own unconditional
+   "#printReport { visibility: visible }" rule above would otherwise
+   outrank a plain class selector) so a stale table from a previously-
+   generated report can't leak into this export. */
 @media print {
   body.printing-org-chart * { visibility: hidden; }
   body.printing-org-chart #printReport,
   body.printing-org-chart #printReport * {
     visibility: hidden !important;
   }
-  body.printing-org-chart #orgChartPrintContent,
-  body.printing-org-chart #orgChartPrintContent * {
+  body.printing-org-chart #orgChartContent,
+  body.printing-org-chart #orgChartContent * {
     visibility: visible;
   }
-  body.printing-org-chart #orgChartPrintContent {
+  body.printing-org-chart #orgChartContent {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    padding: 10mm 12mm;
+    padding: 8mm 10mm;
   }
-  /* visibility: hidden keeps everything else in normal flow, so the
-     on-screen #orgChartContent cards (and the rest of the app shell) still
-     contribute their full height to the document - Chromium's print
-     pagination then adds extra blank pages to cover that invisible-but-
-     present height, even though #orgChartPrintContent itself fits on one
-     page. display: none actually removes it from flow so the document
-     collapses to just the print content's height. */
+  /* visibility: hidden keeps everything else in normal flow, so the rest
+     of the app shell still contributes its full height to the document -
+     Chromium's print pagination then adds extra blank pages to cover
+     that invisible-but-present height, even though #orgChartContent
+     itself fits on one page once compacted below. display: none actually
+     removes it from flow so the document collapses to just the chart's
+     own height. */
   body.printing-org-chart .wf-shell > *:not(#orgChartView),
-  body.printing-org-chart #orgChartView > *:not(#orgChartPrintContent) {
+  body.printing-org-chart #orgChartView > *:not(#orgChartContent) {
     display: none !important;
   }
+
+  /* Connector lines (HOD stack + the pill-to-cards "bus" line + each
+     card's own tick up to that bus) are plain background-color bars, and
+     browsers strip non-essential background colors when printing unless
+     told otherwise - without this they were invisible in the exported
+     PDF even though they show fine on screen, which is what made the
+     hierarchy hard to read there. */
+  body.printing-org-chart .org-chart-connector-down,
+  body.printing-org-chart .org-chart-pill-connector,
+  body.printing-org-chart .org-chart-cards-row::before,
+  body.printing-org-chart .org-chart-card::before {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Same cards/tree markup and layout logic as the on-screen view - only
+     sizing is scaled down here so a busy department (many designations,
+     each listing every employee by name) still fits one landscape page. */
+  body.printing-org-chart .org-chart { border: none; border-radius: 0; margin-top: 0; }
+  body.printing-org-chart .org-chart-top-row { padding: 0 0 6px; gap: 8px; }
+  body.printing-org-chart .org-chart-banner { padding: 6px 10px; gap: 8px; border-radius: 6px; }
+  body.printing-org-chart .org-chart-banner-icon { width: 26px; height: 26px; border-width: 1px; }
+  body.printing-org-chart .org-chart-banner-icon svg { width: 14px; height: 14px; }
+  body.printing-org-chart .org-chart-banner-title { font-size: 0.85rem; }
+  body.printing-org-chart .org-chart-banner-subtitle { font-size: 0.66rem; }
+  body.printing-org-chart .org-chart-banner-tagline { font-size: 0.56rem; margin-top: 1px; }
+  body.printing-org-chart .org-chart-info-card { padding: 5px 10px; gap: 3px; }
+  body.printing-org-chart .org-chart-info-row { font-size: 0.6rem; gap: 5px; }
+  body.printing-org-chart .org-chart-info-icon { width: 11px; height: 11px; }
+  body.printing-org-chart .org-chart-info-label { min-width: 62px; }
+
+  body.printing-org-chart .org-chart-tree { padding: 6px 4px 2px; }
+  body.printing-org-chart .org-chart-hod-box { padding: 4px 12px; border-radius: 6px; max-width: none; gap: 1px; }
+  body.printing-org-chart .org-chart-hod-avatar { width: 16px; height: 16px; margin-bottom: 1px; border-width: 1px; }
+  body.printing-org-chart .org-chart-hod-avatar svg { width: 9px; height: 9px; }
+  body.printing-org-chart .org-chart-hod-title { font-size: 0.48rem; }
+  body.printing-org-chart .org-chart-hod-name { font-size: 0.66rem; }
+  body.printing-org-chart .org-chart-hod-role { font-size: 0.52rem; margin-top: 0; }
+  body.printing-org-chart .org-chart-connector-down { height: 6px; }
+  body.printing-org-chart .org-chart-pill-connector { height: 5px; }
+  body.printing-org-chart .org-chart-pill { padding: 2px 10px; font-size: 0.54rem; }
+
+  body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; }
+  body.printing-org-chart .org-chart-cards-row::before { height: 1px; }
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
+  body.printing-org-chart .org-chart-card::before { top: -8px; height: 8px; }
+  body.printing-org-chart .org-chart-card-head { padding: 2px 6px; font-size: 0.5rem; gap: 3px; }
+  body.printing-org-chart .org-chart-card-head-icon svg { width: 8px; height: 8px; }
+  body.printing-org-chart .org-chart-card-body { padding: 3px 6px; gap: 2px; }
+  body.printing-org-chart .org-chart-card-emp { gap: 4px; }
+  body.printing-org-chart .org-chart-card-emp-icon { width: 10px; height: 10px; border-width: 0; }
+  body.printing-org-chart .org-chart-card-emp-icon svg { width: 6px; height: 6px; }
+  body.printing-org-chart .org-chart-card-emp-text { font-size: 0.46rem; line-height: 1.1; }
+  body.printing-org-chart .org-chart-card-emp-text span { font-size: 0.42rem; }
+
+  body.printing-org-chart .org-chart-footer { padding: 4px 8px; font-size: 0.5rem; }
+  body.printing-org-chart .org-chart-footer-icon { width: 9px; height: 9px; }
 }
 
 /* .wf-letter-type-card and friends started out as the (now removed) Select
