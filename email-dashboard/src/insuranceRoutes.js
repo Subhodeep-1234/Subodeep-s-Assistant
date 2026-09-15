@@ -9,12 +9,11 @@ const policyInfoService = require('./policyInfoService');
 const router = express.Router();
 
 const EXITS_PDF_COLUMNS = ['Sr No', 'Corporate_name', 'Employee ID/UHID', 'Name of Insured', 'Gender', 'Relationship', 'Date of Leaving', 'Reason'];
-const EXIT_MAIL_TO = 'manager.hr@alcoverealty.in';
-const EXIT_MAIL_CC = 'hr@alcoverealty.in';
-
 const ADDITIONS_PDF_COLUMNS = ['Sl. No.', 'Corporate_name', 'Emp ID', 'Full Name', 'DOJ/DOM', 'DOB', 'Gender', 'Relationship', 'Sum Insured'];
-const ADDITION_MAIL_TO = 'manager.hr@alcoverealty.in';
-const ADDITION_MAIL_CC = 'hr@alcoverealty.in';
+// To/Cc recipients for both Send Mail buttons come from the "Mediclaim
+// Addition & Deletion Automation" sheet's own "Mail Id" tab (see
+// insuranceService.getMailRecipients) rather than being hardcoded here -
+// editing that tab is how the user adds/removes recipients going forward.
 
 function wantsForceRefresh(req) {
   return req.query.refresh === '1' || req.query.refresh === 'true';
@@ -192,7 +191,10 @@ router.get('/exits', async (req, res) => {
 // whatever the client last rendered, since this is a real outbound email.
 router.post('/exits/send-mail', async (req, res) => {
   try {
-    const insuranceData = await insuranceService.getInsuranceData({});
+    const [insuranceData, recipients] = await Promise.all([
+      insuranceService.getInsuranceData({}),
+      insuranceService.getMailRecipients()
+    ]);
     const rawRows = analytics.sortDeletionsSelfFirst(insuranceData.deletions);
 
     const pdfBuffer = await buildTablePdfBuffer({
@@ -208,8 +210,8 @@ router.post('/exits/send-mail', async (req, res) => {
     });
 
     await gmailService.sendMailWithAttachment({
-      to: EXIT_MAIL_TO,
-      cc: EXIT_MAIL_CC,
+      to: recipients.to,
+      cc: recipients.cc,
       subject: 'Request for Deletion of Member(s) under Group Mediclaim Policy',
       text:
         'Dear Sir/Madam,\n\n' +
@@ -221,7 +223,7 @@ router.post('/exits/send-mail', async (req, res) => {
       }
     });
 
-    res.json({ ok: true, sentTo: EXIT_MAIL_TO, cc: EXIT_MAIL_CC, recordCount: rawRows.length });
+    res.json({ ok: true, sentTo: recipients.to, cc: recipients.cc, recordCount: rawRows.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -271,7 +273,10 @@ router.get('/additions', async (req, res) => {
 // outbound email.
 router.post('/additions/send-mail', async (req, res) => {
   try {
-    const insuranceData = await insuranceService.getInsuranceData({});
+    const [insuranceData, recipients] = await Promise.all([
+      insuranceService.getInsuranceData({}),
+      insuranceService.getMailRecipients()
+    ]);
     const rawRows = analytics.sortAdditionsSelfFirst(insuranceData.additions);
 
     const pdfBuffer = await buildTablePdfBuffer({
@@ -287,8 +292,8 @@ router.post('/additions/send-mail', async (req, res) => {
     });
 
     await gmailService.sendMailWithAttachment({
-      to: ADDITION_MAIL_TO,
-      cc: ADDITION_MAIL_CC,
+      to: recipients.to,
+      cc: recipients.cc,
       subject: 'Request for Addition of Member(s) under Group Mediclaim Policy',
       text:
         'Dear Sir/Madam,\n\n' +
@@ -300,7 +305,7 @@ router.post('/additions/send-mail', async (req, res) => {
       }
     });
 
-    res.json({ ok: true, sentTo: ADDITION_MAIL_TO, cc: ADDITION_MAIL_CC, recordCount: rawRows.length });
+    res.json({ ok: true, sentTo: recipients.to, cc: recipients.cc, recordCount: rawRows.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

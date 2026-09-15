@@ -116,6 +116,31 @@ async function fetchRaw() {
   return { members, additions, deletions, activeEmployees };
 }
 
+// Live To/Cc recipients for the Exits and Additions "Send Mail" buttons,
+// from the "Mail Id" tab's own A/B columns (header row: "Mail" | "Insurance
+// Mail Id") - column A holds the label ("To" or "Cc") next to the actual
+// address in column B. Multiple rows with the same label (there are
+// currently two "Cc" rows) all get included, joined into one comma-
+// separated header value each - standard email header syntax for several
+// recipients. Fetched fresh on every send (not the 2-minute cache the rest
+// of this module uses) since correct delivery matters more here than
+// shaving a round trip, and this only runs when someone actually clicks
+// Send Mail, not on every page load.
+async function getMailRecipients() {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!A2:B" });
+  const to = [];
+  const cc = [];
+  (res.data.values || []).filter(isRowPopulated).forEach((row) => {
+    const label = cleanValue(row[0]).toLowerCase();
+    const email = cleanValue(row[1]);
+    if (!email) return;
+    if (label === 'to') to.push(email);
+    else if (label === 'cc') cc.push(email);
+  });
+  return { to: to.join(', '), cc: cc.join(', ') };
+}
+
 let cache = { data: null, fetchedAt: 0 };
 let inFlight = null;
 
@@ -141,4 +166,4 @@ async function getInsuranceData({ forceRefresh = false } = {}) {
   return cache.data;
 }
 
-module.exports = { getInsuranceData };
+module.exports = { getInsuranceData, getMailRecipients };
