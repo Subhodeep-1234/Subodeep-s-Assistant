@@ -1716,11 +1716,30 @@ body {
      browsers strip non-essential background colors when printing unless
      told otherwise - without this they were invisible in the exported
      PDF even though they show fine on screen, which is what made the
-     hierarchy hard to read there. */
+     hierarchy hard to read there. Forced to solid black here (on screen
+     they use the app's pale --line grey, which read as barely-there
+     white on the printed page) to read clearly on paper. */
   body.printing-org-chart .org-chart-connector-down,
   body.printing-org-chart .org-chart-pill-connector,
   body.printing-org-chart .org-chart-cards-row::before,
   body.printing-org-chart .org-chart-card::before {
+    background: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Each card's own tick line ends in a downward arrowhead pointing into
+     that designation's box, matching the reference chart's style. */
+  body.printing-org-chart .org-chart-card::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 4px solid #000;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -1754,7 +1773,10 @@ body {
 
   body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; }
   body.printing-org-chart .org-chart-cards-row::before { height: 1px; }
-  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
+  /* overflow: hidden (on-screen: clips the card head's square corners to
+     the card's own rounded corners) also clips the tick+arrow below,
+     since both sit above the card's own top edge - not worth it here. */
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; overflow: visible; }
   body.printing-org-chart .org-chart-card::before { top: -8px; height: 8px; }
   body.printing-org-chart .org-chart-card-head { padding: 2px 6px; font-size: 0.5rem; gap: 3px; }
   body.printing-org-chart .org-chart-card-head-icon svg { width: 8px; height: 8px; }
@@ -1765,7 +1787,7 @@ body {
   body.printing-org-chart .org-chart-card-emp-text { font-size: 0.46rem; line-height: 1.1; }
   body.printing-org-chart .org-chart-card-emp-text span { font-size: 0.42rem; }
 
-  body.printing-org-chart .org-chart-footer { padding: 4px 8px; font-size: 0.5rem; }
+  body.printing-org-chart .org-chart-footer { padding: 4px 8px; font-size: 0.5rem; border-top: none; }
   body.printing-org-chart .org-chart-footer-icon { width: 9px; height: 9px; }
 }
 
