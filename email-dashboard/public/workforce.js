@@ -1011,7 +1011,7 @@ function orgChartCardHtml(group, index, palette) {
 function orgChartSectionHtml(title, groups) {
   if (!groups.length) return '';
   return (
-    '<div class="org-chart-connector-down"></div>' +
+    '<div class="org-chart-branch-connector"></div>' +
     '<div class="org-chart-pill">' + escapeHtml(title) + '</div>' +
     '<div class="org-chart-pill-connector"></div>' +
     '<div class="org-chart-cards-row">' +

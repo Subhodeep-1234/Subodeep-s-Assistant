@@ -1491,8 +1491,66 @@ body {
 .org-chart-hod-name { font-size: 1.05rem; font-weight: 800; }
 .org-chart-hod-role { font-size: 0.78rem; color: #bfdbfe; font-weight: 600; margin-top: 2px; }
 
-.org-chart-connector-down { width: 2px; height: 26px; background: var(--line); }
-.org-chart-pill-connector { width: 2px; height: 20px; background: var(--line); }
+/* Director -> HOD: a line + down-arrowhead sized to fit entirely inside
+   this gap (line 19px + arrowhead 7px = the 26px gap itself), so the
+   arrow's tip lands exactly on the HOD box's own top edge instead of
+   poking into it or stopping short of it. */
+.org-chart-connector-down { position: relative; width: 2px; height: 26px; margin: 0 auto; }
+.org-chart-connector-down::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 19px;
+  background: #000;
+}
+.org-chart-connector-down::after {
+  content: "";
+  position: absolute;
+  top: 19px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 7px solid #000;
+}
+
+/* HOD (or the previous section's cards) down to the White/Blue Collar
+   pill - a plain line, no arrowhead of its own; the pill sits directly
+   on top of it (see .org-chart-pill-connector below for where the
+   single arrowhead for this whole descent actually lives), so the pill
+   reads as a label sitting mid-line rather than a separate hop. */
+.org-chart-branch-connector { width: 2px; height: 26px; background: #000; margin: 0 auto; }
+
+/* Pill down to the cards row: same line+arrowhead idea as
+   .org-chart-connector-down above, sized to this gap's own 20px so the
+   tip lands exactly on the cards row's own top edge (where its bus line
+   sits) - this is the one arrowhead for the whole HOD-to-cards descent. */
+.org-chart-pill-connector { position: relative; width: 2px; height: 20px; margin: 0 auto; }
+.org-chart-pill-connector::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 13px;
+  background: #000;
+}
+.org-chart-pill-connector::after {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 7px solid #000;
+}
 
 .org-chart-pill {
   background: #dbeafe;
@@ -1559,7 +1617,7 @@ body {
 .org-chart-card::after {
   content: "";
   position: absolute;
-  top: -8px;
+  top: -6px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
@@ -1745,12 +1803,23 @@ body {
      they use the app's pale --line grey, which read as barely-there
      white on the printed page) to read clearly on paper. */
   body.printing-org-chart .org-chart-connector-down,
+  body.printing-org-chart .org-chart-branch-connector,
   body.printing-org-chart .org-chart-pill-connector,
   body.printing-org-chart .org-chart-cards-row::before,
   body.printing-org-chart .org-chart-card::before {
     background: #000;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  /* The Director->HOD and HOD->pill connectors grew their own
+     ::before/::after line+arrowhead treatment for the on-screen view
+     (see the base rules) - keep the PDF's simpler flat-bar look
+     (unchanged from before) by switching those back off here. */
+  body.printing-org-chart .org-chart-connector-down::before,
+  body.printing-org-chart .org-chart-connector-down::after,
+  body.printing-org-chart .org-chart-pill-connector::before,
+  body.printing-org-chart .org-chart-pill-connector::after {
+    content: none;
   }
   /* Each card's own tick line ends in a downward arrowhead pointing into
      that designation's box, matching the reference chart's style. */
@@ -1800,7 +1869,8 @@ body {
   body.printing-org-chart .org-chart-hod-title { font-size: 0.48rem; }
   body.printing-org-chart .org-chart-hod-name { font-size: 0.66rem; }
   body.printing-org-chart .org-chart-hod-role { font-size: 0.52rem; margin-top: 0; }
-  body.printing-org-chart .org-chart-connector-down { height: 6px; }
+  body.printing-org-chart .org-chart-connector-down,
+  body.printing-org-chart .org-chart-branch-connector { height: 6px; }
   body.printing-org-chart .org-chart-pill-connector { height: 5px; }
   body.printing-org-chart .org-chart-pill { padding: 2px 10px; font-size: 0.54rem; }
 
