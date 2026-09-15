@@ -1748,13 +1748,23 @@ body {
      sizing is scaled down here so a busy department (many designations,
      each listing every employee by name) still fits one landscape page. */
   body.printing-org-chart .org-chart { border: none; border-radius: 0; margin-top: 0; }
-  body.printing-org-chart .org-chart-top-row { padding: 0 0 6px; gap: 8px; }
-  body.printing-org-chart .org-chart-banner { padding: 6px 10px; gap: 8px; border-radius: 6px; }
+  /* space-between (instead of the on-screen default flex-start, where the
+     banner's flex:1 grows to fill the row) keeps the info card pinned to
+     the right while the banner below is free to shrink to its own
+     content width, leaving the gap between them empty instead of solid
+     blue. */
+  body.printing-org-chart .org-chart-top-row { padding: 0 0 6px; gap: 8px; justify-content: space-between; }
+  body.printing-org-chart .org-chart-banner { padding: 6px 10px; gap: 8px; border-radius: 6px; flex: 0 1 auto; }
   body.printing-org-chart .org-chart-banner-icon { width: 26px; height: 26px; border-width: 1px; }
   body.printing-org-chart .org-chart-banner-icon svg { width: 14px; height: 14px; }
   body.printing-org-chart .org-chart-banner-title { font-size: 0.85rem; }
   body.printing-org-chart .org-chart-banner-subtitle { font-size: 0.66rem; }
   body.printing-org-chart .org-chart-banner-tagline { font-size: 0.56rem; margin-top: 1px; }
+  /* The tagline's "| <Dept Name>" repeats the department name already
+     shown big in org-chart-banner-title above it - redundant in the
+     compact PDF header, so it's dropped here only (on screen there's
+     more vertical room and it reads fine repeated). */
+  body.printing-org-chart .org-chart-banner-tagline-dept { display: none; }
   body.printing-org-chart .org-chart-info-card { padding: 5px 10px; gap: 3px; }
   body.printing-org-chart .org-chart-info-row { font-size: 0.6rem; gap: 5px; }
   body.printing-org-chart .org-chart-info-icon { width: 11px; height: 11px; }
@@ -1776,17 +1786,24 @@ body {
      starts and ends precisely at the first and last card's own tick/
      arrow instead of overshooting past them - the on-screen 6% inset
      only ever looked right by coincidence, for rows with enough cards to
-     fill most of the row's width. Inset by 53px (half of the 106px card
-     width below, since the tick/arrow sits at each card's own center)
-     instead of 0, so the line stops at that arrow rather than running
-     all the way out to the first/last card's outer edge. */
+     fill most of the row's width. Inset by 51px (2px short of 53px, half
+     of the 106px card width below) so it reaches 2px into that card's
+     2px-wide tick rather than stopping exactly at the tick's own center -
+     landing exactly on that center line left a hairline gap at the
+     corner (sub-pixel rounding between the tick's %-based centering and
+     the bus line's px inset), this overlap guarantees they visibly
+     fuse into one continuous line with no seam. */
   body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
-  body.printing-org-chart .org-chart-cards-row::before { height: 1px; left: 53px; right: 53px; }
+  body.printing-org-chart .org-chart-cards-row::before { height: 1px; left: 51px; right: 51px; }
   /* overflow: hidden (on-screen: clips the card head's square corners to
      the card's own rounded corners) also clips the tick+arrow below,
      since both sit above the card's own top edge - not worth it here. */
   body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; overflow: visible; }
-  body.printing-org-chart .org-chart-card::before { top: -8px; height: 8px; }
+  /* Extends 1px higher than the bus line's own row (top: -9px instead of
+     the exact -8px row padding) for the same reason as the bus line's
+     51px inset above - guarantee an overlap, not just a touch, so no
+     hairline gap shows at the join. */
+  body.printing-org-chart .org-chart-card::before { top: -9px; height: 9px; }
   body.printing-org-chart .org-chart-card-head { padding: 2px 6px; font-size: 0.5rem; gap: 3px; }
   body.printing-org-chart .org-chart-card-head-icon svg { width: 8px; height: 8px; }
   body.printing-org-chart .org-chart-card-body { padding: 3px 6px; gap: 2px; }

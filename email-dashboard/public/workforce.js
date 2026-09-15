@@ -1066,7 +1066,7 @@ function renderOrgChartHtml(data) {
           '<span class="org-chart-banner-text">' +
             '<span class="org-chart-banner-title">' + escapeHtml(deptDisplay) + '</span>' +
             '<span class="org-chart-banner-subtitle">Organisation Chart</span>' +
-            '<span class="org-chart-banner-tagline">Alcove Realty | ' + escapeHtml(deptDisplay) + '</span>' +
+            '<span class="org-chart-banner-tagline">Alcove Realty <span class="org-chart-banner-tagline-dept">| ' + escapeHtml(deptDisplay) + '</span></span>' +
           '</span>' +
         '</div>' +
         '<div class="org-chart-info-card">' +
