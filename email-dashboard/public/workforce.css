@@ -1754,7 +1754,10 @@ body {
      content width, leaving the gap between them empty instead of solid
      blue. */
   body.printing-org-chart .org-chart-top-row { padding: 0 0 6px; gap: 8px; justify-content: space-between; }
-  body.printing-org-chart .org-chart-banner { padding: 6px 10px; gap: 8px; border-radius: 6px; flex: 0 1 auto; }
+  /* Matches .org-chart-info-card's own flex: 0 1 300px below, so the two
+     header boxes come out the same width instead of the banner shrinking
+     to its own (much shorter) text content. */
+  body.printing-org-chart .org-chart-banner { padding: 6px 10px; gap: 8px; border-radius: 6px; flex: 0 1 300px; }
   body.printing-org-chart .org-chart-banner-icon { width: 26px; height: 26px; border-width: 1px; }
   body.printing-org-chart .org-chart-banner-icon svg { width: 14px; height: 14px; }
   body.printing-org-chart .org-chart-banner-title { font-size: 0.85rem; }
