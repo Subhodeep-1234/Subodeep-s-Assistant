@@ -1093,15 +1093,87 @@ function renderOrgChartHtml(data) {
   );
 }
 
+// Print-only tree - White/Blue Collar's own designation-group list, each
+// item connected to a shared left spine (a continuous border, no per-item
+// height math needed) via a short horizontal tick. Designation + count
+// only, no per-employee names (see the CSS comment above .org-chart-print
+// for why) - segregation itself (which group each designation falls
+// into) is untouched, only how it's drawn.
+function orgChartPrintSpineHtml(groups) {
+  if (!groups.length) {
+    return '<div class="ocp-spine"><div class="ocp-spine-item"><div class="ocp-box ocp-box-role" style="opacity:.6;">None</div></div></div>';
+  }
+  return (
+    '<div class="ocp-spine">' +
+      groups
+        .map(
+          (g) =>
+            '<div class="ocp-spine-item"><div class="ocp-box ocp-box-role">' +
+            escapeHtml(titleCase(g.designation)) + ' (' + g.count + ')' +
+            '</div></div>'
+        )
+        .join('') +
+    '</div>'
+  );
+}
+
+function renderOrgChartPrintHtml(data) {
+  const deptDisplay = titleCase(data.department);
+  const generatedOn = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  const doerForDisplay = data.doer ? { ...data.doer, name: titleCase(data.doer.name) } : null;
+
+  function leaderBox(role, person) {
+    return (
+      '<div class="ocp-box ocp-box-leader">' +
+        '<span class="ocp-box-role">' + escapeHtml(role) + '</span>' +
+        '<span class="ocp-box-name">' + escapeHtml(person ? person.name : 'Not identified') + '</span>' +
+      '</div>'
+    );
+  }
+
+  return (
+    '<div class="org-chart-print">' +
+      '<div class="ocp-header">' +
+        '<span class="ocp-header-title">' + escapeHtml(deptDisplay) + ' — Organisation Chart</span>' +
+        '<span class="ocp-header-meta">Alcove Realty · ' + data.totalEmployees + ' Employees · Generated on ' + generatedOn + '</span>' +
+      '</div>' +
+
+      '<div class="ocp-level">' + leaderBox('Director', doerForDisplay) + '</div>' +
+      '<div class="ocp-connector-v"></div>' +
+      '<div class="ocp-level">' + leaderBox('Head of Department', data.hod) + '</div>' +
+
+      '<div class="ocp-branch-2">' +
+        '<div class="ocp-branch-child">' +
+          '<div class="ocp-box ocp-box-section tone-white">White Collar (' + data.whiteCollarGroups.length + ')</div>' +
+          orgChartPrintSpineHtml(data.whiteCollarGroups) +
+        '</div>' +
+        '<div class="ocp-branch-child">' +
+          '<div class="ocp-box ocp-box-section tone-blue">Blue Collar &amp; Group D (' + data.blueGroupDGroups.length + ')</div>' +
+          orgChartPrintSpineHtml(data.blueGroupDGroups) +
+        '</div>' +
+      '</div>' +
+
+      '<div class="ocp-footer">Alcove Realty | Excellence in Every Department</div>' +
+    '</div>'
+  );
+}
+
 document.getElementById('exportOrgChartPdf').addEventListener('click', () => {
   if (!lastOrgChartData) return;
+  const printEl = document.getElementById('orgChartPrintContent');
+  printEl.innerHTML = renderOrgChartPrintHtml(lastOrgChartData);
+  printEl.hidden = false;
   document.body.classList.add('printing-org-chart');
   const style = document.createElement('style');
-  style.textContent = '@page { size: landscape; }';
+  // margin: 0 - #orgChartPrintContent already has its own padding for
+  // print (see workforce.css), stacking both would double the border.
+  style.textContent = '@page { size: landscape; margin: 0; }';
   document.head.appendChild(style);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
     document.body.classList.remove('printing-org-chart');
+    printEl.hidden = true;
+    printEl.innerHTML = '';
     style.remove();
     window.removeEventListener('afterprint', cleanup);
   });
