@@ -1569,6 +1569,26 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   border-top: 7px solid #000;
 }
 
+/* When a section holds exactly one designation card (either genuinely,
+   or after filtering everyone else out to Inactive), the bus line below
+   - built to fan out sideways into several cards sharing one line - has
+   nothing left to fan out to, and shows as a tiny stray line/second
+   arrowhead sitting just above the card's own. Hide it and let that
+   single card's own arrow (already sized correctly to reach up to this
+   connector) be the only arrowhead, the same as everywhere else with
+   just one path down. (The equivalent single-column case, where every
+   card ends up alone on its own line regardless of count, is handled
+   separately below at 480px.) */
+.org-chart-cards-row:has(> .org-chart-card:only-child)::before {
+  display: none;
+}
+.org-chart-pill-connector:has(+ .org-chart-cards-row > .org-chart-card:only-child)::before {
+  height: 20px;
+}
+.org-chart-pill-connector:has(+ .org-chart-cards-row > .org-chart-card:only-child)::after {
+  content: none;
+}
+
 .org-chart-pill {
   background: #dbeafe;
   color: #1e3a5f;
@@ -1938,6 +1958,15 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      fuse into one continuous line with no seam. */
   body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
   body.printing-org-chart .org-chart-cards-row::before { height: 1px; left: 51px; right: 51px; }
+  /* A section with exactly one designation card has nothing for the bus
+     line to fan out to - without this it still draws as a tiny stray
+     line sitting just above that one card's own arrow. That card's own
+     tick already reaches this connector correctly on its own (same as
+     any other card), so hiding the bus line here just leaves the one
+     continuous arrow the section actually needs. */
+  body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child)::before {
+    display: none;
+  }
   body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
   /* Matches the card's own 5px radius here (on screen: 11px, for its
      12px card) so the head's corners still nest inside the card's,
