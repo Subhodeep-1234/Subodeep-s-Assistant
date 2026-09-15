@@ -1513,37 +1513,60 @@ body {
   justify-content: center;
   gap: 16px;
   padding-top: 26px;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
   margin-bottom: 20px;
 }
+/* Inset by 103px (2px short of 105px, half the 210px card width below) so
+   the line reaches into that card's own 2px-wide tick rather than
+   stopping exactly at its center - ending precisely on the center left a
+   hairline gap at the corner (sub-pixel rounding between the tick's
+   %-based centering and this line's px inset), this overlap guarantees
+   they visibly fuse into one line, matching the first/last card's own
+   down-arrow instead of overshooting to the row's outer edge. */
 .org-chart-cards-row::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 6%;
-  right: 6%;
+  left: 103px;
+  right: 103px;
   height: 2px;
-  background: var(--line);
+  background: #000;
 }
 
 .org-chart-card {
   position: relative;
   width: 210px;
   border-radius: 12px;
-  overflow: hidden;
   border: 1px solid var(--line);
   background: var(--card-tint, var(--surface));
   box-shadow: 0 2px 8px var(--shadow);
 }
+/* Extends 1px past the row's own 26px padding-top, for the same overlap
+   reason as the bus line's 103px inset above. */
 .org-chart-card::before {
   content: "";
   position: absolute;
-  top: -26px;
+  top: -27px;
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: 26px;
-  background: var(--line);
+  height: 27px;
+  background: #000;
+}
+.org-chart-card::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid #000;
 }
 .org-chart-card-head {
   background: var(--card-color, var(--accent));
@@ -1554,6 +1577,8 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -1763,11 +1788,6 @@ body {
   body.printing-org-chart .org-chart-banner-title { font-size: 0.85rem; }
   body.printing-org-chart .org-chart-banner-subtitle { font-size: 0.66rem; }
   body.printing-org-chart .org-chart-banner-tagline { font-size: 0.56rem; margin-top: 1px; }
-  /* The tagline's "| <Dept Name>" repeats the department name already
-     shown big in org-chart-banner-title above it - redundant in the
-     compact PDF header, so it's dropped here only (on screen there's
-     more vertical room and it reads fine repeated). */
-  body.printing-org-chart .org-chart-banner-tagline-dept { display: none; }
   body.printing-org-chart .org-chart-info-card { padding: 5px 10px; gap: 3px; }
   body.printing-org-chart .org-chart-info-row { font-size: 0.6rem; gap: 5px; }
   body.printing-org-chart .org-chart-info-icon { width: 11px; height: 11px; }
@@ -1798,10 +1818,11 @@ body {
      fuse into one continuous line with no seam. */
   body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
   body.printing-org-chart .org-chart-cards-row::before { height: 1px; left: 51px; right: 51px; }
-  /* overflow: hidden (on-screen: clips the card head's square corners to
-     the card's own rounded corners) also clips the tick+arrow below,
-     since both sit above the card's own top edge - not worth it here. */
-  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; overflow: visible; }
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
+  /* Matches the card's own 5px radius here (on screen: 11px, for its
+     12px card) so the head's corners still nest inside the card's,
+     rather than the on-screen sizing showing through at print scale. */
+  body.printing-org-chart .org-chart-card-head { border-top-left-radius: 4px; border-top-right-radius: 4px; }
   /* Extends 1px higher than the bus line's own row (top: -9px instead of
      the exact -8px row padding) for the same reason as the bus line's
      51px inset above - guarantee an overlap, not just a touch, so no

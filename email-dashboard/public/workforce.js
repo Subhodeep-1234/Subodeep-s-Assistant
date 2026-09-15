@@ -1066,12 +1066,11 @@ function renderOrgChartHtml(data) {
           '<span class="org-chart-banner-text">' +
             '<span class="org-chart-banner-title">' + escapeHtml(deptDisplay) + '</span>' +
             '<span class="org-chart-banner-subtitle">Organisation Chart</span>' +
-            '<span class="org-chart-banner-tagline">Alcove Realty <span class="org-chart-banner-tagline-dept">| ' + escapeHtml(deptDisplay) + '</span></span>' +
+            '<span class="org-chart-banner-tagline">Alcove Realty</span>' +
           '</span>' +
         '</div>' +
         '<div class="org-chart-info-card">' +
           orgChartInfoRow(FIELD_ICONS.users, 'Total Employees', String(data.totalEmployees)) +
-          orgChartInfoRow(FIELD_ICONS.building, 'Department', deptDisplay) +
           orgChartInfoRow(FIELD_ICONS.badge, 'HOD', data.hod ? data.hod.name : '—') +
           orgChartInfoRow(FIELD_ICONS.calendar, 'Generated On', generatedOn) +
         '</div>' +
