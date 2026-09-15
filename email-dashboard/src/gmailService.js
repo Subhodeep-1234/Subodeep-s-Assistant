@@ -102,7 +102,11 @@ function parseConfirmationMail(bodyTextRaw) {
     ? designationMatch[1].replace(/\s+/g, ' ').trim().replace(/^["'“‘]+|["'”’]+$/g, '')
     : '';
 
-  const companyMatch = bodyText.match(/\bat\s+([A-Z][\w&.,\s]*?)\s+on\b/);
+  // Stops at whichever comes first: a sentence-ending period, or " on"
+  // (the DOJ sentence) - requiring "on" unconditionally swallowed the rest
+  // of the sentence in between ("at Alcove Realty. Your date of joining
+  // will be on...") since nothing stopped it at the period first.
+  const companyMatch = bodyText.match(/\bat\s+([A-Z][\w&,\s]*?)(?:\.|(?=\s+on\b))/i);
   const company = companyMatch ? companyMatch[1].replace(/\s+/g, ' ').trim() : '';
 
   const dojMatch = bodyText.match(
