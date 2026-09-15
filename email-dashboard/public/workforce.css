@@ -1524,6 +1524,23 @@ body {
    single arrowhead for this whole descent actually lives), so the pill
    reads as a label sitting mid-line rather than a separate hop. */
 .org-chart-branch-connector { width: 2px; height: 26px; background: #000; margin: 0 auto; }
+/* Between the White Collar row and the Blue Collar pill specifically,
+   this connector follows a .org-chart-cards-row - which carries its own
+   20px margin-bottom (space before the footer, when a row is the very
+   last thing on the chart) - so without this, the line only drew across
+   its own 26px and left that 20px as an unbridged blank gap above it,
+   making the line look like it starts floating in mid-air instead of
+   reaching all the way back up to the last row of cards. Pulling the
+   connector up by that same 20px and adding it to the connector's own
+   height closes the gap without touching the row's margin itself (still
+   needed as-is when a row is the chart's last element). print has its
+   own compact spacing already and never had this gap (its own -
+   different - margin/line values happen to already touch), so this is
+   scoped off there. */
+body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector {
+  margin-top: -20px;
+  height: 46px;
+}
 
 /* Pill down to the cards row: same line+arrowhead idea as
    .org-chart-connector-down above, sized to this gap's own 20px so the
