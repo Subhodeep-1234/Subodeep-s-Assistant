@@ -499,6 +499,111 @@ function buildOrgChart(employees, departmentNames, targetDepartmentKey, selected
   };
 }
 
+// Finds the company-wide Managing Director by designation match (not
+// hardcoded by name, so this stays correct on its own if that person
+// ever changes) - the fixed root of every department's PDF hierarchy
+// tree below, regardless of who that particular department's own
+// Director(s)/HOD(s) are.
+function findManagingDirector(allEmployees) {
+  const match = allEmployees.find(
+    (e) => e.status !== 'INACTIVE' && String(e.designation || '').trim().toUpperCase() === 'MANAGING DIRECTOR'
+  );
+  return match ? { name: match.name, employeeId: match.employeeId, designation: match.designation } : null;
+}
+
+// Splits a set of employees (all already known to share the same
+// "owner" above them - a Director or the Managing Director) by their own
+// HOD-1 (reportingManager): anyone whose HOD-1 names someone OTHER than
+// the owner becomes its own HOD branch (their own box, with their people
+// under them); anyone whose HOD-1 is blank or names the owner themself
+// has no real intermediate HOD and goes straight under the owner.
+function splitByHod(ownerName, employeesUnderOwner, allEmployees) {
+  const ownerKey = ownerName ? ownerName.trim().toLowerCase() : null;
+  const hodGroups = new Map();
+  const directEmployees = [];
+  employeesUnderOwner.forEach((e) => {
+    const hodKey = e.reportingManager ? e.reportingManager.trim().toLowerCase() : '';
+    if (!hodKey || hodKey === ownerKey) {
+      directEmployees.push(e);
+      return;
+    }
+    if (!hodGroups.has(hodKey)) hodGroups.set(hodKey, []);
+    hodGroups.get(hodKey).push(e);
+  });
+
+  const hodBranches = Array.from(hodGroups.values())
+    .map((emps) => ({ person: resolvePersonByName(emps[0].reportingManager, allEmployees), employees: emps }))
+    .sort((a, b) => (a.person ? a.person.name : '').localeCompare(b.person ? b.person.name : ''));
+
+  return { hodBranches, directEmployees };
+}
+
+// A deeper, PDF-only hierarchy - the fixed company Managing Director at
+// the top, then every distinct Director (Reporting DOER) actually found
+// among this department's own employees (excluding the MD himself, who
+// is already the root) side by side, then within each Director's own
+// people, every distinct HOD (HOD-1) that isn't the Director's own name
+// - each ending in the same White/Blue Collar designation-card
+// breakdown the on-screen chart already uses. PDF-only: the on-screen
+// view stays the simpler single-Director/single-HOD-or-picker view it
+// already is (buildOrgChart above), unaffected by this.
+function buildOrgChartPdfTree(employees, departmentNames, targetDepartmentKey) {
+  const deptEmployees = employees.filter((e) => e.status !== 'INACTIVE' && e.departmentKey === targetDepartmentKey);
+  const departmentName =
+    departmentNames.get(targetDepartmentKey) || (deptEmployees[0] && deptEmployees[0].department) || '';
+
+  const managingDirector = findManagingDirector(employees);
+  const mdKey = managingDirector ? managingDirector.name.trim().toLowerCase() : null;
+
+  const directorGroups = new Map();
+  const mdDirectEmployees = [];
+  deptEmployees.forEach((e) => {
+    const doerKey = e.reportingDoer ? e.reportingDoer.trim().toLowerCase() : '';
+    if (!doerKey) return;
+    if (doerKey === mdKey) {
+      mdDirectEmployees.push(e);
+      return;
+    }
+    if (!directorGroups.has(doerKey)) directorGroups.set(doerKey, []);
+    directorGroups.get(doerKey).push(e);
+  });
+
+  function collarGroups(emps) {
+    const white = emps.filter((e) => formatCollarForChart(e.groupD) === 'White');
+    const blue = emps.filter((e) => formatCollarForChart(e.groupD) !== 'White');
+    return { whiteCollarGroups: groupByDesignation(white), blueGroupDGroups: groupByDesignation(blue) };
+  }
+
+  // Same "don't double-list the leader among their own cards" rule the
+  // existing single-level chart uses (buildOrgChart's excludeIds), just
+  // applied at both the Director level and the HOD level here.
+  function buildBranch(ownerName, emps) {
+    const { hodBranches, directEmployees } = splitByHod(ownerName, emps, employees);
+    const ownerKey = ownerName ? ownerName.trim().toLowerCase() : null;
+    const direct = collarGroups(directEmployees.filter((e) => !ownerKey || e.name.trim().toLowerCase() !== ownerKey));
+    const hods = hodBranches.map((b) => {
+      const hodKey = b.person ? b.person.name.trim().toLowerCase() : null;
+      return { hod: b.person, ...collarGroups(b.employees.filter((e) => !hodKey || e.name.trim().toLowerCase() !== hodKey)) };
+    });
+    return { direct, hods };
+  }
+
+  const directors = Array.from(directorGroups.values())
+    .map((emps) => {
+      const directorPerson = resolvePersonByName(emps[0].reportingDoer, employees);
+      return { director: directorPerson, ...buildBranch(directorPerson ? directorPerson.name : null, emps) };
+    })
+    .sort((a, b) => (a.director ? a.director.name : '').localeCompare(b.director ? b.director.name : ''));
+
+  return {
+    department: departmentName,
+    totalEmployees: deptEmployees.length,
+    managingDirector,
+    mdBranch: buildBranch(managingDirector ? managingDirector.name : null, mdDirectEmployees),
+    directors
+  };
+}
+
 module.exports = {
   departmentBreakdown,
   locationBreakdown,
@@ -516,5 +621,6 @@ module.exports = {
   dataQualityReport,
   isProbation,
   calcAge,
-  buildOrgChart
+  buildOrgChart,
+  buildOrgChartPdfTree
 };

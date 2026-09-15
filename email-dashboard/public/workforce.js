@@ -1166,16 +1166,215 @@ function renderOrgChartHtml(data) {
   );
 }
 
-document.getElementById('exportOrgChartPdf').addEventListener('click', () => {
+// ---------- Org Chart PDF-only deeper hierarchy ----------
+// Some departments have more than one real Director (Reporting DOER)
+// and/or more than one real HOD under a given Director - the on-screen
+// view above stays the simpler single-Director/single-HOD(-or-picker)
+// view; the PDF export instead builds the fuller Managing Director ->
+// Director(s) -> HOD(s) -> designation-card tree, reusing the exact same
+// leader-box/pill/cards-row/connector building blocks already used
+// above so the PDF's own visual design/format is unchanged - only the
+// depth of the tree is new.
+
+// One Director's (or the Managing Director's own direct) branch content:
+// every HOD under them gets their own smaller leader box plus their own
+// White/Blue Collar card rows; when there's no HOD at all (their people
+// report straight to this branch's own owner), the cards sit directly
+// under the owner instead - same "skip the empty middle box" idea as
+// buildOrgChartPdfTree itself.
+// hodBoxClass defaults to the same full-size HOD box the plain single-
+// Director PDF has always used - only passed as the smaller sub-tier
+// style (see orgChartPdfDirectorColumnHtml) when this branch's HOD(s)
+// sit one level deeper than usual, under an explicit Director column,
+// so a department with just one Director and one HOD (the common case)
+// renders pixel-identical to the PDF's original design.
+function orgChartPdfBranchContentHtml(branch, hodBoxClass) {
+  hodBoxClass = hodBoxClass || 'org-chart-hod-box';
+  if (branch.hods.length > 1) {
+    // Several HODs under the same Director fan out side by side under a
+    // shared bus line (see .org-chart-pdf-hods-row), same idea as the
+    // designation cards row below each of them.
+    return (
+      '<div class="org-chart-branch-connector"></div>' +
+      '<div class="org-chart-pdf-hods-row">' +
+        '<span class="org-chart-pdf-hods-bus"></span>' +
+        branch.hods
+          .map((h) => (
+            '<div class="org-chart-pdf-hod-slot">' +
+              orgChartLeaderBoxHtml('', h.hod, hodBoxClass) +
+              orgChartSectionHtml('White Collar', h.whiteCollarGroups) +
+              orgChartSectionHtml('Blue Collar & Group D', h.blueGroupDGroups) +
+            '</div>'
+          ))
+          .join('') +
+      '</div>'
+    );
+  }
+  if (branch.hods.length === 1) {
+    const h = branch.hods[0];
+    return (
+      '<div class="org-chart-branch-connector"></div>' +
+      orgChartLeaderBoxHtml('', h.hod, hodBoxClass) +
+      orgChartSectionHtml('White Collar', h.whiteCollarGroups) +
+      orgChartSectionHtml('Blue Collar & Group D', h.blueGroupDGroups)
+    );
+  }
+  return orgChartSectionHtml('White Collar', branch.direct.whiteCollarGroups) + orgChartSectionHtml('Blue Collar & Group D', branch.direct.blueGroupDGroups);
+}
+
+function orgChartPdfDirectorColumnHtml(directorPerson, branch) {
+  return (
+    '<div class="org-chart-pdf-director-col">' +
+      orgChartLeaderBoxHtml('', directorPerson, 'org-chart-hod-box') +
+      orgChartPdfBranchContentHtml(branch, 'org-chart-hod-box org-chart-pdf-sub-hod-box') +
+    '</div>'
+  );
+}
+
+function renderOrgChartPdfTreeHtml(data) {
+  const deptDisplay = titleCase(data.department);
+  const generatedOn = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  const mdForDisplay = data.managingDirector ? { ...data.managingDirector, name: titleCase(data.managingDirector.name) } : null;
+  const mdBox = orgChartLeaderBoxHtml('', mdForDisplay, 'org-chart-hod-box org-chart-director-box');
+
+  const hasDirectors = data.directors.length > 0;
+  const mdOwnHasContent = data.mdBranch.hods.length > 0 || data.mdBranch.direct.whiteCollarGroups.length > 0 || data.mdBranch.direct.blueGroupDGroups.length > 0;
+
+  let secondRowLabel = 'HOD';
+  let secondRowValue = '—';
+  if (hasDirectors) {
+    secondRowLabel = 'Directors';
+    secondRowValue = String(data.directors.length + (mdOwnHasContent ? 1 : 0)) + ' (see chart)';
+  } else if (data.mdBranch.hods.length === 1) {
+    secondRowValue = data.mdBranch.hods[0].hod ? data.mdBranch.hods[0].hod.name : '—';
+  } else if (data.mdBranch.hods.length > 1) {
+    secondRowLabel = 'HODs';
+    secondRowValue = String(data.mdBranch.hods.length) + ' (see chart)';
+  }
+
+  let belowMd;
+  if (hasDirectors) {
+    // The MD's own direct branch (anyone reporting straight to the MD,
+    // if any) becomes just another column alongside the real Directors,
+    // labelled with the MD's own name again so it reads the same way as
+    // every other column instead of a lone unlabeled exception.
+    const columns = (mdOwnHasContent ? [orgChartPdfDirectorColumnHtml(mdForDisplay, data.mdBranch)] : []).concat(
+      data.directors.map((d) => orgChartPdfDirectorColumnHtml({ ...d.director, name: titleCase(d.director.name) }, { direct: d.direct, hods: d.hods }))
+    );
+    belowMd =
+      '<div class="org-chart-connector-down"></div>' +
+      '<div class="org-chart-pdf-directors-row">' +
+        '<span class="org-chart-pdf-hods-bus"></span>' +
+        columns.join('') +
+      '</div>';
+  } else {
+    // No separate Director tier at all - same shape as today's plain
+    // single-level PDF (MD box straight down into its own HOD(s)/cards).
+    belowMd = (data.mdBranch.hods.length ? '' : '<div class="org-chart-connector-down"></div>') + orgChartPdfBranchContentHtml(data.mdBranch);
+  }
+
+  return (
+    '<div class="org-chart">' +
+      '<div class="org-chart-top-row">' +
+        '<div class="org-chart-banner">' +
+          '<span class="org-chart-banner-icon">' + icon(deptIconFor(data.department), 26) + '</span>' +
+          '<span class="org-chart-banner-text">' +
+            '<span class="org-chart-banner-title">' + escapeHtml(deptDisplay) + '</span>' +
+            '<span class="org-chart-banner-subtitle">Organisation Chart</span>' +
+            '<span class="org-chart-banner-tagline">Alcove Realty</span>' +
+          '</span>' +
+        '</div>' +
+        '<div class="org-chart-info-card">' +
+          orgChartInfoRow(FIELD_ICONS.users, 'Total Employees', String(data.totalEmployees)) +
+          orgChartInfoRow(FIELD_ICONS.badge, secondRowLabel, secondRowValue) +
+          orgChartInfoRow(FIELD_ICONS.calendar, 'Generated On', generatedOn) +
+        '</div>' +
+      '</div>' +
+
+      '<div class="org-chart-tree">' +
+        mdBox +
+        belowMd +
+      '</div>' +
+
+      '<div class="org-chart-footer">' +
+        '<span class="org-chart-footer-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></span>' +
+        '<span>Alcove Realty | Excellence in Every Department</span>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+// Both levels that can fan out to more than one sibling box - Directors
+// under the Managing Director, and HODs under a Director - use the same
+// bus-line idea: a real element (not a ::before - see the print CSS
+// rule), positioned to span exactly from the first sibling's own leader
+// box to the last one's. Column widths vary a lot at both levels (one
+// Director might have six designation cards under them, another just
+// one), so a fixed CSS inset would either overshoot or fall short - this
+// measures the ACTUAL rendered position instead, which only exists once
+// the browser has switched to print layout (fit-content row widths,
+// compact print font sizes, etc.), too late to measure right after
+// building the HTML (still in screen layout at that point) - so this
+// runs from the 'beforeprint' event instead, which fires after that
+// switch.
+function positionOrgChartPdfFanBuses(root) {
+  root.querySelectorAll('.org-chart-pdf-hods-row, .org-chart-pdf-directors-row').forEach((row) => {
+    const bus = row.querySelector(':scope > .org-chart-pdf-hods-bus');
+    if (!bus) return;
+    const cols = Array.from(row.children).filter((el) => el !== bus && el.querySelector('.org-chart-hod-box'));
+    if (cols.length < 2) {
+      bus.style.display = 'none';
+      return;
+    }
+    const rowRect = row.getBoundingClientRect();
+    const firstRect = cols[0].querySelector('.org-chart-hod-box').getBoundingClientRect();
+    const lastRect = cols[cols.length - 1].querySelector('.org-chart-hod-box').getBoundingClientRect();
+    const left = firstRect.left + firstRect.width / 2 - rowRect.left;
+    const right = lastRect.left + lastRect.width / 2 - rowRect.left;
+    bus.style.left = left + 'px';
+    bus.style.width = Math.max(0, right - left) + 'px';
+  });
+}
+
+document.getElementById('exportOrgChartPdf').addEventListener('click', async () => {
   if (!lastOrgChartData) return;
+  const dept = document.getElementById('orgChartDeptSelect').value;
+  if (!dept) return;
+  const btn = document.getElementById('exportOrgChartPdf');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Preparing…';
+  let treeData;
+  try {
+    treeData = await fetchJson('/api/workforce/org-chart-pdf?department=' + encodeURIComponent(dept) + '&refresh=1');
+  } catch (err) {
+    alert('Failed to prepare PDF: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    return;
+  }
+  btn.disabled = false;
+  btn.textContent = originalLabel;
+
+  const printEl = document.getElementById('orgChartPrintContent');
+  printEl.innerHTML = renderOrgChartPdfTreeHtml(treeData);
+  printEl.hidden = false;
   document.body.classList.add('printing-org-chart');
   const style = document.createElement('style');
   style.textContent = '@page { size: landscape; margin: 0; }';
   document.head.appendChild(style);
+
+  function beforePrint() {
+    positionOrgChartPdfFanBuses(printEl);
+  }
+  window.addEventListener('beforeprint', beforePrint);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
     document.body.classList.remove('printing-org-chart');
+    printEl.hidden = true;
+    printEl.innerHTML = '';
     style.remove();
+    window.removeEventListener('beforeprint', beforePrint);
     window.removeEventListener('afterprint', cleanup);
   });
 });

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=96" />
+  <link rel="stylesheet" href="workforce.css?v=97" />
 </head>
 <body>
   <div class="wf-shell">
@@ -743,6 +743,11 @@
         </div>
       </div>
       <div id="orgChartContent"></div>
+      <!-- Print-only deeper hierarchy tree (see renderOrgChartPdfTreeHtml)
+           - the on-screen #orgChartContent cards view above is untouched;
+           this is filled fresh from /api/workforce/org-chart-pdf right
+           before window.print() and hidden/cleared again afterward. -->
+      <div id="orgChartPrintContent" hidden></div>
     </section>
 
     <!-- Health Insurance -->
@@ -1175,6 +1180,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=180"></script>
+  <script src="workforce.js?v=181"></script>
 </body>
 </html>

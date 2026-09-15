@@ -222,6 +222,25 @@ router.get('/org-chart', async (req, res) => {
   }
 });
 
+// PDF-only, deeper hierarchy (Managing Director -> Director(s) ->
+// HOD(s) -> designation cards) for departments that actually have more
+// than one Director/HOD - see buildOrgChartPdfTree. The on-screen view
+// keeps using plain /org-chart above, unaffected.
+router.get('/org-chart-pdf', async (req, res) => {
+  try {
+    if (!req.query.department) {
+      return res.status(400).json({ error: 'department is required' });
+    }
+    const { employees, departmentNames } = await employeeService.getEmployeeData({
+      forceRefresh: wantsForceRefresh(req)
+    });
+    const targetKey = employeeService.normalizeKey(req.query.department);
+    res.json(analytics.buildOrgChartPdfTree(employees, departmentNames, targetKey));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/joining-trend', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();
