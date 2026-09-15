@@ -297,7 +297,7 @@ router.post('/additions/send-mail', async (req, res) => {
       subject: 'Request for Addition of Member(s) under Group Mediclaim Policy',
       text:
         'Dear Sir/Madam,\n\n' +
-        'We would like to request the addition of the following member(s) under our Group Mediclaim Policy. Kindly confirm the addition at the earliest.',
+        'We would like to request the addition of the following member(s) under our Group Mediclaim Policy. Kindly confirm the addition and share the e-card(s) at the earliest.',
       attachment: {
         filename: 'Health_Insurance_Additions_' + new Date().toISOString().slice(0, 10) + '.pdf',
         content: pdfBuffer,
