@@ -1549,13 +1549,20 @@ body {
    box(es) and their White/Blue Collar cards) still uses the exact same
    pieces/classes as the plain single-Director PDF, just wrapped in one
    column per Director instead of always exactly one. */
+/* flex-wrap: nowrap (not wrap) is deliberate - a wrapped second row of
+   Director/HOD columns has no clean way to connect its own bus line
+   back up to the shared parent above (the single-bus-per-fan-out
+   technique here assumes one row), so busy departments instead stay in
+   one (possibly very wide) row and get shrunk to fit the page by
+   scaleOrgChartPdfTreeToFit, rather than wrapping into a
+   visually-disconnected second row. */
 .org-chart-pdf-directors-row {
   position: relative;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   gap: 22px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .org-chart-pdf-director-col {
   position: relative;
@@ -1574,13 +1581,14 @@ body {
    cards row below each HOD (org-chart-cards-row/org-chart-card), just
    wrapping a full HOD sub-branch (leader box + their own cards) in each
    slot instead of a single card. */
+/* flex-wrap: nowrap - same reasoning as .org-chart-pdf-directors-row
+   above. */
 .org-chart-pdf-hods-row {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   width: fit-content;
-  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
 }
@@ -1941,8 +1949,20 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
    !important, since its own unconditional "#printReport { visibility:
    visible }" rule above would otherwise outrank a plain class selector)
    so a stale table from a previously-generated report can't leak into
-   this export. */
-@media print {
+   this export.
+
+   Deliberately NOT wrapped in @media print (unlike every other print
+   block on this page) - positionOrgChartPdfFanBuses needs to measure
+   real rendered box positions (Director/HOD box widths vary a lot
+   department to department) to place the multi-Director/multi-HOD bus
+   lines correctly, and that has to happen before window.print() is
+   even called, while the page is still in screen media - print media
+   styles are only guaranteed active during the print render itself, not
+   during 'beforeprint' (confirmed empirically: print layout wasn't yet
+   applied when that event fired). Applying these rules as soon as the
+   class is added, instead of waiting for actual print, causes no
+   on-screen glitch: #orgChartContent goes display:none in this exact
+   same ruleset, synchronously, before the browser's next paint. */
   body.printing-org-chart * { visibility: hidden; }
   body.printing-org-chart #printReport,
   body.printing-org-chart #printReport * {
@@ -1952,11 +1972,20 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart #orgChartPrintContent * {
     visibility: visible;
   }
+  /* width: 297mm (landscape A4's own true width) instead of 100% -
+     100% would resolve against the browser's actual current viewport
+     (this block runs before window.print() even starts, see the
+     comment above), which varies by device and is usually nowhere near
+     the true print page width (a phone's few-hundred-px-wide screen,
+     for one) - a fixed width keeps every measurement/layout decision
+     here (fit-content row widths, flex-wrap points, the bus-line
+     positioning) consistent with the actual print output regardless of
+     what device or window size this runs on. */
   body.printing-org-chart #orgChartPrintContent {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
+    width: 297mm;
     padding: 8mm 10mm;
   }
   /* visibility: hidden keeps everything else in normal flow, so the rest
@@ -2171,7 +2200,6 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 
   body.printing-org-chart .org-chart-footer { padding: 4px 8px; font-size: 0.5rem; border-top: none; margin-top: 20px; }
   body.printing-org-chart .org-chart-footer-icon { width: 9px; height: 9px; }
-}
 
 /* .wf-letter-type-card and friends started out as the (now removed) Select
    Letter Type screen's single-select cards; kept here because the form's

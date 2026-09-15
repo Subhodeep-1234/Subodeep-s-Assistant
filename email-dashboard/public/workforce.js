@@ -1336,6 +1336,46 @@ function positionOrgChartPdfFanBuses(root) {
   });
 }
 
+// Landscape A4's own true content-box size in CSS px, matching
+// #orgChartPrintContent's fixed 297mm width and 8mm/10mm padding (see
+// that CSS rule's own comment for why it's a fixed size, not 100%) -
+// 1mm = 96/25.4 CSS px.
+const MM_TO_PX = 96 / 25.4;
+const PRINT_PAGE_CONTENT_WIDTH_PX = (297 - 20) * MM_TO_PX;
+const PRINT_PAGE_CONTENT_HEIGHT_PX = (210 - 16) * MM_TO_PX;
+
+// Shrinks the whole tree (zoom, not transform - zoom actually changes
+// how much page space an element occupies, unlike transform: scale,
+// which only affects painting) just enough to fit one landscape page,
+// for a department busy enough that the compact print sizing alone
+// isn't enough (many real Directors/HODs). Never scales up past 1 - a
+// normal, uncrowded department renders at its usual compact size,
+// completely untouched.
+function scaleOrgChartPdfTreeToFit(printEl) {
+  const chart = printEl.querySelector('.org-chart');
+  if (!chart) return;
+  chart.style.zoom = '';
+  // .org-chart's own getBoundingClientRect() alone under-reports the
+  // true size for a busy department - its Directors/HODs row
+  // (flex-wrap: nowrap, see that CSS rule's own comment) can genuinely
+  // overflow past .org-chart's own laid-out box rather than growing it
+  // to match (overflow: visible doesn't count toward a parent's own
+  // scrollWidth either, only actual scroll containers). Union this with
+  // every row that's allowed to overflow instead, to get the TRUE
+  // extent regardless of what .org-chart's own box reports.
+  const probes = [chart, ...chart.querySelectorAll('.org-chart-pdf-directors-row, .org-chart-pdf-hods-row, .org-chart-cards-row')];
+  let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+  probes.forEach((el) => {
+    const r = el.getBoundingClientRect();
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+    top = Math.min(top, r.top);
+    bottom = Math.max(bottom, r.bottom);
+  });
+  const scale = Math.min(1, PRINT_PAGE_CONTENT_WIDTH_PX / (right - left), PRINT_PAGE_CONTENT_HEIGHT_PX / (bottom - top));
+  if (scale < 1) chart.style.zoom = String(scale);
+}
+
 document.getElementById('exportOrgChartPdf').addEventListener('click', async () => {
   if (!lastOrgChartData) return;
   const dept = document.getElementById('orgChartDeptSelect').value;
@@ -1364,17 +1404,21 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
   style.textContent = '@page { size: landscape; margin: 0; }';
   document.head.appendChild(style);
 
-  function beforePrint() {
-    positionOrgChartPdfFanBuses(printEl);
-  }
-  window.addEventListener('beforeprint', beforePrint);
+  // The org-chart print CSS applies as soon as body.printing-org-chart is
+  // set (not gated behind @media print - see that block's own comment on
+  // why), so the compact/positioned layout these two steps need to
+  // measure is already in effect right here, no need to wait for
+  // 'beforeprint' (which, tested directly, doesn't reliably fire after
+  // print media has actually been applied). Scale first, then position
+  // the fan-out bus lines against the final (possibly shrunk) layout.
+  scaleOrgChartPdfTreeToFit(printEl);
+  positionOrgChartPdfFanBuses(printEl);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
     document.body.classList.remove('printing-org-chart');
     printEl.hidden = true;
     printEl.innerHTML = '';
     style.remove();
-    window.removeEventListener('beforeprint', beforePrint);
     window.removeEventListener('afterprint', cleanup);
   });
 });
