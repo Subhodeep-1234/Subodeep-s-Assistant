@@ -1701,12 +1701,10 @@ body {
   }
 }
 
-/* Select Letter Type screen (step 1 of Generate Letter) - a heading, two
-   single-select cards, and a Proceed button pinned to the bottom of its own
-   panel-less flow, matching the reference mockup. */
-.wf-letter-type-head { margin-bottom: 14px; }
-.wf-letter-type-head h3 { margin: 0 0 4px; }
-.wf-letter-type-options { display: flex; flex-direction: column; gap: 12px; }
+/* .wf-letter-type-card and friends started out as the (now removed) Select
+   Letter Type screen's single-select cards; kept here because the form's
+   own static header and the success screen's summary rows still reuse
+   them. */
 .wf-letter-type-card {
   display: flex;
   align-items: center;
@@ -1739,23 +1737,6 @@ body {
 .wf-letter-type-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .wf-letter-type-title { font-size: 0.92rem; font-weight: 700; color: var(--ink); }
 .wf-letter-type-sub { font-size: 0.78rem; color: var(--muted); }
-.wf-letter-type-radio {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-  background: var(--surface);
-  position: relative;
-}
-.wf-letter-type-card[aria-pressed="true"] .wf-letter-type-radio { border-color: var(--accent); }
-.wf-letter-type-card[aria-pressed="true"] .wf-letter-type-radio::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: var(--accent);
-}
 .wf-letter-proceed-btn {
   width: 100%;
   display: flex;
@@ -1776,8 +1757,8 @@ body {
 }
 .wf-letter-proceed-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Generate Letter, step 2 - the form. Reuses .wf-letter-type-card as a
-   static (non-interactive) header instead of a new card style. */
+/* Generate Letter form. Reuses .wf-letter-type-card as a static
+   (non-interactive) header instead of a new card style. */
 .wf-letter-form-header { cursor: default; margin-bottom: 18px; }
 .wf-letter-form-section-title { font-size: 0.82rem; font-weight: 700; color: var(--ink); margin: 18px 0 10px; }
 .wf-letter-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

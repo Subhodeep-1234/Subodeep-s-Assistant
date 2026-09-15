@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterType', 'letterForm', 'letterSuccess', 'letterGenerator'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterForm', 'letterSuccess', 'letterGenerator'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -2650,8 +2650,10 @@ async function loadMovementDetail() {
 }
 
 // Promotions only (see the "clickable" class added in loadMovementDetail) -
-// clicking a name is how Generate Letter is reached now, instead of a
-// separate button.
+// clicking a name goes straight to the Promotion & Increment form. Letter
+// type selection now lives only in the drawer's own Letter Generator
+// (which covers every letter type); this is the Promotions section
+// specifically, so there's nothing to choose between here.
 const movementDetailListEl = document.getElementById('movementDetailList');
 movementDetailListEl.addEventListener('click', (e) => {
   const row = e.target.closest('li.clickable');
@@ -2665,7 +2667,7 @@ movementDetailListEl.addEventListener('click', (e) => {
     fromDesignation: it.fromDesignation,
     toDesignation: it.toDesignation
   };
-  setView('letterType');
+  openLetterForm('promotion_increment');
 });
 movementDetailListEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -2673,15 +2675,6 @@ movementDetailListEl.addEventListener('keydown', (e) => {
   if (!row) return;
   e.preventDefault();
   row.click();
-});
-
-// Single-select: clicking a card marks it pressed and un-presses the other.
-document.getElementById('letterTypeOptions').addEventListener('click', (e) => {
-  const card = e.target.closest('.wf-letter-type-card');
-  if (!card) return;
-  document.querySelectorAll('#letterTypeOptions .wf-letter-type-card').forEach((c) => {
-    c.setAttribute('aria-pressed', String(c === card));
-  });
 });
 
 const LETTER_TYPE_META = {
@@ -2703,11 +2696,6 @@ const LETTER_TYPE_META = {
   }
 };
 let activeLetterType = 'promotion_increment';
-
-document.getElementById('letterProceedBtn').addEventListener('click', () => {
-  const selected = document.querySelector('#letterTypeOptions .wf-letter-type-card[aria-pressed="true"]');
-  openLetterForm(selected ? selected.dataset.letterType : 'promotion_increment');
-});
 
 function openLetterForm(type) {
   activeLetterType = type;
