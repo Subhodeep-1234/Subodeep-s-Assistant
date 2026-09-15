@@ -81,15 +81,26 @@ function parseDojString(raw) {
 }
 
 function parseConfirmationMail(bodyTextRaw) {
-  // Original offer template consistently bolds "Dear X,", the quoted
-  // designation, and the date — plain-text export renders that as *asterisks*.
+  // Original offer template consistently bolds "Dear X,", the designation,
+  // and the date — plain-text export renders that as *asterisks*.
   const bodyText = bodyTextRaw.replace(/\*/g, '');
 
   const nameMatch = bodyText.match(/Dear\s+([A-Za-z][A-Za-z.\s]*?)\s*,/i);
   const name = nameMatch ? nameMatch[1].replace(/\s+/g, ' ').trim() : '';
 
-  const designationMatch = bodyText.match(/offer you[^"]*"([^"]+)"/i);
-  const designation = designationMatch ? designationMatch[1].replace(/\s+/g, ' ').trim() : '';
+  // Designation used to always be wrapped in straight quotes too (on top of
+  // the bold), so matching on a literal "..." was enough - a later template
+  // revision dropped the quotes but kept the bold, which silently broke
+  // that match (nothing on this line looks for it) without touching Name/
+  // DOJ, since neither of those ever depended on quotes. Matched against
+  // the RAW (pre-strip) text so the asterisks themselves anchor the
+  // boundary instead; any leftover quote marks (old threads that still
+  // have them) are trimmed off afterward rather than required.
+  const boldDesignationMatch = bodyTextRaw.match(/offer you[^*]*\*([^*]+)\*/i);
+  const designationMatch = boldDesignationMatch || bodyText.match(/offer you[^"]*"([^"]+)"/i);
+  const designation = designationMatch
+    ? designationMatch[1].replace(/\s+/g, ' ').trim().replace(/^["'“‘]+|["'”’]+$/g, '')
+    : '';
 
   const companyMatch = bodyText.match(/\bat\s+([A-Z][\w&.,\s]*?)\s+on\b/);
   const company = companyMatch ? companyMatch[1].replace(/\s+/g, ' ').trim() : '';
