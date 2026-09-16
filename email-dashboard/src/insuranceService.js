@@ -141,6 +141,37 @@ async function getMailRecipients() {
   return { to: to.join(', '), cc: cc.join(', ') };
 }
 
+// Per-Reporting-DOER To/Cc recipients for the Doer Management "Send Mail"
+// button, from the same "Mail Id" tab's F/G columns - a separate block from
+// the flat A/B recipients above. Each doer gets its own repeating block:
+// a "Mail" / "<Doer Name> Doer List Mail Id" heading row, followed by one
+// or more "To" rows and one or more "Cc" rows (blank spacer rows in between
+// are just skipped). Returns a Map keyed by the doer's name, lowercased and
+// trimmed, to {to, cc} - same fresh-fetch-on-send reasoning as
+// getMailRecipients above.
+async function getAllDoerMailRecipients() {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!F1:G" });
+  const recipients = new Map();
+  let current = null;
+  (res.data.values || []).forEach((row) => {
+    const label = cleanValue(row[0]).toLowerCase();
+    const value = cleanValue(row[1]);
+    if (label === 'mail') {
+      const doerName = value.replace(/\s*Doer List Mail Id\s*$/i, '').trim();
+      current = { to: [], cc: [] };
+      if (doerName) recipients.set(doerName.toLowerCase(), current);
+      return;
+    }
+    if (!current || !value) return;
+    if (label === 'to') current.to.push(value);
+    else if (label === 'cc') current.cc.push(value);
+  });
+  const result = new Map();
+  recipients.forEach((v, k) => result.set(k, { to: v.to.join(', '), cc: v.cc.join(', ') }));
+  return result;
+}
+
 let cache = { data: null, fetchedAt: 0 };
 let inFlight = null;
 
@@ -166,4 +197,4 @@ async function getInsuranceData({ forceRefresh = false } = {}) {
   return cache.data;
 }
 
-module.exports = { getInsuranceData, getMailRecipients };
+module.exports = { getInsuranceData, getMailRecipients, getAllDoerMailRecipients };

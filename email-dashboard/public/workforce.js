@@ -635,6 +635,8 @@ let directoryReportVariant = 'default';
 function syncVariantButtons() {
   const doerBtn = document.getElementById('exportDoerBreakupPdf');
   if (doerBtn) doerBtn.hidden = directoryReportVariant !== 'doerManagement';
+  const sendMailBtn = document.getElementById('sendDoerBreakupMail');
+  if (sendMailBtn) sendMailBtn.hidden = directoryReportVariant !== 'doerManagement';
   const confirmationsBtn = document.getElementById('exportPendingConfirmationsPdf');
   if (confirmationsBtn) confirmationsBtn.hidden = directoryReportVariant !== 'probation';
 }
@@ -3994,6 +3996,32 @@ function collarSlug(collar) {
 // Export PDF: the DOER's own name as the report heading, then a Department
 // > Collar breakdown of their team instead of one flat list, each
 // department carrying its own most-common HOD as a sub-label.
+document.getElementById('sendDoerBreakupMail').addEventListener('click', async () => {
+  const btn = document.getElementById('sendDoerBreakupMail');
+  const label = btn.querySelector('span');
+  if (btn.disabled) return;
+  const reportingDoer = activeFilters.reportingDoer;
+  if (!reportingDoer) return;
+  const originalLabel = label.textContent;
+  btn.disabled = true;
+  label.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/workforce/doer/send-mail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportingDoer })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
+    label.textContent = 'Sent ✓';
+    setTimeout(() => { label.textContent = originalLabel; btn.disabled = false; }, 3000);
+  } catch (err) {
+    alert('Failed to send mail: ' + err.message);
+    label.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
+
 document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => {
   const byDept = new Map();
   lastEmployeeList.forEach((e) => {

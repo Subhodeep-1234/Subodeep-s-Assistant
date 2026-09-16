@@ -3,6 +3,9 @@ const employeeService = require('./employeeService');
 const analytics = require('./workforceAnalytics');
 const movementTracker = require('./movementTracker');
 const { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf } = require('./letterPdf');
+const insuranceService = require('./insuranceService');
+const gmailService = require('./gmailService');
+const { buildTablePdfBuffer } = require('./pdfReport');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -236,6 +239,91 @@ router.get('/org-chart-pdf', async (req, res) => {
     });
     const targetKey = employeeService.normalizeKey(req.query.department);
     res.json(analytics.buildOrgChartPdfTree(employees, departmentNames, targetKey));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Doer Management's "Send Mail" button - emails that Reporting DOER's own
+// active team list as a PDF to their EA, using the same PDF-attachment
+// pattern as the Mediclaim Exits/Additions "Send Mail" buttons
+// (src/insuranceRoutes.js). Recipients come from the same "Mediclaim
+// Addition & Deletion Automation" spreadsheet's "Mail Id" tab, but a
+// separate per-doer block of columns (F/G) from the flat insurance
+// recipients (A/B) - see insuranceService.getAllDoerMailRecipients.
+router.post('/doer/send-mail', async (req, res) => {
+  try {
+    const reportingDoer = String((req.body && req.body.reportingDoer) || '').trim();
+    if (!reportingDoer) {
+      return res.status(400).json({ error: 'reportingDoer is required' });
+    }
+
+    const [{ employees, departmentNames }, recipientsMap] = await Promise.all([
+      employeeService.getEmployeeData({ forceRefresh: true }),
+      insuranceService.getAllDoerMailRecipients()
+    ]);
+
+    const doerKey = employeeService.normalizeKey(reportingDoer);
+    const teamEmployees = employees.filter((e) => e.status === 'ACTIVE' && e.reportingDoerKey === doerKey);
+    if (!teamEmployees.length) {
+      return res.status(400).json({ error: 'No active employees found for Reporting DOER "' + reportingDoer + '".' });
+    }
+
+    const recipients = recipientsMap.get(reportingDoer.toLowerCase());
+    if (!recipients || !recipients.to) {
+      return res.status(400).json({ error: 'No mail recipients configured for "' + reportingDoer + '" in the Mail Id sheet.' });
+    }
+
+    const sorted = teamEmployees.slice().sort((a, b) => {
+      const deptA = departmentNames.get(a.departmentKey) || a.department || '';
+      const deptB = departmentNames.get(b.departmentKey) || b.department || '';
+      const deptDiff = deptA.localeCompare(deptB);
+      if (deptDiff !== 0) return deptDiff;
+      const collarA = formatCollar(a.groupD) === 'White' ? 0 : 1;
+      const collarB = formatCollar(b.groupD) === 'White' ? 0 : 1;
+      if (collarA !== collarB) return collarA - collarB;
+      const desigDiff = (a.designation || '').localeCompare(b.designation || '');
+      if (desigDiff !== 0) return desigDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const now = new Date();
+    const rows = sorted.map((e) => [
+      departmentNames.get(e.departmentKey) || e.department || '—',
+      formatCollar(e.groupD) || '—',
+      e.employeeId,
+      e.name,
+      e.designation || '—',
+      e.dob ? analytics.calcAge(e.dob, now) : '—',
+      e.gender || '—',
+      e.location || '—',
+      e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+    ]);
+
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: reportingDoer.toUpperCase() + ' — Doer List',
+      subtitle:
+        sorted.length + ' employee' + (sorted.length === 1 ? '' : 's') + ' · Generated ' +
+        now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Department', 'Collar', 'Employee Code', 'Name', 'Designation', 'Age', 'Gender', 'Location', 'DOJ'],
+      rows
+    });
+
+    await gmailService.sendMailWithAttachment({
+      to: recipients.to,
+      cc: recipients.cc,
+      subject: 'Updated Doer List – ' + reportingDoer,
+      text:
+        'Hi,\n\n' +
+        'Please find the attached Doer list currently working under ' + reportingDoer + ', shared for your reference and records.',
+      attachment: {
+        filename: 'Doer_List_' + reportingDoer.replace(/\s+/g, '_') + '_' + now.toISOString().slice(0, 10) + '.pdf',
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }
+    });
+
+    res.json({ ok: true, sentTo: recipients.to, cc: recipients.cc, employeeCount: sorted.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
