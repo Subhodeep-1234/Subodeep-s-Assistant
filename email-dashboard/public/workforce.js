@@ -3780,6 +3780,18 @@ function formatAgeYearsMonths(dobIso) {
   return years + 'Y ' + months + 'M';
 }
 
+// DOB with the CURRENT year substituted in (e.g. born 24 Jul 1998 -> shown
+// as 24 Jul <this year>) - the Birthday insight's own Export PDF shows this
+// instead of the real birth year, since what a birthday list is actually
+// for is this year's upcoming date, not how old someone was born.
+function formatDobCurrentYear(dobIso) {
+  if (!dobIso) return '—';
+  const dob = new Date(dobIso);
+  if (isNaN(dob.getTime())) return '—';
+  const thisYear = new Date(Date.UTC(new Date().getUTCFullYear(), dob.getUTCMonth(), dob.getUTCDate()));
+  return thisYear.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 // Precise (fractional) age in years, purely for sorting the Age Distribution
 // report smallest-to-largest - missing DOB sorts to the end either way.
 function ageInYearsForSort(dobIso) {
@@ -3935,11 +3947,18 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
   document.getElementById('printReportSubtitle').textContent =
     (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
     sortedList.length + ' employee' + (sortedList.length === 1 ? '' : 's') + ' · ';
-  // Only the Workforce Movement report swaps Age out for Status - every
-  // other section's export (Department/Location/Age/Gender/KPI clicks,
-  // manual filters) keeps the original Age column, unchanged.
+  // Only the Workforce Movement report swaps Age out for Status, and only
+  // the Birthday insight's own report swaps the whole column set for a
+  // shorter one ending in DOB (this year's date, not the real birth year -
+  // see formatDobCurrentYear) instead of Age/Gender/DOJ - every other
+  // section's export (Department/Location/Age/Gender/KPI clicks, manual
+  // filters) keeps the original 9-column layout, unchanged.
   const isWorkforceMovementReport = directoryReportVariant === 'workforceMovement';
-  document.getElementById('printReportHead').innerHTML = isWorkforceMovementReport
+  const isBirthdayReport = directoryReportVariant === 'birthdays';
+  const columnCount = isBirthdayReport ? 7 : 9;
+  document.getElementById('printReportHead').innerHTML = isBirthdayReport
+    ? '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Location</th><th>DOB</th>'
+    : isWorkforceMovementReport
     ? '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th><th>Status</th>'
     : '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Age</th><th>Gender</th><th>Location</th><th>DOJ</th>';
   document.getElementById('printReportDate').textContent =
@@ -3955,9 +3974,22 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
           if (!isAgeDistributionReport) {
             const heading = e.groupD || 'Unspecified Collar';
             if (heading !== lastGroupHeading) {
-              sectionRow = '<tr class="print-section-row"><td colspan="9">' + escapeHtml(heading) + '</td></tr>';
+              sectionRow = '<tr class="print-section-row"><td colspan="' + columnCount + '">' + escapeHtml(heading) + '</td></tr>';
               lastGroupHeading = heading;
             }
+          }
+          if (isBirthdayReport) {
+            return sectionRow + (
+            '<tr>' +
+              '<td>' + escapeHtml(e.employeeId) + '</td>' +
+              '<td>' + escapeHtml(e.name) + '</td>' +
+              '<td>' + escapeHtml(e.designation || '—') + '</td>' +
+              '<td>' + escapeHtml(e.department || '—') + '</td>' +
+              '<td>' + escapeHtml(e.groupD || '—') + '</td>' +
+              '<td>' + escapeHtml(e.location || '—') + '</td>' +
+              '<td>' + formatDobCurrentYear(e.dob) + '</td>' +
+            '</tr>'
+            );
           }
           const lastCol = isWorkforceMovementReport
             ? '<td>' + escapeHtml(titleCase(e.status) || '—') + '</td>'
@@ -3978,7 +4010,7 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
           );
         })
         .join('')
-    : '<tr><td colspan="9">No employees match these filters</td></tr>';
+    : '<tr><td colspan="' + columnCount + '">No employees match these filters</td></tr>';
   window.print();
 });
 

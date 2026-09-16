@@ -140,19 +140,25 @@ function buildInsights(employees, departmentNames, locationNames, doerNames) {
     });
   }
 
-  // Same DOJ+6-months math as probationCompletingThisMonth itself, just
-  // expressed as a dateFrom/dateTo range on DOJ (6 calendar months before
-  // this one) so clicking through reproduces the identical set - "not
-  // Inactive" rather than "Active" specifically, since an employee still
-  // tagged Probation could be in Notice Period too and this shouldn't
-  // silently drop them from the count someone just read.
-  const probationDone = probationCompletingThisMonth(employees, now);
+  // pendingConfirmationsThisMonth, not probationCompletingThisMonth - the
+  // latter also requires Employment Type to still say "Probation", so the
+  // count would shrink through the month as HR processes each
+  // confirmation in the sheet, instead of staying the whole month's fixed
+  // list (1st to last day) regardless of what day this is read on or
+  // whether some of them have already been confirmed - same reasoning
+  // pendingConfirmationsThisMonth itself already documents, now reused
+  // here instead of just the Pending Confirmations report. Expressed as a
+  // dateFrom/dateTo range on DOJ (6 calendar months before this one) so
+  // clicking through reproduces the identical set - "not Inactive" rather
+  // than "Active" specifically, since someone on this list could be in
+  // Notice Period too and shouldn't silently drop off.
+  const pendingConfirmations = pendingConfirmationsThisMonth(employees, now);
   const probationRange = monthBoundsISO(now.getUTCFullYear(), now.getUTCMonth() - 6);
   insights.push({
     id: 'probation-completing',
-    text: probationDone.length + ' employee' + (probationDone.length === 1 ? ' is' : 's are') +
+    text: pendingConfirmations.length + ' employee' + (pendingConfirmations.length === 1 ? ' is' : 's are') +
       ' completing probation (6 months) this month.',
-    filters: { employmentType: 'Probation', statusNot: 'INACTIVE', dateFrom: probationRange.from, dateTo: probationRange.to }
+    filters: { statusNot: 'INACTIVE', dateFrom: probationRange.from, dateTo: probationRange.to }
   });
 
   const turning58 = turning58ThisMonth(employees, now);
@@ -175,7 +181,11 @@ function buildInsights(employees, departmentNames, locationNames, doerNames) {
     text: birthdays.length
       ? birthdays.length + ' employee' + (birthdays.length === 1 ? ' has' : 's have') + ' a birthday this month.'
       : 'No employees have a birthday this month.',
-    filters: { statusNot: 'INACTIVE', dobMonth: now.getUTCMonth() + 1 }
+    filters: { statusNot: 'INACTIVE', dobMonth: now.getUTCMonth() + 1 },
+    // Drives a birthday-specific Export PDF column layout (Emp Code, Name,
+    // Designation, Dept., Collar, Location, DOB) in place of the default
+    // report - see exportEmployeesPdf, public/workforce.js.
+    reportVariant: 'birthdays'
   });
 
   // Bounds computed as the same YYYY-MM-DD strings the dateFrom/dateTo
