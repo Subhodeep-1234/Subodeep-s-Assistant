@@ -657,6 +657,15 @@ body {
 }
 .wf-send-mail-btn:hover { filter: brightness(1.06); }
 .wf-send-mail-btn:disabled { opacity: 0.65; cursor: default; box-shadow: none; }
+/* .wf-send-mail-btn's own display: inline-flex above is an author-origin
+   rule, which always wins over the browser's built-in [hidden] {
+   display: none } (a user-agent-origin rule - origin beats specificity,
+   so equal specificity doesn't matter here) - without this, toggling the
+   hidden attribute (sendDoerBreakupMail's syncVariantButtons show/hide)
+   had no visual effect and the button stayed visible everywhere,
+   regardless of directoryReportVariant. .wf-link-btn never hit this
+   because it doesn't declare display at all. */
+.wf-send-mail-btn[hidden] { display: none; }
 .wf-send-mail-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .wf-donut-row {
