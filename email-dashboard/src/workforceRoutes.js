@@ -379,7 +379,10 @@ router.post('/doer/send-mail', async (req, res) => {
         sorted.length + ' employee' + (sorted.length === 1 ? '' : 's') + ' · Generated ' +
         now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       columns: ['Employee Code', 'Name', 'Designation', 'Department', 'Collar', 'Age', 'Gender', 'Location', 'DOJ'],
-      rows
+      rows,
+      // exportEmployeesPdf ("Export PDF") prints portrait - only the
+      // separate Pending Confirmations report forces landscape.
+      landscape: false
     });
 
     await gmailService.sendMailWithAttachment({

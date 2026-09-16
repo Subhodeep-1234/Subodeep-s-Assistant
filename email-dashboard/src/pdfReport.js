@@ -19,19 +19,139 @@ const COLOR_ZEBRA = '#f7f9f8';
 const COLOR_SECTION_BG = '#1d5c63';
 const SECTION_ROW_HEIGHT = 20;
 
-function buildTablePdfBuffer({ title, subtitle, columns, rows }) {
+// landscape defaults to true, matching every existing caller (the
+// Mediclaim Exits/Additions reports) unchanged - the Doer Management Send
+// Mail route passes landscape: false, since the on-screen report it's
+// matching (exportEmployeesPdf, "Export PDF") prints portrait: only
+// exportPendingConfirmationsPdf calls the client's own printLandscape()
+// override (public/workforce.js) - every other on-screen report, including
+// this one, just uses plain window.print() at the browser's default
+// (portrait) page size.
+function buildTablePdfBuffer({ title, subtitle, columns, rows, landscape = true }) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: PAGE_MARGIN, size: 'A4', layout: 'landscape' });
+    const doc = new PDFDocument({ margin: PAGE_MARGIN, size: 'A4', layout: landscape ? 'landscape' : 'portrait' });
     const chunks = [];
     doc.on('data', (c) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
     const pageWidth = doc.page.width - PAGE_MARGIN * 2;
-    const colWidth = pageWidth / columns.length;
-    const rowHeight = 22;
-    const headerRowHeight = 24;
     const cellPaddingX = 7;
+    const minRowHeight = 22;
+    const minColWidth = 34;
+
+    // Column widths follow each column's own content, the way a real HTML
+    // table (table-layout: auto, what #printReport actually is) sizes
+    // itself - "Designation"/"Department" naturally end up wider than
+    // "Age"/"Gender" instead of every column getting an equal, often too-
+    // narrow, share of the page (which broke long words like "DESIGNATION"
+    // mid-way onto a second line - not how a real table would ever render).
+    const dataRows = rows.filter((r) => Array.isArray(r));
+    function widestToken(text, opts) {
+      // The widest SINGLE word/token in a cell, not the whole string - used
+      // as a hard floor a column's width can never be scaled below, so a
+      // short unbroken value like an employee code never gets split mid-
+      // word the way natural-width scaling alone could still force (a real
+      // table wraps at spaces, never inside a word, when space is short).
+      const words = String(text).split(/\s+/).filter(Boolean);
+      let max = 0;
+      words.forEach((w) => {
+        const width = doc.widthOfString(w, opts);
+        if (width > max) max = width;
+      });
+      return max;
+    }
+    const HEADER_OPTS = { characterSpacing: 0.3 };
+    const naturalWidths = [];
+    const minWidths = [];
+    columns.forEach((col, i) => {
+      doc.font('Helvetica-Bold').fontSize(7.5);
+      const headerText = String(col).toUpperCase();
+      let natural = doc.widthOfString(headerText, HEADER_OPTS);
+      let minToken = widestToken(headerText, HEADER_OPTS);
+      dataRows.forEach((row) => {
+        doc.font('Helvetica').fontSize(8);
+        const cellText = String(row[i] == null ? '' : row[i]);
+        const w = doc.widthOfString(cellText);
+        if (w > natural) natural = w;
+        const tokenW = widestToken(cellText);
+        if (tokenW > minToken) minToken = tokenW;
+      });
+      // +2pt safety margin on the floor - a column pinned at EXACTLY its
+      // widest word's width is a hairline tie pdfkit's own wrapping still
+      // breaks on (kerning/rounding leaves zero slack), wrapping the very
+      // word this floor exists to protect.
+      naturalWidths.push(Math.max(minColWidth, natural + cellPaddingX * 2));
+      minWidths.push(Math.max(minColWidth, minToken + cellPaddingX * 2 + 2));
+    });
+
+    // Water-filling allocation: scale every column proportionally to its
+    // natural width to exactly fill the page (matching the real table's
+    // width: 100%), except no column is ever scaled below its own
+    // minWidths floor - any column that would be gets pinned at its floor
+    // instead, and the page width left over is re-divided among the rest.
+    function allocateColumnWidths(natural, minW, totalWidth) {
+      const n = natural.length;
+      const widths = new Array(n).fill(null);
+      let active = natural.map((_, i) => i);
+      let remaining = totalWidth;
+      while (active.length) {
+        const totalActiveNatural = active.reduce((sum, i) => sum + natural[i], 0);
+        const scale = totalActiveNatural > 0 ? remaining / totalActiveNatural : 0;
+        const stillActive = [];
+        let anyClamped = false;
+        active.forEach((i) => {
+          const proposed = natural[i] * scale;
+          if (proposed < minW[i]) {
+            widths[i] = minW[i];
+            remaining -= minW[i];
+            anyClamped = true;
+          } else {
+            stillActive.push(i);
+          }
+        });
+        if (!anyClamped) {
+          stillActive.forEach((i) => { widths[i] = natural[i] * scale; });
+          break;
+        }
+        active = stillActive;
+      }
+      // Only reachable if every column's own minWidths already exceeds the
+      // page (each got clamped and remaining went negative) - extremely
+      // unlikely for this app's real data, but fall back to the floor
+      // rather than leaving anything unset.
+      for (let i = 0; i < n; i++) {
+        if (widths[i] == null) widths[i] = minW[i];
+      }
+      return widths;
+    }
+
+    const colWidths = allocateColumnWidths(naturalWidths, minWidths, pageWidth);
+    const colX = [PAGE_MARGIN];
+    for (let i = 0; i < colWidths.length; i++) colX.push(colX[i] + colWidths[i]);
+
+    // Row heights are measured from the actual wrapped text, not fixed -
+    // matches a real HTML table, where a cell's row just grows to fit
+    // whatever text it holds. A fixed height only ever worked by coincidence
+    // in landscape (wide columns, short text rarely wrapped) - portrait's
+    // narrower columns (used for the "Export PDF" report specifically -
+    // see the landscape param above) wrap far more often, and a fixed
+    // height would have clipped/overlapped that text instead of the row
+    // just growing.
+    function measuredRowHeight(cells, font, fontSize, opts) {
+      doc.font(font).fontSize(fontSize);
+      let maxH = 0;
+      cells.forEach((cell, i) => {
+        const h = doc.heightOfString(String(cell == null ? '' : cell), Object.assign({ width: colWidths[i] - cellPaddingX * 2 }, opts));
+        if (h > maxH) maxH = h;
+      });
+      return Math.max(minRowHeight, maxH + 12);
+    }
+
+    const headerRowHeight = measuredRowHeight(
+      columns.map((c) => String(c).toUpperCase()),
+      'Helvetica-Bold', 7.5, { characterSpacing: 0.3 }
+    );
 
     function drawHeader() {
       doc.fontSize(16).font('Helvetica-Bold').fillColor(COLOR_TITLE).text(title, PAGE_MARGIN, PAGE_MARGIN);
@@ -47,10 +167,9 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows }) {
     // "#printReport th, #printReport td { border: 1px solid #c3ccc8; }".
     function drawGridLines(y, height) {
       doc.strokeColor(COLOR_BORDER).lineWidth(0.5);
-      for (let i = 0; i <= columns.length; i++) {
-        const x = PAGE_MARGIN + i * colWidth;
+      colX.forEach((x) => {
         doc.moveTo(x, y).lineTo(x, y + height).stroke();
-      }
+      });
       doc.moveTo(PAGE_MARGIN, y).lineTo(PAGE_MARGIN + pageWidth, y).stroke();
       doc.moveTo(PAGE_MARGIN, y + height).lineTo(PAGE_MARGIN + pageWidth, y + height).stroke();
     }
@@ -60,8 +179,8 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows }) {
       drawGridLines(y, headerRowHeight);
       doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLOR_TITLE);
       columns.forEach((col, i) => {
-        doc.text(String(col).toUpperCase(), PAGE_MARGIN + i * colWidth + cellPaddingX, y + 8, {
-          width: colWidth - cellPaddingX * 2,
+        doc.text(String(col).toUpperCase(), colX[i] + cellPaddingX, y + 8, {
+          width: colWidths[i] - cellPaddingX * 2,
           characterSpacing: 0.3
         });
       });
@@ -86,7 +205,7 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows }) {
       // reports that group rows the way the on-screen "Export PDF"/"Export
       // DOER Breakup" reports do (see print-section-row in workforce.css).
       const isSection = row && !Array.isArray(row) && typeof row === 'object' && 'section' in row;
-      const thisRowHeight = isSection ? SECTION_ROW_HEIGHT : rowHeight;
+      const thisRowHeight = isSection ? SECTION_ROW_HEIGHT : measuredRowHeight(row, 'Helvetica', 8);
       if (y + thisRowHeight > bottomLimit) {
         doc.addPage();
         y = PAGE_MARGIN;
@@ -110,8 +229,8 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows }) {
       drawGridLines(y, thisRowHeight);
       doc.font('Helvetica').fontSize(8).fillColor('#000');
       row.forEach((cell, i) => {
-        doc.text(String(cell == null ? '' : cell), PAGE_MARGIN + i * colWidth + cellPaddingX, y + 6, {
-          width: colWidth - cellPaddingX * 2
+        doc.text(String(cell == null ? '' : cell), colX[i] + cellPaddingX, y + 6, {
+          width: colWidths[i] - cellPaddingX * 2
         });
       });
       y += thisRowHeight;
