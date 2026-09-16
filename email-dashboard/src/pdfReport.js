@@ -14,6 +14,10 @@ const COLOR_META = '#5b6169';
 const COLOR_BORDER = '#c3ccc8';
 const COLOR_HEADER_BG = '#eef0ed';
 const COLOR_ZEBRA = '#f7f9f8';
+// Matches #printReport tbody tr.print-section-row in workforce.css - the
+// Collar section-heading bar the on-screen "Export PDF" report uses.
+const COLOR_SECTION_BG = '#1d5c63';
+const SECTION_ROW_HEIGHT = 20;
 
 function buildTablePdfBuffer({ title, subtitle, columns, rows }) {
   return new Promise((resolve, reject) => {
@@ -70,24 +74,48 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows }) {
 
     const bottomLimit = doc.page.height - PAGE_MARGIN;
 
-    rows.forEach((row, rowIndex) => {
-      if (y + rowHeight > bottomLimit) {
+    // Alternating zebra shading is keyed off data-row position only, so a
+    // section heading in between doesn't shift which rows look striped -
+    // matches "#printReport tbody tr:nth-child(even)" counting every <tr>
+    // including .print-section-row ones, which is invisible anyway since
+    // the section row's own background overrides it.
+    let dataRowIndex = 0;
+    rows.forEach((row) => {
+      // A plain array is a normal data row (every existing caller's shape,
+      // unchanged); { section: 'White' } is a full-width heading bar, for
+      // reports that group rows the way the on-screen "Export PDF"/"Export
+      // DOER Breakup" reports do (see print-section-row in workforce.css).
+      const isSection = row && !Array.isArray(row) && typeof row === 'object' && 'section' in row;
+      const thisRowHeight = isSection ? SECTION_ROW_HEIGHT : rowHeight;
+      if (y + thisRowHeight > bottomLimit) {
         doc.addPage();
         y = PAGE_MARGIN;
         y = drawTableHead(y);
       }
-      // nth-child(even) in the CSS (1-indexed) = odd rowIndex here (0-indexed).
-      if (rowIndex % 2 === 1) {
-        doc.rect(PAGE_MARGIN, y, pageWidth, rowHeight).fill(COLOR_ZEBRA);
+      if (isSection) {
+        doc.rect(PAGE_MARGIN, y, pageWidth, thisRowHeight).fill(COLOR_SECTION_BG);
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#fff');
+        doc.text(String(row.section).toUpperCase(), PAGE_MARGIN + cellPaddingX, y + 6, {
+          width: pageWidth - cellPaddingX * 2,
+          characterSpacing: 0.4
+        });
+        doc.fillColor('#000');
+        y += thisRowHeight;
+        return;
       }
-      drawGridLines(y, rowHeight);
+      // nth-child(even) in the CSS (1-indexed) = odd dataRowIndex here (0-indexed).
+      if (dataRowIndex % 2 === 1) {
+        doc.rect(PAGE_MARGIN, y, pageWidth, thisRowHeight).fill(COLOR_ZEBRA);
+      }
+      drawGridLines(y, thisRowHeight);
       doc.font('Helvetica').fontSize(8).fillColor('#000');
       row.forEach((cell, i) => {
         doc.text(String(cell == null ? '' : cell), PAGE_MARGIN + i * colWidth + cellPaddingX, y + 6, {
           width: colWidth - cellPaddingX * 2
         });
       });
-      y += rowHeight;
+      y += thisRowHeight;
+      dataRowIndex++;
     });
 
     doc.end();

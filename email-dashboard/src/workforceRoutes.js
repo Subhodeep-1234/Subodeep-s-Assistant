@@ -24,6 +24,61 @@ function formatCollar(value) {
   return value === '0' ? 'White' : value;
 }
 
+// Exact server-side copy of the on-screen "Export PDF" report's own sort/
+// grouping (public/workforce.js: DESIGNATION_RANK_TIERS/designationRank/
+// COLLAR_RANK/collarRank/formatAgeYearsMonths), used by the Doer Management
+// "Send Mail" PDF attachment below to match that report's design exactly -
+// deliberately a separate copy from workforceAnalytics.js's own
+// ORG_DESIGNATION_TIERS, which uses different rank numbers for the org
+// chart's own (different) card ordering.
+const EMPLOYEE_REPORT_DESIGNATION_TIERS = [
+  { rank: 10, test: /\b(DIRECTOR|CHAIRMAN|COMPANY SECRETARY|MANAGING DIRECTOR)\b/ },
+  { rank: 20, test: /\bVICE PRESIDENT\b/ },
+  { rank: 30, test: /\b(GENERAL MANAGER|\bGM\b|PLANT MANAGER|FINANCE CONTROLLER)\b/ },
+  { rank: 40, test: /\bDGM\b/ },
+  { rank: 50, test: /\bAGM\b/ },
+  { rank: 60, test: /\b(SR\.?|SENIOR)\s*MANAGER\b/ },
+  { rank: 80, test: /\bDEPUTY MANAGER\b/ },
+  { rank: 90, test: /\b(ASSISTANT MANAGER|ASST\.?\s*MAN[AG]ER)\b/ },
+  { rank: 70, test: /\bMANAGER\b/ },
+  { rank: 100, test: /\b(SR\.?|SENIOR)\s*ENGINEER\b/ },
+  { rank: 100, test: /\b(SR\.?|SENIOR)\s*EXECUTIVE\b/ },
+  { rank: 130, test: /\bJR\.?\s*EXECUTIVE\b|\bJUNIOR EXECUTIVE\b/ },
+  { rank: 120, test: /\bENGINEER\b/ },
+  { rank: 120, test: /\bEXECUTIVE\b/ },
+  { rank: 130, test: /\bDTE\b/ },
+  { rank: 135, test: /\b(SR\.?|SENIOR)\s*(DATA ENTRY OPERATOR|DEO)\b/ },
+  { rank: 140, test: /\b(DATA ENTRY OPERATOR|DEO)\b/ },
+  { rank: 150, test: /\b(SR\.?|SENIOR)\s*(SUPERVISOR|FOREMAN)\b/ },
+  { rank: 160, test: /\b(SUPERVISOR|FOREMAN)\b/ },
+  { rank: 180, test: /\b(SR\.?|SENIOR)\b/ },
+  { rank: 210, test: /\b(ASST\.?|ASSISTANT)\b/ },
+  { rank: 215, test: /\bOPERATOR\b/ },
+  { rank: 220, test: /\b(HELPER|LABOUR|LABOURER|SWEEPER|HOUSE\s*KEEP|HOUSE STAFF|OFFICE BOY|COOK|STEWARD|GARDENER|SECURITY GUARD|CARE\s*TAKER|PANDIT|DOG TRAINER)\b/ }
+];
+const EMPLOYEE_REPORT_DESIGNATION_DEFAULT_RANK = 200;
+
+function employeeReportDesignationRank(designation) {
+  const upper = String(designation || '').toUpperCase();
+  const tier = EMPLOYEE_REPORT_DESIGNATION_TIERS.find((t) => t.test.test(upper));
+  return tier ? tier.rank : EMPLOYEE_REPORT_DESIGNATION_DEFAULT_RANK;
+}
+
+const EMPLOYEE_REPORT_COLLAR_RANK = { White: 0, Blue: 1, 'Group-D': 2 };
+function employeeReportCollarRank(collar) {
+  return collar in EMPLOYEE_REPORT_COLLAR_RANK ? EMPLOYEE_REPORT_COLLAR_RANK[collar] : 99;
+}
+
+function formatAgeYearsMonths(dob) {
+  if (!dob) return '—';
+  const now = new Date();
+  let years = now.getUTCFullYear() - dob.getUTCFullYear();
+  let months = now.getUTCMonth() - dob.getUTCMonth();
+  if (now.getUTCDate() < dob.getUTCDate()) months--;
+  if (months < 0) { years--; months += 12; }
+  return years + 'Y ' + months + 'M';
+}
+
 router.use((req, res, next) => {
   const status = employeeService.getConfigStatus();
   if (!status.ok) {
@@ -274,38 +329,56 @@ router.post('/doer/send-mail', async (req, res) => {
       return res.status(400).json({ error: 'No mail recipients configured for "' + reportingDoer + '" in the Mail Id sheet.' });
     }
 
+    // Same sort as the on-screen "Export PDF" report: Collar, then
+    // Department, then designation seniority tier, then Designation text,
+    // then Name - see EMPLOYEE_REPORT_DESIGNATION_TIERS/collarRank above.
     const sorted = teamEmployees.slice().sort((a, b) => {
+      const collarA = employeeReportCollarRank(formatCollar(a.groupD));
+      const collarB = employeeReportCollarRank(formatCollar(b.groupD));
+      if (collarA !== collarB) return collarA - collarB;
       const deptA = departmentNames.get(a.departmentKey) || a.department || '';
       const deptB = departmentNames.get(b.departmentKey) || b.department || '';
       const deptDiff = deptA.localeCompare(deptB);
       if (deptDiff !== 0) return deptDiff;
-      const collarA = formatCollar(a.groupD) === 'White' ? 0 : 1;
-      const collarB = formatCollar(b.groupD) === 'White' ? 0 : 1;
-      if (collarA !== collarB) return collarA - collarB;
+      const rankDiff = employeeReportDesignationRank(a.designation) - employeeReportDesignationRank(b.designation);
+      if (rankDiff !== 0) return rankDiff;
       const desigDiff = (a.designation || '').localeCompare(b.designation || '');
       if (desigDiff !== 0) return desigDiff;
       return (a.name || '').localeCompare(b.name || '');
     });
 
+    // Same shape as the on-screen report: a full-width Collar heading bar
+    // (print-section-row) each time the collar changes, exactly like
+    // exportEmployeesPdf's own lastGroupHeading tracking.
     const now = new Date();
-    const rows = sorted.map((e) => [
-      departmentNames.get(e.departmentKey) || e.department || '—',
-      formatCollar(e.groupD) || '—',
-      e.employeeId,
-      e.name,
-      e.designation || '—',
-      e.dob ? analytics.calcAge(e.dob, now) : '—',
-      e.gender || '—',
-      e.location || '—',
-      e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
-    ]);
+    const rows = [];
+    let lastCollarHeading = null;
+    sorted.forEach((e) => {
+      const collarHeading = formatCollar(e.groupD) || 'Unspecified Collar';
+      if (collarHeading !== lastCollarHeading) {
+        rows.push({ section: collarHeading });
+        lastCollarHeading = collarHeading;
+      }
+      rows.push([
+        e.employeeId,
+        e.name,
+        e.designation || '—',
+        departmentNames.get(e.departmentKey) || e.department || '—',
+        formatCollar(e.groupD) || '—',
+        formatAgeYearsMonths(e.dob),
+        e.gender || '—',
+        e.location || '—',
+        e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+      ]);
+    });
 
     const pdfBuffer = await buildTablePdfBuffer({
-      title: reportingDoer.toUpperCase() + ' — Doer List',
+      title: 'Employee Data Report',
       subtitle:
+        'Reporting DOER: ' + reportingDoer + ' · ' +
         sorted.length + ' employee' + (sorted.length === 1 ? '' : 's') + ' · Generated ' +
         now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      columns: ['Department', 'Collar', 'Employee Code', 'Name', 'Designation', 'Age', 'Gender', 'Location', 'DOJ'],
+      columns: ['Employee Code', 'Name', 'Designation', 'Department', 'Collar', 'Age', 'Gender', 'Location', 'DOJ'],
       rows
     });
 
