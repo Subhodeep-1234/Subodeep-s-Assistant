@@ -1717,6 +1717,11 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  /* Flex's default align-items: stretch was forcing every card in the
+     row to the height of its tallest sibling, so a 1-person card looked
+     identical in size to a 5-person card next to it. Cards should size
+     to their own employee list instead. */
+  align-items: flex-start;
   gap: 16px;
   padding-top: 26px;
   width: fit-content;
