@@ -169,6 +169,10 @@ router.get('/companies', async (req, res) => {
 
 function matchesFilters(emp, query, normalizeKey) {
   if (query.status && emp.status !== String(query.status).toUpperCase()) return false;
+  // "Anyone but Inactive" - distinct from an exact status match above, for
+  // filters (some Insights points) that mean to include Notice Period
+  // alongside Active rather than pin down to exactly one status.
+  if (query.statusNot && emp.status === String(query.statusNot).toUpperCase()) return false;
   if (query.department && emp.departmentKey !== normalizeKey(query.department)) return false;
   if (query.location && emp.locationKey !== normalizeKey(query.location)) return false;
   if (query.reportingManager && emp.reportingManagerKey !== normalizeKey(query.reportingManager)) return false;
@@ -199,6 +203,17 @@ function matchesFilters(emp, query, normalizeKey) {
     if (query.ageMin && age < Number(query.ageMin)) return false;
     if (query.ageMax && age > Number(query.ageMax)) return false;
   }
+  // dobMonth (1-12) / dobYear - birth-month and exact-birth-year matches on
+  // DOB, for Insights' birthday/retirement-this-month points (calcAge's
+  // ageMin/ageMax above is birthday-aware "current age", not a fixed match
+  // on the birth year itself, so it can't express "turning 58 this month").
+  if (query.dobMonth) {
+    if (!emp.dob || emp.dob.getUTCMonth() !== Number(query.dobMonth) - 1) return false;
+  }
+  if (query.dobYear) {
+    if (!emp.dob || emp.dob.getUTCFullYear() !== Number(query.dobYear)) return false;
+  }
+  if (query.missingContact === '1' && emp.contactNumber) return false;
   return true;
 }
 
@@ -417,8 +432,8 @@ router.get('/joining-trend', async (req, res) => {
 
 router.get('/insights', async (req, res) => {
   try {
-    const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
-    res.json({ insights: analytics.buildInsights(employees, departmentNames, locationNames) });
+    const { employees, departmentNames, locationNames, doerNames } = await employeeService.getEmployeeData();
+    res.json({ insights: analytics.buildInsights(employees, departmentNames, locationNames, doerNames) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

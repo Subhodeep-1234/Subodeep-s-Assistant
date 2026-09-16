@@ -4603,6 +4603,24 @@ function renderGenderDonut(buckets) {
 
 // ---------- Insights tab ----------
 
+// Same data-* filter encoding as legendRow (Dashboard status legend) - one
+// data-<dash-case> attribute per non-empty filters entry, plus
+// data-report-variant when the insight has one (see buildInsights,
+// src/workforceAnalytics.js, for what filters/reportVariant each point
+// carries). data-insight-id marks the <li> as clickable and gives the
+// delegated handler below something to match on, even for an insight
+// whose filters object happens to be empty.
+function insightItemHtml(insight) {
+  let attrs = ' class="clickable" tabindex="0" role="button" data-insight-id="' + escapeHtml(insight.id || '') + '"';
+  Object.entries(insight.filters || {}).forEach(([key, value]) => {
+    if (!value) return;
+    const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+    attrs += ' data-' + attrName + '="' + escapeHtml(String(value)) + '"';
+  });
+  if (insight.reportVariant) attrs += ' data-report-variant="' + escapeHtml(insight.reportVariant) + '"';
+  return '<li' + attrs + '>' + escapeHtml(insight.text) + '</li>';
+}
+
 async function loadInsightsView(forceRefresh) {
   const listEl = document.getElementById('insightsFull');
   listEl.innerHTML = '<li class="empty">Loading…</li>';
@@ -4614,12 +4632,32 @@ async function loadInsightsView(forceRefresh) {
     if (!insights) insights = await fetchJson('/api/workforce/insights');
     insightsPrefetch = null;
     listEl.innerHTML = insights.insights.length
-      ? insights.insights.map((i) => '<li>' + escapeHtml(i.text) + '</li>').join('')
+      ? insights.insights.map(insightItemHtml).join('')
       : '<li class="empty">No insights yet</li>';
   } catch (err) {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }
 }
+
+// Every insight point is clickable through to its own exact Employee Data
+// list - same delegated click/keydown pattern as the Dashboard status
+// legend, Doer Management rows and Age Distribution rows (see
+// applyFiltersAndShowDirectory). item.dataset spreads directly into a
+// filters object since every insight-specific data-* attribute IS a filter
+// field except insightId/reportVariant, which are pulled out first.
+document.getElementById('insightsFull').addEventListener('click', (e) => {
+  const item = e.target.closest('li[data-insight-id]');
+  if (!item) return;
+  const { insightId, reportVariant, ...filters } = item.dataset;
+  applyFiltersAndShowDirectory(filters, reportVariant || null);
+});
+document.getElementById('insightsFull').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const item = e.target.closest('li[data-insight-id]');
+  if (!item) return;
+  e.preventDefault();
+  item.click();
+});
 
 // ---------- Data Quality tab ----------
 

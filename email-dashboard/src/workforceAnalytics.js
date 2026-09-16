@@ -97,42 +97,142 @@ function turning58ThisMonth(employees, now = new Date()) {
   });
 }
 
-function buildInsights(employees, departmentNames, locationNames) {
+// UTC first/last-day-of-month bounds for { year, month } (month is 0-11,
+// and may be out of 0-11 range - Date.UTC normalizes that by rolling the
+// year, which is relied on below for "6 months before this month" without
+// needing to special-case a year rollover by hand), returned as the
+// YYYY-MM-DD strings the dateFrom/dateTo filters (on DOJ) already expect.
+function monthBoundsISO(year, month) {
+  const from = new Date(Date.UTC(year, month, 1));
+  const to = new Date(Date.UTC(year, month + 1, 0)); // day 0 of next month = last day of this month
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+
+// Every insight is built with a `filters` object (and optional
+// `reportVariant`) alongside its text, in the same shape
+// applyFiltersAndShowDirectory (public/workforce.js) already expects from
+// every other clickable stat in the app (Dashboard KPI cards, Doer
+// Management rows, Age Distribution rows...) - clicking any insight drills
+// into the exact Employee Data list backing it. A couple of these need
+// filter fields matchesFilters (src/workforceRoutes.js) didn't support
+// before now - dobMonth/dobYear (birthday/retirement-month insights),
+// statusNot (anyone but Inactive, without pinning to exactly Active), and
+// missingContact (data-quality flag) - all added there alongside this.
+function buildInsights(employees, departmentNames, locationNames, doerNames) {
   const now = new Date();
   const insights = [];
 
   const activeByDept = departmentBreakdown(employees, departmentNames, (e) => e.status === 'ACTIVE');
   if (activeByDept.length) {
     insights.push({
-      text: activeByDept[0].name + ' has the highest active headcount (' + activeByDept[0].count + ' employees).'
+      id: 'top-department',
+      text: activeByDept[0].name + ' has the highest active headcount (' + activeByDept[0].count + ' employees).',
+      filters: { status: 'ACTIVE', department: activeByDept[0].name }
     });
   }
 
   const activeByLocation = locationBreakdown(employees, locationNames, (e) => e.status === 'ACTIVE');
   if (activeByLocation.length) {
     insights.push({
-      text: activeByLocation[0].name + ' location has the highest number of active employees (' + activeByLocation[0].count + ').'
+      id: 'top-location',
+      text: activeByLocation[0].name + ' location has the highest number of active employees (' + activeByLocation[0].count + ').',
+      filters: { status: 'ACTIVE', location: activeByLocation[0].name }
     });
   }
 
+  // Same DOJ+6-months math as probationCompletingThisMonth itself, just
+  // expressed as a dateFrom/dateTo range on DOJ (6 calendar months before
+  // this one) so clicking through reproduces the identical set - "not
+  // Inactive" rather than "Active" specifically, since an employee still
+  // tagged Probation could be in Notice Period too and this shouldn't
+  // silently drop them from the count someone just read.
   const probationDone = probationCompletingThisMonth(employees, now);
+  const probationRange = monthBoundsISO(now.getUTCFullYear(), now.getUTCMonth() - 6);
   insights.push({
+    id: 'probation-completing',
     text: probationDone.length + ' employee' + (probationDone.length === 1 ? ' is' : 's are') +
-      ' completing probation (6 months) this month.'
+      ' completing probation (6 months) this month.',
+    filters: { employmentType: 'Probation', statusNot: 'INACTIVE', dateFrom: probationRange.from, dateTo: probationRange.to }
   });
 
   const turning58 = turning58ThisMonth(employees, now);
-  if (turning58.length) {
-    insights.push({
-      text: turning58.length + ' employee' + (turning58.length === 1 ? '' : 's') + ' will turn 58 this month.'
-    });
-  }
+  insights.push({
+    id: 'turning-58',
+    text: turning58.length
+      ? turning58.length + ' employee' + (turning58.length === 1 ? '' : 's') + ' will turn 58 this month.'
+      : 'No employees will turn 58 this month.',
+    // turning58ThisMonth's own age check is "now.year - dob.year === 58",
+    // not a birthday-aware calcAge - matched here with an exact birth year
+    // instead of ageMin/ageMax, which would be calcAge-based and could
+    // disagree by one for someone whose birthday later this month hasn't
+    // happened yet relative to "now".
+    filters: { statusNot: 'INACTIVE', dobMonth: now.getUTCMonth() + 1, dobYear: now.getUTCFullYear() - 58 }
+  });
 
   const birthdays = birthdaysThisMonth(employees, now);
   insights.push({
+    id: 'birthdays',
     text: birthdays.length
       ? birthdays.length + ' employee' + (birthdays.length === 1 ? ' has' : 's have') + ' a birthday this month.'
-      : 'No employees have a birthday this month.'
+      : 'No employees have a birthday this month.',
+    filters: { statusNot: 'INACTIVE', dobMonth: now.getUTCMonth() + 1 }
+  });
+
+  // Bounds computed as the same YYYY-MM-DD strings the dateFrom/dateTo
+  // filter will carry, then re-parsed the same way matchesFilters parses
+  // them (midnight UTC) - counting against the precise "now" timestamp
+  // instead would silently disagree with what clicking through actually
+  // shows, since DOJ values themselves are day-only (always midnight UTC),
+  // and "now" almost never lands exactly on midnight.
+  const newJoinersFromISO = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const newJoinersToISO = now.toISOString().slice(0, 10);
+  const newJoinersFrom = new Date(newJoinersFromISO);
+  const newJoinersTo = new Date(newJoinersToISO);
+  const newJoiners = employees.filter((e) => e.doj && e.doj >= newJoinersFrom && e.doj <= newJoinersTo);
+  insights.push({
+    id: 'new-joiners',
+    text: newJoiners.length + ' employee' + (newJoiners.length === 1 ? '' : 's') + ' joined in the last 30 days.',
+    filters: { dateFrom: newJoinersFromISO, dateTo: newJoinersToISO }
+  });
+
+  const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
+  const nearingRetirement = activeEmployees.filter((e) => e.dob && calcAge(e.dob, now) >= 55);
+  insights.push({
+    id: 'nearing-retirement',
+    text: nearingRetirement.length + ' active employee' + (nearingRetirement.length === 1 ? ' is' : 's are') +
+      ' aged 55 or above - a succession-planning watch list.',
+    filters: { status: 'ACTIVE', ageMin: 55 }
+  });
+
+  const genders = genderAnalytics(employees);
+  if (genders.buckets.length) {
+    const top = genders.buckets[0];
+    const pct = genders.eligibleCount ? Math.round((top.count / genders.eligibleCount) * 1000) / 10 : 0;
+    insights.push({
+      id: 'gender-mix',
+      text: top.label + ' employees make up ' + pct + '% (' + top.count + ' of ' + genders.eligibleCount + ') of the active workforce.',
+      filters: { status: 'ACTIVE', gender: top.label }
+    });
+  }
+
+  const topDoer = doerBreakdown(employees, doerNames, (e) => e.status === 'ACTIVE')[0];
+  if (topDoer) {
+    insights.push({
+      id: 'top-doer',
+      text: topDoer.name + ' manages the largest active team (' + topDoer.count + ' employees) among all Reporting DOERs.',
+      filters: { status: 'ACTIVE', reportingDoer: topDoer.name },
+      reportVariant: 'doerManagement'
+    });
+  }
+
+  const missingContact = activeEmployees.filter((e) => !e.contactNumber);
+  insights.push({
+    id: 'missing-contact',
+    text: missingContact.length
+      ? missingContact.length + ' active employee' + (missingContact.length === 1 ? '' : 's') +
+        (missingContact.length === 1 ? ' has' : ' have') + ' no contact number on file.'
+      : 'Every active employee has a contact number on file.',
+    filters: { status: 'ACTIVE', missingContact: '1' }
   });
 
   return insights;
