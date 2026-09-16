@@ -1954,10 +1954,32 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
     print-color-adjust: exact;
   }
 
-  /* Doer Breakup report only: a second, lighter heading level nested under
-     each print-doer-dept-row (Department + HOD) - one per Collar group
-     within that department, tinted per collar type so the two heading
-     levels stay visually distinct at a glance. */
+  /* Doer Breakup report only: a middle heading level nested under each
+     print-doer-dept-row (Department) - one per real HOD-1 actually found
+     among this DOER's own employees within that department (a department
+     can have more than one, e.g. Accounts under Archana Shroff has both
+     Niraj Goel and Pawan Kumar Dhanuka - see exportDoerBreakupPdf,
+     workforce.js), each with just their own people under them. Indented
+     (padding-left) and a lighter navy than the Department row above it, so
+     the nesting reads at a glance; employees with no HOD-1 tag skip this
+     level entirely and sit straight under the Department row instead. */
+  #printReport tbody tr.print-doer-hod-row { break-after: avoid; }
+  #printReport tbody tr.print-doer-hod-row td {
+    background: #3c5978;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.71rem;
+    text-transform: uppercase;
+    letter-spacing: 0.045em;
+    padding: 6px 9px 6px 20px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Doer Breakup report only: the lightest heading level, nested under
+     print-doer-hod-row (or straight under print-doer-dept-row for
+     employees with no HOD-1) - one per Collar group, tinted per collar
+     type so all three heading levels stay visually distinct at a glance. */
   #printReport tbody tr.print-subsection-row { break-after: avoid; }
   #printReport tbody tr.print-subsection-row td {
     font-weight: 700;

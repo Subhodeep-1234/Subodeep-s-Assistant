@@ -4122,22 +4122,7 @@ document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => 
   document.getElementById('printReportHead').innerHTML =
     '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Age</th><th>Gender</th><th>Location</th><th>DOJ</th>';
 
-  let bodyHtml = '';
-  deptNames.forEach((deptName) => {
-    const emps = byDept.get(deptName);
-    // Same "most common HOD among the filtered list" technique as the
-    // single-department export above, computed per department here since
-    // a DOER's team can span many departments, each with its own HOD.
-    const managerCounts = {};
-    emps.forEach((e) => { if (e.reportingManager) managerCounts[e.reportingManager] = (managerCounts[e.reportingManager] || 0) + 1; });
-    let hodName = null;
-    let hodCount = 0;
-    Object.entries(managerCounts).forEach(([name, count]) => {
-      if (count > hodCount) { hodName = name; hodCount = count; }
-    });
-    const deptHeading = deptName + (hodName ? ' — HOD: ' + hodName : '');
-    bodyHtml += '<tr class="print-doer-dept-row"><td colspan="7">' + escapeHtml(deptHeading) + '</td></tr>';
-
+  function collarGroupedRowsHtml(emps) {
     const sortedEmps = emps.slice().sort((a, b) => {
       const collarDiff = collarRank(a.groupD) - collarRank(b.groupD);
       if (collarDiff !== 0) return collarDiff;
@@ -4147,15 +4132,15 @@ document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => 
       if (desigDiff !== 0) return desigDiff;
       return (a.name || '').localeCompare(b.name || '');
     });
-
+    let html = '';
     let lastCollar = null;
     sortedEmps.forEach((e) => {
       const collarHeading = e.groupD || 'Unspecified Collar';
       if (collarHeading !== lastCollar) {
-        bodyHtml += '<tr class="print-subsection-row print-subsection-' + collarSlug(e.groupD) + '"><td colspan="7">' + escapeHtml(collarHeading) + '</td></tr>';
+        html += '<tr class="print-subsection-row print-subsection-' + collarSlug(e.groupD) + '"><td colspan="7">' + escapeHtml(collarHeading) + '</td></tr>';
         lastCollar = collarHeading;
       }
-      bodyHtml +=
+      html +=
         '<tr>' +
           '<td>' + escapeHtml(e.employeeId) + '</td>' +
           '<td>' + escapeHtml(e.name) + '</td>' +
@@ -4166,6 +4151,42 @@ document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => 
           '<td>' + formatDate(e.doj) + '</td>' +
         '</tr>';
     });
+    return html;
+  }
+
+  let bodyHtml = '';
+  deptNames.forEach((deptName) => {
+    const emps = byDept.get(deptName);
+    bodyHtml += '<tr class="print-doer-dept-row"><td colspan="7">' + escapeHtml(deptName) + '</td></tr>';
+
+    // Real per-employee HOD-1 (reportingManager), not a "most common HOD
+    // among this department" guess - a department can genuinely have more
+    // than one HOD under the same DOER (e.g. Accounts: Niraj Goel and
+    // Pawan Kumar Dhanuka both under Archana Shroff), so each real HOD
+    // gets its own sub-heading with just their own people underneath,
+    // instead of silently picking one name for everyone. Employees with
+    // no HOD-1 tag skip this sub-heading level entirely and sit straight
+    // under the Department heading - same "skip the empty middle tier"
+    // idea the org chart already uses.
+    const byHod = new Map();
+    const directEmps = [];
+    emps.forEach((e) => {
+      if (e.reportingManager) {
+        if (!byHod.has(e.reportingManager)) byHod.set(e.reportingManager, []);
+        byHod.get(e.reportingManager).push(e);
+      } else {
+        directEmps.push(e);
+      }
+    });
+
+    if (directEmps.length) bodyHtml += collarGroupedRowsHtml(directEmps);
+
+    Array.from(byHod.keys())
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((hodName) => {
+        bodyHtml += '<tr class="print-doer-hod-row"><td colspan="7">HOD - ' + escapeHtml(hodName) + '</td></tr>';
+        bodyHtml += collarGroupedRowsHtml(byHod.get(hodName));
+      });
   });
   document.getElementById('printReportBody').innerHTML = bodyHtml || '<tr><td colspan="7">No employees match these filters</td></tr>';
   window.print();
