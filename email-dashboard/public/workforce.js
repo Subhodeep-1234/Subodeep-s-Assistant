@@ -1089,6 +1089,14 @@ function orgChartSectionHtml(title, groups) {
     '<div class="org-chart-pill">' + escapeHtml(title) + '</div>' +
     '<div class="org-chart-pill-connector"></div>' +
     '<div class="org-chart-cards-row">' +
+      // Hidden everywhere except inside the PDF tree (see the print CSS
+      // rule and positionOrgChartPdfFanBuses) - there, the row's own
+      // fixed-inset ::before bus line (tuned for the standalone single-
+      // level PDF's own fixed 106px cards) isn't precise enough once the
+      // whole tree can also be running through scaleOrgChartPdfTreeToFit,
+      // so this gets measured and positioned exactly instead, matching
+      // the same precision already used one level up.
+      '<span class="org-chart-cards-row-bus"></span>' +
       groups.map((g, i) => orgChartCardHtml(g, i, ORG_CARD_PALETTE)).join('') +
     '</div>'
   );
@@ -1329,6 +1337,28 @@ function positionOrgChartPdfFanBuses(root) {
     const rowRect = row.getBoundingClientRect();
     const firstRect = cols[0].querySelector('.org-chart-hod-box').getBoundingClientRect();
     const lastRect = cols[cols.length - 1].querySelector('.org-chart-hod-box').getBoundingClientRect();
+    const left = firstRect.left + firstRect.width / 2 - rowRect.left;
+    const right = lastRect.left + lastRect.width / 2 - rowRect.left;
+    bus.style.left = left + 'px';
+    bus.style.width = Math.max(0, right - left) + 'px';
+  });
+
+  // Same idea, one level deeper - the designation cards row under each
+  // HOD (or under a Director with no HOD of its own). Only actually
+  // visible inside the PDF tree (see the print CSS rule); harmless to
+  // process everywhere else since the bus stays display: none there via
+  // the base rule, this just measures/sets inline styles nobody sees.
+  root.querySelectorAll('.org-chart-cards-row').forEach((row) => {
+    const bus = row.querySelector(':scope > .org-chart-cards-row-bus');
+    if (!bus) return;
+    const cards = Array.from(row.querySelectorAll(':scope > .org-chart-card'));
+    if (cards.length < 2) {
+      bus.style.display = 'none';
+      return;
+    }
+    const rowRect = row.getBoundingClientRect();
+    const firstRect = cards[0].getBoundingClientRect();
+    const lastRect = cards[cards.length - 1].getBoundingClientRect();
     const left = firstRect.left + firstRect.width / 2 - rowRect.left;
     const right = lastRect.left + lastRect.width / 2 - rowRect.left;
     bus.style.left = left + 'px';

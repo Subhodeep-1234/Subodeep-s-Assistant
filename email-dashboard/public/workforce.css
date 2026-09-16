@@ -1742,6 +1742,12 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   background: #000;
 }
 
+/* Hidden here (on screen, and in the standalone single-level PDF, both
+   of which keep using the ::before above) - only shown, measured and
+   positioned by JS, inside the PDF tree specifically (see the print
+   rule further down and positionOrgChartPdfFanBuses). */
+.org-chart-cards-row-bus { display: none; }
+
 .org-chart-card {
   position: relative;
   width: 210px;
@@ -1750,8 +1756,14 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   background: var(--card-tint, var(--surface));
   box-shadow: 0 2px 8px var(--shadow);
 }
-/* Extends 1px past the row's own 26px padding-top, for the same overlap
-   reason as the bus line's 103px inset above. */
+/* top: -27px extends 1px past the row's own 26px padding-top, for the
+   same overlap reason as the bus line's 103px inset above. height: 21px
+   (not the full 27px down to the card) stops the tick where the
+   arrowhead's own wide edge begins (border-top: 6px below) - the
+   arrowhead narrows to a point as it nears the card, so letting the
+   tick run underneath that narrowing point made the tick's own width
+   visibly stick out past the arrow's edges near the tip, reading as a
+   smudged blob instead of a clean triangle. */
 .org-chart-card::before {
   content: "";
   position: absolute;
@@ -1759,7 +1771,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: 27px;
+  height: 21px;
   background: #000;
 }
 .org-chart-card::after {
@@ -2126,7 +2138,11 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
     print-color-adjust: exact;
   }
   /* Same tick+arrow geometry for both fan-out levels - HOD slots under a
-     Director, and Director columns under the Managing Director. */
+     Director, and Director columns under the Managing Director. height:
+     5px (not 9px, matching .org-chart-card::before's own fix and
+     reasoning above) stops the tick where the arrowhead's wide edge
+     starts, instead of running underneath its narrowing point and
+     sticking out past its sides. */
   body.printing-org-chart .org-chart-pdf-hod-slot::before,
   body.printing-org-chart .org-chart-pdf-director-col::before {
     content: "";
@@ -2135,7 +2151,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
     left: 50%;
     transform: translateX(-50%);
     width: 2px;
-    height: 9px;
+    height: 5px;
     background: #000;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -2170,13 +2186,37 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      fuse into one continuous line with no seam. */
   body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
   body.printing-org-chart .org-chart-cards-row::before { height: 1px; left: 51px; right: 51px; }
+  /* Inside the PDF tree specifically, use the JS-measured
+     .org-chart-cards-row-bus instead of the fixed-inset ::before above -
+     the fixed 51px inset assumes every card is exactly the standalone
+     PDF's own 106px, which no longer reliably holds once the whole tree
+     can also be running through scaleOrgChartPdfTreeToFit (rounding at
+     an arbitrary zoom level can shift a card's real width by a
+     fraction of a px, enough to visibly overshoot past its arrow at
+     this scale). Standalone single-level PDF (not inside the tree)
+     keeps the ::before version untouched. */
+  body.printing-org-chart .org-chart-pdf-hod-slot .org-chart-cards-row::before,
+  body.printing-org-chart .org-chart-pdf-director-col .org-chart-cards-row::before {
+    display: none;
+  }
+  body.printing-org-chart .org-chart-pdf-hod-slot .org-chart-cards-row-bus,
+  body.printing-org-chart .org-chart-pdf-director-col .org-chart-cards-row-bus {
+    display: block;
+    position: absolute;
+    top: 0;
+    height: 1px;
+    background: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   /* A section with exactly one designation card has nothing for the bus
      line to fan out to - without this it still draws as a tiny stray
      line sitting just above that one card's own arrow. That card's own
      tick already reaches this connector correctly on its own (same as
      any other card), so hiding the bus line here just leaves the one
      continuous arrow the section actually needs. */
-  body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child)::before {
+  body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child)::before,
+  body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child) > .org-chart-cards-row-bus {
     display: none;
   }
   body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
@@ -2184,11 +2224,16 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      12px card) so the head's corners still nest inside the card's,
      rather than the on-screen sizing showing through at print scale. */
   body.printing-org-chart .org-chart-card-head { border-top-left-radius: 4px; border-top-right-radius: 4px; }
-  /* Extends 1px higher than the bus line's own row (top: -9px instead of
-     the exact -8px row padding) for the same reason as the bus line's
-     51px inset above - guarantee an overlap, not just a touch, so no
-     hairline gap shows at the join. */
-  body.printing-org-chart .org-chart-card::before { top: -9px; height: 9px; }
+  /* top: -9px extends 1px higher than the bus line's own row (matching
+     the exact -8px row padding would leave a hairline gap at the top
+     join - same reasoning as the bus line's own 51px inset above).
+     height: 5px (not the full 9px down to the card) stops the tick
+     exactly where the arrowhead's own wide edge begins (border-top: 4px
+     below) - the arrowhead narrows to a point as it nears the card, so
+     letting the tick run underneath that narrowing point made the
+     tick's own width visibly stick out past the arrow's edges near the
+     tip, reading as a smudged blob instead of a clean triangle. */
+  body.printing-org-chart .org-chart-card::before { top: -9px; height: 5px; }
   body.printing-org-chart .org-chart-card-head { padding: 2px 6px; font-size: 0.5rem; gap: 3px; }
   body.printing-org-chart .org-chart-card-head-icon svg { width: 8px; height: 8px; }
   body.printing-org-chart .org-chart-card-body { padding: 3px 6px; gap: 2px; }
