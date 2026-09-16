@@ -194,43 +194,6 @@ function buildInsights(employees, departmentNames, locationNames, doerNames) {
     reportVariant: 'birthdays'
   });
 
-  // Bounds computed as the same YYYY-MM-DD strings the dateFrom/dateTo
-  // filter will carry, then re-parsed the same way matchesFilters parses
-  // them (midnight UTC) - counting against the precise "now" timestamp
-  // instead would silently disagree with what clicking through actually
-  // shows, since DOJ values themselves are day-only (always midnight UTC),
-  // and "now" almost never lands exactly on midnight.
-  const newJoinersFromISO = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const newJoinersToISO = now.toISOString().slice(0, 10);
-  const newJoinersFrom = new Date(newJoinersFromISO);
-  const newJoinersTo = new Date(newJoinersToISO);
-  const newJoiners = employees.filter((e) => e.doj && e.doj >= newJoinersFrom && e.doj <= newJoinersTo);
-  insights.push({
-    id: 'new-joiners',
-    text: newJoiners.length + ' employee' + (newJoiners.length === 1 ? '' : 's') + ' joined in the last 30 days.',
-    filters: { dateFrom: newJoinersFromISO, dateTo: newJoinersToISO }
-  });
-
-  const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
-  const nearingRetirement = activeEmployees.filter((e) => e.dob && calcAge(e.dob, now) >= 55);
-  insights.push({
-    id: 'nearing-retirement',
-    text: nearingRetirement.length + ' active employee' + (nearingRetirement.length === 1 ? ' is' : 's are') +
-      ' aged 55 or above - a succession-planning watch list.',
-    filters: { status: 'ACTIVE', ageMin: 55 }
-  });
-
-  const genders = genderAnalytics(employees);
-  if (genders.buckets.length) {
-    const top = genders.buckets[0];
-    const pct = genders.eligibleCount ? Math.round((top.count / genders.eligibleCount) * 1000) / 10 : 0;
-    insights.push({
-      id: 'gender-mix',
-      text: top.label + ' employees make up ' + pct + '% (' + top.count + ' of ' + genders.eligibleCount + ') of the active workforce.',
-      filters: { status: 'ACTIVE', gender: top.label }
-    });
-  }
-
   const topDoer = doerBreakdown(employees, doerNames, (e) => e.status === 'ACTIVE')[0];
   if (topDoer) {
     insights.push({
@@ -240,16 +203,6 @@ function buildInsights(employees, departmentNames, locationNames, doerNames) {
       reportVariant: 'doerManagement'
     });
   }
-
-  const missingContact = activeEmployees.filter((e) => !e.contactNumber);
-  insights.push({
-    id: 'missing-contact',
-    text: missingContact.length
-      ? missingContact.length + ' active employee' + (missingContact.length === 1 ? '' : 's') +
-        (missingContact.length === 1 ? ' has' : ' have') + ' no contact number on file.'
-      : 'Every active employee has a contact number on file.',
-    filters: { status: 'ACTIVE', missingContact: '1' }
-  });
 
   return insights;
 }
