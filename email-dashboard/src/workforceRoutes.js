@@ -458,40 +458,27 @@ router.post('/birthdays/send-mail', async (req, res) => {
       return res.status(400).json({ error: 'No mail recipients configured for the Birthday List in the Mail Id sheet.' });
     }
 
-    // Same sort/grouping as the on-screen Birthday List Export PDF.
+    // Sorted by day of the month, 1st through the last day - same as the
+    // on-screen Birthday List Export PDF (exportEmployeesPdf's
+    // isBirthdayReport branch, public/workforce.js). Every row here already
+    // shares the same birth month (that's how they were filtered above), so
+    // just the day decides order - no Collar grouping, since once sorted by
+    // day collars no longer sit in contiguous blocks.
     const sorted = birthdayEmployees.slice().sort((a, b) => {
-      const collarA = employeeReportCollarRank(formatCollar(a.groupD));
-      const collarB = employeeReportCollarRank(formatCollar(b.groupD));
-      if (collarA !== collarB) return collarA - collarB;
-      const deptA = departmentNames.get(a.departmentKey) || a.department || '';
-      const deptB = departmentNames.get(b.departmentKey) || b.department || '';
-      const deptDiff = deptA.localeCompare(deptB);
-      if (deptDiff !== 0) return deptDiff;
-      const rankDiff = employeeReportDesignationRank(a.designation) - employeeReportDesignationRank(b.designation);
-      if (rankDiff !== 0) return rankDiff;
-      const desigDiff = (a.designation || '').localeCompare(b.designation || '');
-      if (desigDiff !== 0) return desigDiff;
+      const dayDiff = a.dob.getUTCDate() - b.dob.getUTCDate();
+      if (dayDiff !== 0) return dayDiff;
       return (a.name || '').localeCompare(b.name || '');
     });
 
-    const rows = [];
-    let lastCollarHeading = null;
-    sorted.forEach((e) => {
-      const collarHeading = formatCollar(e.groupD) || 'Unspecified Collar';
-      if (collarHeading !== lastCollarHeading) {
-        rows.push({ section: collarHeading });
-        lastCollarHeading = collarHeading;
-      }
-      rows.push([
-        e.employeeId,
-        e.name,
-        e.designation || '—',
-        departmentNames.get(e.departmentKey) || e.department || '—',
-        formatCollar(e.groupD) || '—',
-        e.location || '—',
-        formatDobCurrentYear(e.dob, now)
-      ]);
-    });
+    const rows = sorted.map((e) => [
+      e.employeeId,
+      e.name,
+      e.designation || '—',
+      departmentNames.get(e.departmentKey) || e.department || '—',
+      formatCollar(e.groupD) || '—',
+      e.location || '—',
+      formatDobCurrentYear(e.dob, now)
+    ]);
 
     const monthName = now.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
 

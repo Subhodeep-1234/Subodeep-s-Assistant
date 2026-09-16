@@ -3941,10 +3941,19 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', async ()
   // organizing idea. Every other path (Department/Location/Gender/KPI
   // clicks, manual filters, Workforce Movement) is unaffected.
   const isAgeDistributionReport = directoryReportVariant === 'ageDistribution';
+  // Birthday report sorts by day of the month, 1st through the last day -
+  // every row here already shares the same birth month (that's how the
+  // insight filtered them), so just the day decides order.
+  const isBirthdayReport = directoryReportVariant === 'birthdays';
   const sortedList = lastEmployeeList.slice().sort((a, b) => {
     if (isAgeDistributionReport) {
       const ageDiff = ageInYearsForSort(a.dob) - ageInYearsForSort(b.dob);
       if (ageDiff !== 0) return ageDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    }
+    if (isBirthdayReport) {
+      const dayDiff = (a.dob ? new Date(a.dob).getUTCDate() : 99) - (b.dob ? new Date(b.dob).getUTCDate() : 99);
+      if (dayDiff !== 0) return dayDiff;
       return (a.name || '').localeCompare(b.name || '');
     }
     const collarDiff = collarRank(a.groupD) - collarRank(b.groupD);
@@ -3966,7 +3975,6 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', async ()
   // section's export (Department/Location/Age/Gender/KPI clicks, manual
   // filters) keeps the original 9-column layout and title, unchanged.
   const isWorkforceMovementReport = directoryReportVariant === 'workforceMovement';
-  const isBirthdayReport = directoryReportVariant === 'birthdays';
   const columnCount = isBirthdayReport ? 7 : 9;
   document.getElementById('printReportTitle').textContent = isBirthdayReport ? 'Birthday List' : 'Employee Data Report';
   document.getElementById('printReportSubtitle').textContent =
@@ -3983,11 +3991,12 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', async ()
   document.getElementById('printReportBody').innerHTML = sortedList.length
     ? sortedList
         .map((e) => {
-          // No Collar section headers for the age-sorted report - once rows
-          // are ordered by age, collars no longer sit in contiguous blocks,
-          // so a per-collar heading would just flicker in and out between rows.
+          // No Collar section headers for the age-sorted or birthday-sorted
+          // reports - once rows are ordered by age or by birthday day,
+          // collars no longer sit in contiguous blocks, so a per-collar
+          // heading would just flicker in and out between rows.
           let sectionRow = '';
-          if (!isAgeDistributionReport) {
+          if (!isAgeDistributionReport && !isBirthdayReport) {
             const heading = e.groupD || 'Unspecified Collar';
             if (heading !== lastGroupHeading) {
               sectionRow = '<tr class="print-section-row"><td colspan="' + columnCount + '">' + escapeHtml(heading) + '</td></tr>';
