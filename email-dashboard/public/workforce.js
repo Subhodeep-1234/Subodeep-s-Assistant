@@ -1233,7 +1233,7 @@ function orgChartPdfBranchContentHtml(branch, hodBoxClass) {
 function orgChartPdfDirectorColumnHtml(directorPerson, branch) {
   return (
     '<div class="org-chart-pdf-director-col">' +
-      orgChartLeaderBoxHtml('', directorPerson, 'org-chart-hod-box') +
+      orgChartLeaderBoxHtml('', directorPerson, 'org-chart-hod-box org-chart-director-box') +
       orgChartPdfBranchContentHtml(branch, 'org-chart-hod-box org-chart-pdf-sub-hod-box') +
     '</div>'
   );
@@ -1250,14 +1250,19 @@ function renderOrgChartPdfTreeHtml(data) {
 
   let secondRowLabel = 'HOD';
   let secondRowValue = '—';
+  let thirdRowLabel = null;
+  let thirdRowValue = null;
   if (hasDirectors) {
     secondRowLabel = 'Directors';
-    secondRowValue = String(data.directors.length + (mdOwnHasContent ? 1 : 0)) + ' (see chart)';
+    secondRowValue = String(data.directors.length + (mdOwnHasContent ? 1 : 0));
+    const totalHods = (mdOwnHasContent ? data.mdBranch.hods.length : 0) + data.directors.reduce((sum, d) => sum + d.hods.length, 0);
+    thirdRowLabel = 'HODs';
+    thirdRowValue = String(totalHods);
   } else if (data.mdBranch.hods.length === 1) {
     secondRowValue = data.mdBranch.hods[0].hod ? data.mdBranch.hods[0].hod.name : '—';
   } else if (data.mdBranch.hods.length > 1) {
     secondRowLabel = 'HODs';
-    secondRowValue = String(data.mdBranch.hods.length) + ' (see chart)';
+    secondRowValue = String(data.mdBranch.hods.length);
   }
 
   let belowMd;
@@ -1295,6 +1300,7 @@ function renderOrgChartPdfTreeHtml(data) {
         '<div class="org-chart-info-card">' +
           orgChartInfoRow(FIELD_ICONS.users, 'Total Employees', String(data.totalEmployees)) +
           orgChartInfoRow(FIELD_ICONS.badge, secondRowLabel, secondRowValue) +
+          (thirdRowLabel ? orgChartInfoRow(FIELD_ICONS.badge, thirdRowLabel, thirdRowValue) : '') +
           orgChartInfoRow(FIELD_ICONS.calendar, 'Generated On', generatedOn) +
         '</div>' +
       '</div>' +
