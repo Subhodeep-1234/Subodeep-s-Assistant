@@ -159,13 +159,12 @@ function buildInsights(employees, departmentNames, locationNames, doerNames) {
     text: pendingConfirmations.length + ' employee' + (pendingConfirmations.length === 1 ? ' is' : 's are') +
       ' completing probation (6 months) this month.',
     filters: { statusNot: 'INACTIVE', dateFrom: probationRange.from, dateTo: probationRange.to },
-    // Same 'probation' variant the Dashboard's own Probation stat card
-    // already uses (employmentTypeStatsEl's click handler, workforce.js) -
-    // reuses its existing "Pending Confirmations" PDF export button
-    // (fetches /api/workforce/pending-confirmations, which already runs
-    // this exact pendingConfirmationsThisMonth data) instead of adding a
-    // second, separate report for the same underlying list.
-    reportVariant: 'probation'
+    // Distinct from the Dashboard Probation stat card's own 'probation'
+    // variant on purpose - that one unhides a second, separate "Pending
+    // Confirmations" button. This point instead makes the ONE Export PDF
+    // button itself produce that same Pending Confirmations Report format
+    // (see exportEmployeesPdf, public/workforce.js), no extra button.
+    reportVariant: 'probationCompleting'
   });
 
   const turning58 = turning58ThisMonth(employees, now);

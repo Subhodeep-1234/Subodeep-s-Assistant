@@ -3897,7 +3897,20 @@ function collarRank(collar) {
   return collar in COLLAR_RANK ? COLLAR_RANK[collar] : 99;
 }
 
-document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
+document.getElementById('exportEmployeesPdf').addEventListener('click', async () => {
+  // The Insights "completing probation this month" point reuses the exact
+  // Pending Confirmations Report format through this SAME button, rather
+  // than showing a second dedicated button just for this one entry point
+  // (see renderPendingConfirmationsReport above).
+  if (directoryReportVariant === 'probationCompleting') {
+    try {
+      await renderPendingConfirmationsReport();
+    } catch (err) {
+      alert('Failed to generate report: ' + err.message);
+    }
+    return;
+  }
+
   const filterParts = [];
   if (activeFilters.status) filterParts.push(activeFilters.status === 'ACTIVE' ? 'Active' : activeFilters.status);
   if (activeFilters.department) filterParts.push(activeFilters.department);
@@ -4139,49 +4152,57 @@ function printLandscape() {
   });
 }
 
-// Only available when Employee Data was reached via the Dashboard's
-// Probation stat block (see employmentTypeStatsEl's applyFiltersAndShowDirectory
-// call, 'probation' variant). Independent of whatever's currently filtered
-// in Employee Data - always the whole current month's confirmation-due list
-// (DOJ + 6 months, 1st to last day), regardless of what day it's generated
-// on or whether an employee's Employment Type has already flipped to
-// Confirmed - see pendingConfirmationsThisMonth in workforceAnalytics.js.
-// Laid out for a physical HOD sign-off.
+// Shared by both the Dashboard Probation stat block's dedicated "Pending
+// Confirmations" button below AND the Insights "completing probation this
+// month" point's own Export PDF (directoryReportVariant ===
+// 'probationCompleting', see exportEmployeesPdf) - the same report either
+// way, just two different entry points into it, so both stay in sync
+// automatically instead of two copies drifting apart. Independent of
+// whatever's currently filtered in Employee Data - always the whole
+// current month's confirmation-due list (DOJ + 6 months, 1st to last day),
+// regardless of what day it's generated on or whether an employee's
+// Employment Type has already flipped to Confirmed - see
+// pendingConfirmationsThisMonth in workforceAnalytics.js. Laid out for a
+// physical HOD sign-off.
+async function renderPendingConfirmationsReport() {
+  const data = await fetchJson('/api/workforce/pending-confirmations');
+  const items = data.items.slice().sort((a, b) => {
+    const dateDiff = new Date(a.confirmationDate) - new Date(b.confirmationDate);
+    if (dateDiff !== 0) return dateDiff;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  document.getElementById('printReportTitle').textContent = 'Pending Confirmations Report';
+  document.getElementById('printReportSubtitle').textContent =
+    monthLabel + ' · ' + items.length + ' employee' + (items.length === 1 ? '' : 's') + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Location</th>' +
+    '<th>Confirmation Date</th><th>HOD Name</th><th class="print-signature-col">Signature</th>';
+  document.getElementById('printReportBody').innerHTML = items.length
+    ? items
+        .map((it) => (
+          '<tr>' +
+            '<td>' + escapeHtml(it.employeeId) + '</td>' +
+            '<td>' + escapeHtml(it.name) + '</td>' +
+            '<td>' + escapeHtml(it.designation || '—') + '</td>' +
+            '<td>' + escapeHtml(it.department || '—') + '</td>' +
+            '<td>' + escapeHtml(it.location || '—') + '</td>' +
+            '<td>' + formatDate(it.confirmationDate) + '</td>' +
+            '<td>' + escapeHtml(it.reportingManager || '—') + '</td>' +
+            '<td class="print-signature-col"></td>' +
+          '</tr>'
+        ))
+        .join('')
+    : '<tr><td colspan="8">No confirmations due this month</td></tr>';
+  printLandscape();
+}
+
 document.getElementById('exportPendingConfirmationsPdf').addEventListener('click', async () => {
   try {
-    const data = await fetchJson('/api/workforce/pending-confirmations');
-    const items = data.items.slice().sort((a, b) => {
-      const dateDiff = new Date(a.confirmationDate) - new Date(b.confirmationDate);
-      if (dateDiff !== 0) return dateDiff;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-
-    const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-    document.getElementById('printReportTitle').textContent = 'Pending Confirmations Report';
-    document.getElementById('printReportSubtitle').textContent =
-      monthLabel + ' · ' + items.length + ' employee' + (items.length === 1 ? '' : 's') + ' · ';
-    document.getElementById('printReportDate').textContent =
-      new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-    document.getElementById('printReportHead').innerHTML =
-      '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Location</th>' +
-      '<th>Confirmation Date</th><th>HOD Name</th><th class="print-signature-col">Signature</th>';
-    document.getElementById('printReportBody').innerHTML = items.length
-      ? items
-          .map((it) => (
-            '<tr>' +
-              '<td>' + escapeHtml(it.employeeId) + '</td>' +
-              '<td>' + escapeHtml(it.name) + '</td>' +
-              '<td>' + escapeHtml(it.designation || '—') + '</td>' +
-              '<td>' + escapeHtml(it.department || '—') + '</td>' +
-              '<td>' + escapeHtml(it.location || '—') + '</td>' +
-              '<td>' + formatDate(it.confirmationDate) + '</td>' +
-              '<td>' + escapeHtml(it.reportingManager || '—') + '</td>' +
-              '<td class="print-signature-col"></td>' +
-            '</tr>'
-          ))
-          .join('')
-      : '<tr><td colspan="8">No confirmations due this month</td></tr>';
-    printLandscape();
+    await renderPendingConfirmationsReport();
   } catch (err) {
     alert('Failed to generate Upcoming Confirmations report: ' + err.message);
   }
