@@ -79,6 +79,16 @@ function formatAgeYearsMonths(dob) {
   return years + 'Y ' + months + 'M';
 }
 
+// DOB with the current year substituted in - exact server-side copy of the
+// client's own formatDobCurrentYear (public/workforce.js), used by the
+// Birthday Send Mail PDF for the same reason: a birthday list is for this
+// year's upcoming date, not the real birth year.
+function formatDobCurrentYear(dob, now) {
+  if (!dob) return '—';
+  const thisYear = new Date(Date.UTC(now.getUTCFullYear(), dob.getUTCMonth(), dob.getUTCDate()));
+  return thisYear.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 router.use((req, res, next) => {
   const status = employeeService.getConfigStatus();
   if (!status.ok) {
@@ -409,6 +419,102 @@ router.post('/doer/send-mail', async (req, res) => {
         'Please find the attached Doer list currently working under ' + reportingDoer + ', shared for your reference and records.',
       attachment: {
         filename: 'Doer_List_' + reportingDoer.replace(/\s+/g, '_') + '_' + now.toISOString().slice(0, 10) + '.pdf',
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }
+    });
+
+    res.json({ ok: true, sentTo: recipients.to, cc: recipients.cc, employeeCount: sorted.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// All Insights' Birthday point "Send Mail" button - emails this month's
+// birthday list to the Graphics team as the same PDF Export PDF produces
+// for that point (Employee Code, Name, Designation, Department, Collar,
+// Location, Date - see exportEmployeesPdf's isBirthdayReport branch,
+// public/workforce.js). Recipients come from the same "Mail Id" tab as the
+// Doer Management button above, but its own single I/J block - see
+// insuranceService.getBirthdayMailRecipients. No body needed - always this
+// month, matching the insight's own scope, same as
+// pendingConfirmationsThisMonth needing no input either.
+router.post('/birthdays/send-mail', async (req, res) => {
+  try {
+    const [{ employees, departmentNames }, recipients] = await Promise.all([
+      employeeService.getEmployeeData({ forceRefresh: true }),
+      insuranceService.getBirthdayMailRecipients()
+    ]);
+
+    const now = new Date();
+    const birthdayEmployees = employees.filter(
+      (e) => e.status !== 'INACTIVE' && e.dob && e.dob.getUTCMonth() === now.getUTCMonth()
+    );
+    if (!birthdayEmployees.length) {
+      return res.status(400).json({ error: 'No employees have a birthday this month.' });
+    }
+
+    if (!recipients || !recipients.to) {
+      return res.status(400).json({ error: 'No mail recipients configured for the Birthday List in the Mail Id sheet.' });
+    }
+
+    // Same sort/grouping as the on-screen Birthday List Export PDF.
+    const sorted = birthdayEmployees.slice().sort((a, b) => {
+      const collarA = employeeReportCollarRank(formatCollar(a.groupD));
+      const collarB = employeeReportCollarRank(formatCollar(b.groupD));
+      if (collarA !== collarB) return collarA - collarB;
+      const deptA = departmentNames.get(a.departmentKey) || a.department || '';
+      const deptB = departmentNames.get(b.departmentKey) || b.department || '';
+      const deptDiff = deptA.localeCompare(deptB);
+      if (deptDiff !== 0) return deptDiff;
+      const rankDiff = employeeReportDesignationRank(a.designation) - employeeReportDesignationRank(b.designation);
+      if (rankDiff !== 0) return rankDiff;
+      const desigDiff = (a.designation || '').localeCompare(b.designation || '');
+      if (desigDiff !== 0) return desigDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const rows = [];
+    let lastCollarHeading = null;
+    sorted.forEach((e) => {
+      const collarHeading = formatCollar(e.groupD) || 'Unspecified Collar';
+      if (collarHeading !== lastCollarHeading) {
+        rows.push({ section: collarHeading });
+        lastCollarHeading = collarHeading;
+      }
+      rows.push([
+        e.employeeId,
+        e.name,
+        e.designation || '—',
+        departmentNames.get(e.departmentKey) || e.department || '—',
+        formatCollar(e.groupD) || '—',
+        e.location || '—',
+        formatDobCurrentYear(e.dob, now)
+      ]);
+    });
+
+    const monthName = now.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Birthday List',
+      subtitle:
+        monthName + ' ' + now.getUTCFullYear() + ' · ' +
+        sorted.length + ' employee' + (sorted.length === 1 ? '' : 's') + ' · Generated ' +
+        now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Employee Code', 'Name', 'Designation', 'Department', 'Collar', 'Location', 'Date'],
+      rows,
+      landscape: false
+    });
+
+    await gmailService.sendMailWithAttachment({
+      to: recipients.to,
+      cc: recipients.cc,
+      subject: monthName + ' Birthday Greeting Cards – Design Request',
+      text:
+        'Hi,\n\n' +
+        'Please find the list of the below employees having birthdays this month & kindly design individual birthday greeting cards, so we can share these in the group on their respective dates.',
+      attachment: {
+        filename: 'Birthday_List_' + monthName + '_' + now.getUTCFullYear() + '.pdf',
         content: pdfBuffer,
         contentType: 'application/pdf'
       }

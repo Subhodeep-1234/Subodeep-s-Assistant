@@ -639,6 +639,8 @@ function syncVariantButtons() {
   if (sendMailBtn) sendMailBtn.hidden = directoryReportVariant !== 'doerManagement';
   const confirmationsBtn = document.getElementById('exportPendingConfirmationsPdf');
   if (confirmationsBtn) confirmationsBtn.hidden = directoryReportVariant !== 'probation';
+  const birthdayMailBtn = document.getElementById('sendBirthdayMail');
+  if (birthdayMailBtn) birthdayMailBtn.hidden = directoryReportVariant !== 'birthdays';
 }
 
 function applyFiltersAndShowDirectory(filters, reportVariant) {
@@ -4057,6 +4059,31 @@ document.getElementById('sendDoerBreakupMail').addEventListener('click', async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reportingDoer })
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
+    label.textContent = 'Sent ✓';
+    setTimeout(() => { label.textContent = originalLabel; btn.disabled = false; }, 3000);
+  } catch (err) {
+    alert('Failed to send mail: ' + err.message);
+    label.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
+
+// All Insights' Birthday point only - emails this month's birthday list
+// (same PDF as this list's own Export PDF) to the Graphics team. No
+// payload needed - the server always means "this month", matching the
+// insight's own scope, same as sendDoerBreakupMail needing the doer name
+// but this route needing nothing at all.
+document.getElementById('sendBirthdayMail').addEventListener('click', async () => {
+  const btn = document.getElementById('sendBirthdayMail');
+  const label = btn.querySelector('span');
+  if (btn.disabled) return;
+  const originalLabel = label.textContent;
+  btn.disabled = true;
+  label.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/workforce/birthdays/send-mail', { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to send mail');
     label.textContent = 'Sent ✓';

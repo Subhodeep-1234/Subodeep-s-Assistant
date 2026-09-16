@@ -141,35 +141,56 @@ async function getMailRecipients() {
   return { to: to.join(', '), cc: cc.join(', ') };
 }
 
-// Per-Reporting-DOER To/Cc recipients for the Doer Management "Send Mail"
-// button, from the same "Mail Id" tab's F/G columns - a separate block from
-// the flat A/B recipients above. Each doer gets its own repeating block:
-// a "Mail" / "<Doer Name> Doer List Mail Id" heading row, followed by one
-// or more "To" rows and one or more "Cc" rows (blank spacer rows in between
-// are just skipped). Returns a Map keyed by the doer's name, lowercased and
-// trimmed, to {to, cc} - same fresh-fetch-on-send reasoning as
-// getMailRecipients above.
-async function getAllDoerMailRecipients() {
-  const sheets = getSheetsClient();
-  const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!F1:G" });
-  const recipients = new Map();
+// Shared parser for the "Mail Id" tab's repeating block format - a "Mail" /
+// "<heading text>" row followed by one or more "To" rows and one or more
+// "Cc" rows (blank spacer rows in between are just skipped) - used for both
+// the per-doer blocks (F/G) and the single Birthday List block (I/J) below,
+// so both stay in sync instead of two near-identical copies.
+function parseMailIdBlocks(rows) {
+  const blocks = [];
   let current = null;
-  (res.data.values || []).forEach((row) => {
+  (rows || []).forEach((row) => {
     const label = cleanValue(row[0]).toLowerCase();
     const value = cleanValue(row[1]);
     if (label === 'mail') {
-      const doerName = value.replace(/\s*Doer List Mail Id\s*$/i, '').trim();
-      current = { to: [], cc: [] };
-      if (doerName) recipients.set(doerName.toLowerCase(), current);
+      current = { heading: value, to: [], cc: [] };
+      blocks.push(current);
       return;
     }
     if (!current || !value) return;
     if (label === 'to') current.to.push(value);
     else if (label === 'cc') current.cc.push(value);
   });
+  return blocks.map((b) => ({ heading: b.heading, to: b.to.join(', '), cc: b.cc.join(', ') }));
+}
+
+// Per-Reporting-DOER To/Cc recipients for the Doer Management "Send Mail"
+// button, from the "Mail Id" tab's F/G columns - a separate block from the
+// flat A/B recipients above, one repeating block per doer ("<Doer Name>
+// Doer List Mail Id"). Returns a Map keyed by the doer's name, lowercased
+// and trimmed, to {to, cc} - same fresh-fetch-on-send reasoning as
+// getMailRecipients above.
+async function getAllDoerMailRecipients() {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!F1:G" });
   const result = new Map();
-  recipients.forEach((v, k) => result.set(k, { to: v.to.join(', '), cc: v.cc.join(', ') }));
+  parseMailIdBlocks(res.data.values).forEach((b) => {
+    const doerName = b.heading.replace(/\s*Doer List Mail Id\s*$/i, '').trim();
+    if (doerName) result.set(doerName.toLowerCase(), { to: b.to, cc: b.cc });
+  });
   return result;
+}
+
+// Single fixed recipient block for the Insights Birthday point's "Send
+// Mail" button, from the "Mail Id" tab's I/J columns ("Birthday List Mail
+// Id") - only one block, unlike the per-doer F/G blocks, since there's one
+// fixed audience (Graphics team) for every month's birthday list. Returns
+// {to, cc}, or null if that block isn't there.
+async function getBirthdayMailRecipients() {
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!I1:J" });
+  const blocks = parseMailIdBlocks(res.data.values);
+  return blocks.length ? { to: blocks[0].to, cc: blocks[0].cc } : null;
 }
 
 let cache = { data: null, fetchedAt: 0 };
@@ -197,4 +218,4 @@ async function getInsuranceData({ forceRefresh = false } = {}) {
   return cache.data;
 }
 
-module.exports = { getInsuranceData, getMailRecipients, getAllDoerMailRecipients };
+module.exports = { getInsuranceData, getMailRecipients, getAllDoerMailRecipients, getBirthdayMailRecipients };
