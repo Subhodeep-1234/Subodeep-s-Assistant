@@ -626,7 +626,7 @@ employmentTypeStatsEl.addEventListener('keydown', (e) => {
 // Which Employee Data PDF column layout to use - 'default' everywhere
 // except when reached via a Workforce Movement chart/stat-card click,
 // which swaps Age out for Status; a Doer Management row click, which
-// unlocks the extra "Export DOER Breakup" report; or the Dashboard's
+// unlocks the extra "Export Dept. Breakup" report; or the Dashboard's
 // Probation stat block, which unlocks "Upcoming Confirmations". Reset on
 // every navigation so it never leaks into an unrelated export (e.g.
 // clicking Department right after).
