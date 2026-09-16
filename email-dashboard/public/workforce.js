@@ -3943,21 +3943,22 @@ document.getElementById('exportEmployeesPdf').addEventListener('click', () => {
     return (a.name || '').localeCompare(b.name || '');
   });
 
-  document.getElementById('printReportTitle').textContent = 'Employee Data Report';
-  document.getElementById('printReportSubtitle').textContent =
-    (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
-    sortedList.length + ' employee' + (sortedList.length === 1 ? '' : 's') + ' · ';
   // Only the Workforce Movement report swaps Age out for Status, and only
   // the Birthday insight's own report swaps the whole column set for a
-  // shorter one ending in DOB (this year's date, not the real birth year -
-  // see formatDobCurrentYear) instead of Age/Gender/DOJ - every other
+  // shorter one ending in Date (this year's date, not the real birth year -
+  // see formatDobCurrentYear) instead of Age/Gender/DOJ, and gets its own
+  // title instead of the generic "Employee Data Report" - every other
   // section's export (Department/Location/Age/Gender/KPI clicks, manual
-  // filters) keeps the original 9-column layout, unchanged.
+  // filters) keeps the original 9-column layout and title, unchanged.
   const isWorkforceMovementReport = directoryReportVariant === 'workforceMovement';
   const isBirthdayReport = directoryReportVariant === 'birthdays';
   const columnCount = isBirthdayReport ? 7 : 9;
+  document.getElementById('printReportTitle').textContent = isBirthdayReport ? 'Birthday List' : 'Employee Data Report';
+  document.getElementById('printReportSubtitle').textContent =
+    (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
+    sortedList.length + ' employee' + (sortedList.length === 1 ? '' : 's') + ' · ';
   document.getElementById('printReportHead').innerHTML = isBirthdayReport
-    ? '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Location</th><th>DOB</th>'
+    ? '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Location</th><th>Date</th>'
     : isWorkforceMovementReport
     ? '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Gender</th><th>Location</th><th>DOJ</th><th>Status</th>'
     : '<th>Employee Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Collar</th><th>Age</th><th>Gender</th><th>Location</th><th>DOJ</th>';
