@@ -1198,27 +1198,15 @@ function renderOrgChartHtml(data) {
 // renders pixel-identical to the PDF's original design.
 function orgChartPdfBranchContentHtml(branch, hodBoxClass) {
   hodBoxClass = hodBoxClass || 'org-chart-hod-box';
-  if (branch.hods.length > 1) {
-    // Several HODs under the same Director fan out side by side under a
-    // shared bus line (see .org-chart-pdf-hods-row), same idea as the
-    // designation cards row below each of them.
-    return (
-      '<div class="org-chart-branch-connector"></div>' +
-      '<div class="org-chart-pdf-hods-row">' +
-        '<span class="org-chart-pdf-hods-bus"></span>' +
-        branch.hods
-          .map((h) => (
-            '<div class="org-chart-pdf-hod-slot">' +
-              orgChartLeaderBoxHtml('', h.hod, hodBoxClass) +
-              orgChartSectionHtml('White Collar', h.whiteCollarGroups) +
-              orgChartSectionHtml('Blue Collar & Group D', h.blueGroupDGroups) +
-            '</div>'
-          ))
-          .join('') +
-      '</div>'
-    );
+  const directHasContent = branch.direct.whiteCollarGroups.length > 0 || branch.direct.blueGroupDGroups.length > 0;
+
+  if (branch.hods.length === 0) {
+    // No HOD at all under this owner - any direct reports (tagged
+    // straight to the owner's own name in HOD-1) sit right under them.
+    return orgChartSectionHtml('White Collar', branch.direct.whiteCollarGroups) + orgChartSectionHtml('Blue Collar & Group D', branch.direct.blueGroupDGroups);
   }
-  if (branch.hods.length === 1) {
+
+  if (branch.hods.length === 1 && !directHasContent) {
     const h = branch.hods[0];
     return (
       '<div class="org-chart-branch-connector"></div>' +
@@ -1227,7 +1215,35 @@ function orgChartPdfBranchContentHtml(branch, hodBoxClass) {
       orgChartSectionHtml('Blue Collar & Group D', h.blueGroupDGroups)
     );
   }
-  return orgChartSectionHtml('White Collar', branch.direct.whiteCollarGroups) + orgChartSectionHtml('Blue Collar & Group D', branch.direct.blueGroupDGroups);
+
+  // 2+ HODs, or a single HOD alongside a separate direct report (someone
+  // tagged straight to this owner's own name in HOD-1, with no HOD of
+  // their own) - everyone fans out side by side under a shared bus line
+  // (see .org-chart-pdf-hods-row), same idea as the designation cards row
+  // below each of them. The direct report becomes just another slot in
+  // that same row, minus the leader box - its own arrow drops straight
+  // onto their position card(s) instead of a HOD name.
+  return (
+    '<div class="org-chart-branch-connector"></div>' +
+    '<div class="org-chart-pdf-hods-row">' +
+      '<span class="org-chart-pdf-hods-bus"></span>' +
+      branch.hods
+        .map((h) => (
+          '<div class="org-chart-pdf-hod-slot">' +
+            orgChartLeaderBoxHtml('', h.hod, hodBoxClass) +
+            orgChartSectionHtml('White Collar', h.whiteCollarGroups) +
+            orgChartSectionHtml('Blue Collar & Group D', h.blueGroupDGroups) +
+          '</div>'
+        ))
+        .join('') +
+      (directHasContent
+        ? '<div class="org-chart-pdf-hod-slot">' +
+            orgChartSectionHtml('White Collar', branch.direct.whiteCollarGroups) +
+            orgChartSectionHtml('Blue Collar & Group D', branch.direct.blueGroupDGroups) +
+          '</div>'
+        : '') +
+    '</div>'
+  );
 }
 
 function orgChartPdfDirectorColumnHtml(directorPerson, branch) {
@@ -1335,14 +1351,20 @@ function positionOrgChartPdfFanBuses(root) {
   root.querySelectorAll('.org-chart-pdf-hods-row, .org-chart-pdf-directors-row').forEach((row) => {
     const bus = row.querySelector(':scope > .org-chart-pdf-hods-bus');
     if (!bus) return;
-    const cols = Array.from(row.children).filter((el) => el !== bus && el.querySelector('.org-chart-hod-box'));
+    // Was filtered to columns containing a .org-chart-hod-box, but a
+    // direct-report slot (someone tagged straight to the owner, fanned in
+    // alongside real HOD slots) has no leader box at all - use every
+    // column's own rect instead. Each column centers its content via
+    // align-items: center, so the column's own horizontal center already
+    // matches its leader box's center where one exists.
+    const cols = Array.from(row.children).filter((el) => el !== bus);
     if (cols.length < 2) {
       bus.style.display = 'none';
       return;
     }
     const rowRect = row.getBoundingClientRect();
-    const firstRect = cols[0].querySelector('.org-chart-hod-box').getBoundingClientRect();
-    const lastRect = cols[cols.length - 1].querySelector('.org-chart-hod-box').getBoundingClientRect();
+    const firstRect = cols[0].getBoundingClientRect();
+    const lastRect = cols[cols.length - 1].getBoundingClientRect();
     const left = firstRect.left + firstRect.width / 2 - rowRect.left;
     const right = lastRect.left + lastRect.width / 2 - rowRect.left;
     bus.style.left = left + 'px';

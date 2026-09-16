@@ -580,7 +580,18 @@ function buildOrgChartPdfTree(employees, departmentNames, targetDepartmentKey) {
   function buildBranch(ownerName, emps) {
     const { hodBranches, directEmployees } = splitByHod(ownerName, emps, employees);
     const ownerKey = ownerName ? ownerName.trim().toLowerCase() : null;
-    const direct = collarGroups(directEmployees.filter((e) => !ownerKey || e.name.trim().toLowerCase() !== ownerKey));
+    // A HOD's own record has a blank HOD-1 (nobody tags themself as their
+    // own HOD), so it naturally lands in directEmployees alongside anyone
+    // genuinely reporting straight to the owner - excluded here too, or
+    // it would render twice: once as that HOD's own leader box, once
+    // again as a plain card next to it.
+    const hodNameKeys = new Set(hodBranches.map((b) => (b.person ? b.person.name.trim().toLowerCase() : null)).filter(Boolean));
+    const direct = collarGroups(
+      directEmployees.filter((e) => {
+        const key = e.name.trim().toLowerCase();
+        return (!ownerKey || key !== ownerKey) && !hodNameKeys.has(key);
+      })
+    );
     const hods = hodBranches.map((b) => {
       const hodKey = b.person ? b.person.name.trim().toLowerCase() : null;
       return { hod: b.person, ...collarGroups(b.employees.filter((e) => !hodKey || e.name.trim().toLowerCase() !== hodKey)) };
