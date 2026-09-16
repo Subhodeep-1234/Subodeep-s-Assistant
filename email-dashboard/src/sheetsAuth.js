@@ -48,4 +48,25 @@ function getSheetsClient() {
   return sheetsClient;
 }
 
-module.exports = { getSheetsClient, hasServiceAccount };
+// Separate scope and client from the Sheets one above - read-only, and
+// deliberately never drive.file/drive (write) since this only ever lists
+// and links to files someone else uploads (Policy Documents/Employee
+// E-Cards - see policyDocumentsService.js), never creates or modifies them.
+const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
+let driveClient = null;
+
+function getDriveClient() {
+  if (!credentials) {
+    throw new Error(
+      'Google service account not configured (missing service-account.json locally, ' +
+      'or GOOGLE_SERVICE_ACCOUNT_JSON env var in production)'
+    );
+  }
+  if (!driveClient) {
+    const auth = new google.auth.GoogleAuth({ credentials, scopes: DRIVE_SCOPES });
+    driveClient = google.drive({ version: 'v3', auth });
+  }
+  return driveClient;
+}
+
+module.exports = { getSheetsClient, hasServiceAccount, getDriveClient };

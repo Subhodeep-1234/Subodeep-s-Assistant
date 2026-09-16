@@ -5,6 +5,7 @@ const analytics = require('./insuranceAnalytics');
 const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
 const policyInfoService = require('./policyInfoService');
+const policyDocumentsService = require('./policyDocumentsService');
 
 const router = express.Router();
 
@@ -334,6 +335,23 @@ router.post('/policy-info', async (req, res) => {
     res.json({ ok: true, values });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Policy Documents and Employee E-Cards, listed live from the shared Drive
+// folder - see policyDocumentsService.js for the folder layout convention
+// (loose files at the root are Policy Documents, its "Employee E Cards"
+// subfolder holds the E-Cards). One route for both since the Policy
+// Information page loads them together; search is client-side against
+// this same small list, same as most other lists in this app.
+router.get('/policy-documents', async (req, res) => {
+  try {
+    const data = await policyDocumentsService.getPolicyDriveData({
+      forceRefresh: req.query.refresh === '1'
+    });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

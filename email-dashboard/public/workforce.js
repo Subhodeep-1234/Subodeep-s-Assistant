@@ -142,7 +142,9 @@ const ICONS = {
   briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
   plusCircle: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
   shieldPlus: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/>',
-  info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'
+  info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'
 };
 
 // Same keyword-matching approach as DEPARTMENT_ICON_RULES, but for the
@@ -1697,6 +1699,75 @@ function renderHiPolicyInfoBanner(renewal) {
     '</div>';
 }
 
+// ---------- Policy Documents / Employee E-Cards ----------
+
+function formatFileSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Cached so search filters instantly against the already-fetched list
+// instead of a round trip per keystroke - same pattern as every other
+// small searchable list in this app (Employee Data's own search is the
+// exception, since that list can be large and is server-filtered).
+let lastPolicyDocuments = [];
+let lastEmployeeECards = [];
+
+function docListItemHtml(f) {
+  const meta = [formatFileSize(f.size), f.modifiedTime ? formatDate(f.modifiedTime) : null].filter(Boolean).join(' · ');
+  return (
+    '<li>' +
+      '<span class="hi-doc-icon">' + icon('fileText', 19) + '</span>' +
+      '<span class="hi-doc-main">' +
+        '<span class="hi-doc-name">' + escapeHtml(f.name) + '</span>' +
+        (meta ? '<span class="hi-doc-meta">' + escapeHtml(meta) + '</span>' : '') +
+      '</span>' +
+      '<a class="hi-doc-download" href="' + escapeHtml(f.downloadUrl) + '" target="_blank" rel="noopener" title="Download ' + escapeHtml(f.name) + '">' +
+        icon('download', 17) +
+      '</a>' +
+    '</li>'
+  );
+}
+
+function renderDocList(listElId, files, emptyMessage) {
+  const listEl = document.getElementById(listElId);
+  listEl.innerHTML = files.length
+    ? files.map(docListItemHtml).join('')
+    : '<li class="empty">' + escapeHtml(emptyMessage) + '</li>';
+}
+
+async function loadPolicyDocuments() {
+  const docsListEl = document.getElementById('policyDocsList');
+  const eCardsListEl = document.getElementById('employeeECardsList');
+  docsListEl.innerHTML = '<li class="empty">Loading…</li>';
+  eCardsListEl.innerHTML = '<li class="empty">Loading…</li>';
+  try {
+    const data = await fetchJson('/api/insurance/policy-documents');
+    lastPolicyDocuments = data.policyDocuments || [];
+    lastEmployeeECards = data.employeeECards || [];
+    renderDocList('policyDocsList', lastPolicyDocuments, 'No policy documents uploaded yet.');
+    renderDocList('employeeECardsList', lastEmployeeECards, 'No employee E-Cards uploaded yet.');
+  } catch (err) {
+    const message = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+    docsListEl.innerHTML = message;
+    eCardsListEl.innerHTML = message;
+  }
+}
+
+document.getElementById('policyDocsSearch').addEventListener('input', (e) => {
+  const needle = e.target.value.trim().toLowerCase();
+  const filtered = needle ? lastPolicyDocuments.filter((f) => f.name.toLowerCase().includes(needle)) : lastPolicyDocuments;
+  renderDocList('policyDocsList', filtered, needle ? 'No documents match your search.' : 'No policy documents uploaded yet.');
+});
+
+document.getElementById('employeeECardsSearch').addEventListener('input', (e) => {
+  const needle = e.target.value.trim().toLowerCase();
+  const filtered = needle ? lastEmployeeECards.filter((f) => f.name.toLowerCase().includes(needle)) : lastEmployeeECards;
+  renderDocList('employeeECardsList', filtered, needle ? 'No E-Cards match your search.' : 'No employee E-Cards uploaded yet.');
+});
+
 document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-edit-field]');
   if (!btn) return;
@@ -1850,6 +1921,7 @@ document.getElementById('hiStatsGrid').addEventListener('click', (e) => {
   if (e.target.closest('[data-kpi="hiPolicyInfo"]')) {
     setView('hiPolicyInfo');
     loadHiPolicyInfo();
+    loadPolicyDocuments();
     return;
   }
   if (e.target.closest('[data-kpi="hiFamPremium"]')) {
