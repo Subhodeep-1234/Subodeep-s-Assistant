@@ -31,8 +31,8 @@ async function greetingNameFor(email) {
 
 function buildOtpEmailHtml({ greetingName, code }) {
   const greeting = greetingName
-    ? 'Hi ' + escapeHtml(greetingName) + ', use the code below to sign in to your Alcove Realty account.'
-    : 'Use the code below to sign in to your Alcove Realty account.';
+    ? 'Hi ' + escapeHtml(greetingName) + ', use the code below to sign in to your account.'
+    : 'Use the code below to sign in to your account.';
   return (
     '<div style="background:#eef3f2; padding:32px 16px; font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' +
       '<div style="max-width:480px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #dde4e2; padding:36px 32px;">' +
@@ -51,8 +51,8 @@ function buildOtpEmailHtml({ greetingName, code }) {
 
 function buildOtpEmailText({ greetingName, code }) {
   const greeting = greetingName
-    ? 'Hi ' + greetingName + ', use the code below to sign in to your Alcove Realty account.'
-    : 'Use the code below to sign in to your Alcove Realty account.';
+    ? 'Hi ' + greetingName + ', use the code below to sign in to your account.'
+    : 'Use the code below to sign in to your account.';
   return (
     'Your Login Code\n\n' +
     greeting + '\n\n' +
