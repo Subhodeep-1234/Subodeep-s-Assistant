@@ -4119,61 +4119,244 @@ function collarSlug(collar) {
   return 'other';
 }
 
+// ---------- Send Mail compose popup (shared by every Send Mail button) ----------
+
+// Autocomplete source: every active employee with an email on file, plus
+// every address already configured in the Mail Id sheet (Doer blocks,
+// Birthday block) - fetched once and cached, since it only changes when
+// the underlying sheets do. Search matches name OR email, same as typing
+// a couple of letters into Gmail's own To/Cc.
+let mailDirectory = null;
+let mailDirectoryPromise = null;
+function getMailDirectory() {
+  if (mailDirectory) return Promise.resolve(mailDirectory);
+  if (!mailDirectoryPromise) {
+    mailDirectoryPromise = fetchJson('/api/workforce/mail-directory')
+      .then((data) => { mailDirectory = data.directory || []; return mailDirectory; })
+      .catch((err) => { mailDirectoryPromise = null; throw err; });
+  }
+  return mailDirectoryPromise;
+}
+
+// One of these per field (To/Cc) - a text input that turns each picked (or
+// typed-and-confirmed) address into a removable chip, with a live search
+// dropdown against getMailDirectory() while typing. Mirrors Gmail's own
+// To/Cc behavior: type a couple of letters of a name or address, pick from
+// the list, or just type a full address and press Enter/comma.
+function createMailChipField(containerId, inputId, suggestId) {
+  const container = document.getElementById(containerId);
+  const input = document.getElementById(inputId);
+  const suggestEl = document.getElementById(suggestId);
+  let chips = [];
+
+  function renderChips() {
+    container.querySelectorAll('.wf-mail-chip').forEach((el) => el.remove());
+    chips.forEach((email) => {
+      const chip = document.createElement('span');
+      chip.className = 'wf-mail-chip';
+      chip.innerHTML = '<span>' + escapeHtml(email) + '</span><button type="button" aria-label="Remove ' + escapeHtml(email) + '">×</button>';
+      chip.querySelector('button').addEventListener('click', () => {
+        chips = chips.filter((e) => e.toLowerCase() !== email.toLowerCase());
+        renderChips();
+      });
+      container.insertBefore(chip, input);
+    });
+  }
+
+  function hideSuggest() {
+    suggestEl.hidden = true;
+    suggestEl.innerHTML = '';
+  }
+
+  function addChip(email) {
+    const clean = String(email || '').trim();
+    if (!clean || chips.some((e) => e.toLowerCase() === clean.toLowerCase())) {
+      input.value = '';
+      hideSuggest();
+      return;
+    }
+    chips.push(clean);
+    input.value = '';
+    renderChips();
+    hideSuggest();
+  }
+
+  async function showSuggest() {
+    const needle = input.value.trim().toLowerCase();
+    if (!needle) { hideSuggest(); return; }
+    let directory;
+    try {
+      directory = await getMailDirectory();
+    } catch {
+      hideSuggest();
+      return;
+    }
+    // Stale response guard - the input may have changed (or been cleared)
+    // while the directory fetch was in flight.
+    if (input.value.trim().toLowerCase() !== needle) return;
+    const matches = directory
+      .filter((c) => c.name.toLowerCase().includes(needle) || c.email.toLowerCase().includes(needle))
+      .filter((c) => !chips.some((e) => e.toLowerCase() === c.email.toLowerCase()))
+      .slice(0, 8);
+    suggestEl.innerHTML = matches.length
+      ? matches
+          .map((c) => (
+            '<li data-email="' + escapeHtml(c.email) + '">' +
+              escapeHtml(c.name) +
+              (c.name.toLowerCase() !== c.email.toLowerCase() ? '<span class="wf-mail-suggest-sub">' + escapeHtml(c.email) + '</span>' : '') +
+            '</li>'
+          ))
+          .join('')
+      : '<li class="empty">No matches - press Enter to add "' + escapeHtml(input.value.trim()) + '" as typed</li>';
+    suggestEl.hidden = false;
+  }
+
+  input.addEventListener('input', showSuggest);
+  input.addEventListener('focus', showSuggest);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const active = suggestEl.querySelector('li.active[data-email]');
+      if (active) addChip(active.dataset.email);
+      else if (input.value.trim()) addChip(input.value.trim());
+      return;
+    }
+    if (e.key === 'Backspace' && !input.value && chips.length) {
+      chips.pop();
+      renderChips();
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const items = Array.from(suggestEl.querySelectorAll('li[data-email]'));
+      if (!items.length) return;
+      e.preventDefault();
+      const currentIdx = items.findIndex((li) => li.classList.contains('active'));
+      const nextIdx = e.key === 'ArrowDown'
+        ? (currentIdx < items.length - 1 ? currentIdx + 1 : 0)
+        : (currentIdx > 0 ? currentIdx - 1 : items.length - 1);
+      items.forEach((li) => li.classList.remove('active'));
+      items[nextIdx].classList.add('active');
+      return;
+    }
+    if (e.key === 'Escape') hideSuggest();
+  });
+  suggestEl.addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-email]');
+    if (li) addChip(li.dataset.email);
+  });
+  container.addEventListener('click', (e) => {
+    if (e.target === container) input.focus();
+  });
+
+  return {
+    getChips: () => chips.slice(),
+    setChips: (list) => { chips = (list || []).slice(); renderChips(); },
+    reset: () => { chips = []; input.value = ''; renderChips(); hideSuggest(); }
+  };
+}
+
+const mailToField = createMailChipField('mailToChipInput', 'mailToInput', 'mailToSuggest');
+const mailCcField = createMailChipField('mailCcChipInput', 'mailCcInput', 'mailCcSuggest');
+let mailComposeContext = null; // { sendUrl, sendBody } for whichever Send Mail button opened this
+
+function showMailComposeError(message) {
+  const errEl = document.getElementById('mailComposeError');
+  errEl.textContent = message;
+  errEl.hidden = false;
+}
+
+function closeMailCompose() {
+  document.getElementById('mailComposeOverlay').hidden = true;
+  mailComposeContext = null;
+}
+
+// Opens the shared popup pre-filled with this button's own default
+// recipients (from defaultsUrl), and remembers sendUrl/sendBody so the
+// popup's own Send button knows where the actual send goes once the user
+// is done editing To/Cc - see the two callers below.
+async function openMailCompose({ defaultsUrl, sendUrl, sendBody }) {
+  mailComposeContext = { sendUrl, sendBody };
+  const errEl = document.getElementById('mailComposeError');
+  errEl.hidden = true;
+  errEl.textContent = '';
+  mailToField.reset();
+  mailCcField.reset();
+  const sendBtn = document.getElementById('mailComposeSendBtn');
+  sendBtn.disabled = false;
+  sendBtn.querySelector('span').textContent = 'Send Mail';
+  document.getElementById('mailComposeOverlay').hidden = false;
+
+  try {
+    const defaults = await fetchJson(defaultsUrl);
+    mailToField.setChips((defaults.to || '').split(',').map((s) => s.trim()).filter(Boolean));
+    mailCcField.setChips((defaults.cc || '').split(',').map((s) => s.trim()).filter(Boolean));
+  } catch (err) {
+    showMailComposeError('Could not load default recipients: ' + err.message);
+  }
+}
+
+document.getElementById('mailComposeCloseBtn').addEventListener('click', closeMailCompose);
+document.getElementById('mailComposeCancelBtn').addEventListener('click', closeMailCompose);
+document.getElementById('mailComposeOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'mailComposeOverlay') closeMailCompose();
+});
+
+document.getElementById('mailComposeSendBtn').addEventListener('click', async () => {
+  if (!mailComposeContext) return;
+  const to = mailToField.getChips();
+  if (!to.length) {
+    showMailComposeError('Add at least one "To" recipient.');
+    return;
+  }
+  const cc = mailCcField.getChips();
+  const btn = document.getElementById('mailComposeSendBtn');
+  const label = btn.querySelector('span');
+  btn.disabled = true;
+  label.textContent = 'Sending…';
+  document.getElementById('mailComposeError').hidden = true;
+  try {
+    const res = await fetch(mailComposeContext.sendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({}, mailComposeContext.sendBody, { to: to.join(', '), cc: cc.join(', ') }))
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
+    label.textContent = 'Sent ✓';
+    setTimeout(closeMailCompose, 1200);
+  } catch (err) {
+    showMailComposeError(err.message);
+    label.textContent = 'Send Mail';
+    btn.disabled = false;
+  }
+});
+
 // Only available when Employee Data was reached via a Doer Management row
 // click (see doerRowsEl's applyFiltersAndShowDirectory call, 'doerManagement'
 // variant) - a second, differently structured report on top of the regular
 // Export PDF: the DOER's own name as the report heading, then a Department
 // > Collar breakdown of their team instead of one flat list, each
 // department carrying its own most-common HOD as a sub-label.
-document.getElementById('sendDoerBreakupMail').addEventListener('click', async () => {
-  const btn = document.getElementById('sendDoerBreakupMail');
-  const label = btn.querySelector('span');
-  if (btn.disabled) return;
+document.getElementById('sendDoerBreakupMail').addEventListener('click', () => {
   const reportingDoer = activeFilters.reportingDoer;
   if (!reportingDoer) return;
-  const originalLabel = label.textContent;
-  btn.disabled = true;
-  label.textContent = 'Sending…';
-  try {
-    const res = await fetch('/api/workforce/doer/send-mail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reportingDoer })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
-    label.textContent = 'Sent ✓';
-    setTimeout(() => { label.textContent = originalLabel; btn.disabled = false; }, 3000);
-  } catch (err) {
-    alert('Failed to send mail: ' + err.message);
-    label.textContent = originalLabel;
-    btn.disabled = false;
-  }
+  openMailCompose({
+    defaultsUrl: '/api/workforce/doer/mail-defaults?reportingDoer=' + encodeURIComponent(reportingDoer),
+    sendUrl: '/api/workforce/doer/send-mail',
+    sendBody: { reportingDoer }
+  });
 });
 
 // All Insights' Birthday point only - emails this month's birthday list
-// (same PDF as this list's own Export PDF) to the Graphics team. No
-// payload needed - the server always means "this month", matching the
-// insight's own scope, same as sendDoerBreakupMail needing the doer name
-// but this route needing nothing at all.
-document.getElementById('sendBirthdayMail').addEventListener('click', async () => {
-  const btn = document.getElementById('sendBirthdayMail');
-  const label = btn.querySelector('span');
-  if (btn.disabled) return;
-  const originalLabel = label.textContent;
-  btn.disabled = true;
-  label.textContent = 'Sending…';
-  try {
-    const res = await fetch('/api/workforce/birthdays/send-mail', { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
-    label.textContent = 'Sent ✓';
-    setTimeout(() => { label.textContent = originalLabel; btn.disabled = false; }, 3000);
-  } catch (err) {
-    alert('Failed to send mail: ' + err.message);
-    label.textContent = originalLabel;
-    btn.disabled = false;
-  }
+// (same PDF as this list's own Export PDF) to the Graphics team. No body
+// needed beyond To/Cc - the server always means "this month", matching the
+// insight's own scope.
+document.getElementById('sendBirthdayMail').addEventListener('click', () => {
+  openMailCompose({
+    defaultsUrl: '/api/workforce/birthdays/mail-defaults',
+    sendUrl: '/api/workforce/birthdays/send-mail',
+    sendBody: {}
+  });
 });
 
 document.getElementById('exportDoerBreakupPdf').addEventListener('click', () => {

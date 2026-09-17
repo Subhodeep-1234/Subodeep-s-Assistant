@@ -331,17 +331,39 @@ router.get('/org-chart-pdf', async (req, res) => {
 // Addition & Deletion Automation" spreadsheet's "Mail Id" tab, but a
 // separate per-doer block of columns (F/G) from the flat insurance
 // recipients (A/B) - see insuranceService.getAllDoerMailRecipients.
+// Live default To/Cc for the doer/send-mail compose popup below to
+// pre-fill (public/workforce.js's openMailCompose) - same lookup the send
+// route itself falls back to when no override is given.
+router.get('/doer/mail-defaults', async (req, res) => {
+  try {
+    const reportingDoer = String(req.query.reportingDoer || '').trim();
+    if (!reportingDoer) {
+      return res.status(400).json({ error: 'reportingDoer is required' });
+    }
+    const recipientsMap = await insuranceService.getAllDoerMailRecipients();
+    const recipients = recipientsMap.get(reportingDoer.toLowerCase());
+    if (!recipients || !recipients.to) {
+      return res.status(400).json({ error: 'No mail recipients configured for "' + reportingDoer + '" in the Mail Id sheet.' });
+    }
+    res.json(recipients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/doer/send-mail', async (req, res) => {
   try {
     const reportingDoer = String((req.body && req.body.reportingDoer) || '').trim();
     if (!reportingDoer) {
       return res.status(400).json({ error: 'reportingDoer is required' });
     }
+    // The Send Mail compose popup always sends whatever's currently in its
+    // To/Cc fields (defaulted from, but editable past, the Mail Id sheet) -
+    // only falls back to looking those up itself when called without an
+    // override, e.g. a future direct API caller.
+    const overrideTo = req.body && typeof req.body.to === 'string' ? req.body.to.trim() : '';
 
-    const [{ employees, departmentNames }, recipientsMap] = await Promise.all([
-      employeeService.getEmployeeData({ forceRefresh: true }),
-      insuranceService.getAllDoerMailRecipients()
-    ]);
+    const { employees, departmentNames } = await employeeService.getEmployeeData({ forceRefresh: true });
 
     const doerKey = employeeService.normalizeKey(reportingDoer);
     const teamEmployees = employees.filter((e) => e.status === 'ACTIVE' && e.reportingDoerKey === doerKey);
@@ -349,9 +371,15 @@ router.post('/doer/send-mail', async (req, res) => {
       return res.status(400).json({ error: 'No active employees found for Reporting DOER "' + reportingDoer + '".' });
     }
 
-    const recipients = recipientsMap.get(reportingDoer.toLowerCase());
-    if (!recipients || !recipients.to) {
-      return res.status(400).json({ error: 'No mail recipients configured for "' + reportingDoer + '" in the Mail Id sheet.' });
+    let recipients;
+    if (overrideTo) {
+      recipients = { to: overrideTo, cc: req.body && typeof req.body.cc === 'string' ? req.body.cc.trim() : '' };
+    } else {
+      const recipientsMap = await insuranceService.getAllDoerMailRecipients();
+      recipients = recipientsMap.get(reportingDoer.toLowerCase());
+      if (!recipients || !recipients.to) {
+        return res.status(400).json({ error: 'No mail recipients configured for "' + reportingDoer + '" in the Mail Id sheet.' });
+      }
     }
 
     // Same sort as the on-screen "Export PDF" report: Collar, then
@@ -430,21 +458,32 @@ router.post('/doer/send-mail', async (req, res) => {
   }
 });
 
+// Live default To/Cc for the birthdays/send-mail compose popup below to
+// pre-fill (public/workforce.js's openMailCompose).
+router.get('/birthdays/mail-defaults', async (req, res) => {
+  try {
+    const recipients = await insuranceService.getBirthdayMailRecipients();
+    if (!recipients || !recipients.to) {
+      return res.status(400).json({ error: 'No mail recipients configured for the Birthday List in the Mail Id sheet.' });
+    }
+    res.json(recipients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // All Insights' Birthday point "Send Mail" button - emails this month's
 // birthday list to the Graphics team as the same PDF Export PDF produces
 // for that point (Employee Code, Name, Designation, Department, Collar,
 // Location, Date - see exportEmployeesPdf's isBirthdayReport branch,
-// public/workforce.js). Recipients come from the same "Mail Id" tab as the
-// Doer Management button above, but its own single I/J block - see
-// insuranceService.getBirthdayMailRecipients. No body needed - always this
-// month, matching the insight's own scope, same as
-// pendingConfirmationsThisMonth needing no input either.
+// public/workforce.js). No body needed beyond an optional To/Cc override -
+// the send always means "this month", matching the insight's own scope,
+// same as pendingConfirmationsThisMonth needing no input either.
 router.post('/birthdays/send-mail', async (req, res) => {
   try {
-    const [{ employees, departmentNames }, recipients] = await Promise.all([
-      employeeService.getEmployeeData({ forceRefresh: true }),
-      insuranceService.getBirthdayMailRecipients()
-    ]);
+    const overrideTo = req.body && typeof req.body.to === 'string' ? req.body.to.trim() : '';
+
+    const { employees, departmentNames } = await employeeService.getEmployeeData({ forceRefresh: true });
 
     const now = new Date();
     const birthdayEmployees = employees.filter(
@@ -454,8 +493,14 @@ router.post('/birthdays/send-mail', async (req, res) => {
       return res.status(400).json({ error: 'No employees have a birthday this month.' });
     }
 
-    if (!recipients || !recipients.to) {
-      return res.status(400).json({ error: 'No mail recipients configured for the Birthday List in the Mail Id sheet.' });
+    let recipients;
+    if (overrideTo) {
+      recipients = { to: overrideTo, cc: req.body && typeof req.body.cc === 'string' ? req.body.cc.trim() : '' };
+    } else {
+      recipients = await insuranceService.getBirthdayMailRecipients();
+      if (!recipients || !recipients.to) {
+        return res.status(400).json({ error: 'No mail recipients configured for the Birthday List in the Mail Id sheet.' });
+      }
     }
 
     // Sorted by day of the month, 1st through the last day - same as the
@@ -508,6 +553,45 @@ router.post('/birthdays/send-mail', async (req, res) => {
     });
 
     res.json({ ok: true, sentTo: recipients.to, cc: recipients.cc, employeeCount: sorted.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Autocomplete source for every Send Mail compose popup's To/Cc fields
+// (public/workforce.js's getMailDirectory) - every active employee with an
+// email on file, plus every address already configured across the Mail Id
+// sheet's own blocks (Doer, Birthday), deduped by email. Addresses with no
+// employee behind them (design@, hr@, manager.hr@...) just use the address
+// itself as the display name, same as an unnamed contact in Gmail.
+router.get('/mail-directory', async (req, res) => {
+  try {
+    const [{ employees }, doerRecipients, birthdayRecipients] = await Promise.all([
+      employeeService.getEmployeeData(),
+      insuranceService.getAllDoerMailRecipients(),
+      insuranceService.getBirthdayMailRecipients()
+    ]);
+
+    const seen = new Map();
+    employees.forEach((e) => {
+      if (e.status === 'INACTIVE' || !e.email) return;
+      const key = e.email.trim().toLowerCase();
+      if (!seen.has(key)) seen.set(key, { name: e.name || e.email, email: e.email.trim() });
+    });
+    function addAddresses(recipients) {
+      if (!recipients) return;
+      [recipients.to, recipients.cc].forEach((field) => {
+        (field || '').split(',').map((s) => s.trim()).filter(Boolean).forEach((email) => {
+          const key = email.toLowerCase();
+          if (!seen.has(key)) seen.set(key, { name: email, email });
+        });
+      });
+    }
+    doerRecipients.forEach((recipients) => addAddresses(recipients));
+    addAddresses(birthdayRecipients);
+
+    const directory = Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+    res.json({ directory });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

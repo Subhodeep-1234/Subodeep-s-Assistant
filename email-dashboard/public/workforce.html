@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=104" />
+  <link rel="stylesheet" href="workforce.css?v=105" />
 </head>
 <body>
   <div class="wf-shell">
@@ -1207,9 +1207,47 @@
     </section>
   </div>
 
+  <!-- Shared "Send Mail" compose popup (Doer Management, Insights Birthday
+       point, and any future Send Mail button) - defaults come pre-filled
+       from the Mail Id sheet, editable before the actual send. Sits outside
+       .wf-shell so its fixed overlay is never clipped by anything inside. -->
+  <div class="wf-modal-overlay" id="mailComposeOverlay" hidden>
+    <div class="wf-mail-compose" role="dialog" aria-modal="true" aria-label="Send Mail">
+      <div class="wf-mail-compose-head">
+        <h3>Send Mail</h3>
+        <button class="wf-icon-btn" id="mailComposeCloseBtn" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="wf-mail-compose-body">
+        <div class="wf-mail-field">
+          <span class="wf-mail-field-label">To</span>
+          <div class="wf-mail-chip-input" id="mailToChipInput">
+            <input type="text" id="mailToInput" autocomplete="off" placeholder="Add recipient..." />
+          </div>
+          <ul class="wf-mail-suggest" id="mailToSuggest" hidden></ul>
+        </div>
+        <div class="wf-mail-field">
+          <span class="wf-mail-field-label">Cc</span>
+          <div class="wf-mail-chip-input" id="mailCcChipInput">
+            <input type="text" id="mailCcInput" autocomplete="off" placeholder="Add recipient..." />
+          </div>
+          <ul class="wf-mail-suggest" id="mailCcSuggest" hidden></ul>
+        </div>
+        <p class="wf-mail-compose-error" id="mailComposeError" hidden></p>
+      </div>
+      <div class="wf-mail-compose-foot">
+        <button class="wf-clear-btn" id="mailComposeCancelBtn" type="button">Cancel</button>
+        <button class="wf-send-mail-btn" id="mailComposeSendBtn" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6h13l1.5 6v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6l1.5-6z"/></svg>
+          <span>Send Mail</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=195"></script>
+  <script src="workforce.js?v=196"></script>
 </body>
 </html>
