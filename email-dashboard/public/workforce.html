@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=110" />
+  <link rel="stylesheet" href="workforce.css?v=111" />
 </head>
 <body>
   <div class="wf-shell">
@@ -632,7 +632,11 @@
       </div>
 
       <div id="interviewPanelListPanel">
-        <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:12px;">
+          <button type="button" class="wf-ip-team-access-btn" id="ipTeamAccessBtn" hidden>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Team Access
+          </button>
           <button type="button" class="wf-ip-new-btn" id="ipNewCandidateBtn">+ New Candidate</button>
         </div>
         <div class="wf-panel" id="ipNamePromptPanel" hidden>
@@ -1340,6 +1344,41 @@
        point, and any future Send Mail button) - defaults come pre-filled
        from the Mail Id sheet, editable before the actual send. Sits outside
        .wf-shell so its fixed overlay is never clipped by anything inside. -->
+  <!-- Admin-only: grants/revokes a scoped login (email + 6-digit password,
+       not OTP) that only ever unlocks the Interview Panel section - see
+       hrAuth.js's ip_session and interviewPanelAccessService.js. -->
+  <div class="wf-modal-overlay" id="teamAccessOverlay" hidden>
+    <div class="wf-mail-compose" role="dialog" aria-modal="true" aria-label="Team Access">
+      <div class="wf-mail-compose-head">
+        <h3>Team Access</h3>
+        <button class="wf-icon-btn" id="teamAccessCloseBtn" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="wf-mail-compose-body">
+        <p class="wf-note" style="margin-top:0;">Grant a team member their own login that only unlocks Interview Panel - nothing else in this dashboard.</p>
+        <ul class="wf-emp-list" id="teamAccessList" style="margin-bottom:16px;">
+          <li class="empty">Loading…</li>
+        </ul>
+        <div class="wf-mail-field">
+          <span class="wf-mail-field-label">Email</span>
+          <input type="email" id="teamAccessEmailInput" placeholder="teammate@alcoverealty.in" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink);" />
+        </div>
+        <div class="wf-mail-field">
+          <span class="wf-mail-field-label">6-Digit Password</span>
+          <input type="text" id="teamAccessPasswordInput" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink); letter-spacing:0.2em;" />
+        </div>
+        <p class="wf-mail-compose-error" id="teamAccessError" hidden></p>
+      </div>
+      <div class="wf-mail-compose-foot">
+        <button class="wf-clear-btn" id="teamAccessCancelBtn" type="button">Close</button>
+        <button class="wf-send-mail-btn" id="teamAccessSaveBtn" type="button">
+          <span>Grant Access</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="wf-modal-overlay" id="mailComposeOverlay" hidden>
     <div class="wf-mail-compose" role="dialog" aria-modal="true" aria-label="Send Mail">
       <div class="wf-mail-compose-head">
@@ -1377,6 +1416,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=203"></script>
+  <script src="workforce.js?v=204"></script>
 </body>
 </html>

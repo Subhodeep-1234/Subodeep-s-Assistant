@@ -10,6 +10,8 @@ const emailService = require('./src/emailService');
 const movementTracker = require('./src/movementTracker');
 const interviewPanelRoutes = require('./src/interviewPanelRoutes');
 const interviewPublicRoutes = require('./src/interviewPublicRoutes');
+const interviewPanelAccessRoutes = require('./src/interviewPanelAccessRoutes');
+const interviewPanelAccessService = require('./src/interviewPanelAccessService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -96,12 +98,19 @@ app.get('/mail', requireAuth, (req, res) => {
 // Workforce Intelligence is gated by the separate email+OTP login below
 // (hrAuth), not the Google OAuth used for the Mail Management page above -
 // director access shouldn't depend on this app's single Gmail account.
-app.get('/workforce.html', hrAuth.requireHrAuth, (req, res) => {
+// requireInterviewPanelAccess (not requireHrAuth) - this same shell also
+// serves a team member scoped to only the Interview Panel section (see
+// hrAuth.js); workforce.js itself narrows what they can see once loaded.
+app.get('/workforce.html', hrAuth.requireInterviewPanelAccess, (req, res) => {
   sendNoStore(res, path.join(__dirname, 'public', 'workforce.html'));
 });
 
 app.get('/login', (req, res) => {
   sendNoStore(res, path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/interview-panel-login', (req, res) => {
+  sendNoStore(res, path.join(__dirname, 'public', 'interview-panel-login.html'));
 });
 
 // Fully public, no session of any kind - a candidate/interviewer isn't a
@@ -154,14 +163,44 @@ app.post('/api/hr-auth/verify-otp', (req, res) => {
 });
 
 app.post('/api/hr-auth/logout', (req, res) => {
+  // Destroys whichever of the two ever got set - harmless no-op for the
+  // one that wasn't, so the same Logout button works for both a full
+  // admin and an Interview-Panel-scoped team member.
   hrAuth.destroySession(res);
+  hrAuth.destroyInterviewPanelSession(res);
   res.json({ ok: true });
 });
 
 app.get('/api/hr-auth/me', (req, res) => {
   try {
     const session = hrAuth.readSession(req);
-    res.json({ email: session ? session.email : null });
+    if (session) return res.json({ email: session.email, scope: 'admin' });
+    const scoped = hrAuth.readInterviewPanelSession(req);
+    res.json({ email: scoped ? scoped.email : null, scope: scoped ? 'interviewPanel' : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Public - the scoped login itself, not gated by anything (same idea as
+// /api/hr-auth/verify-otp above, just password-based instead of OTP-based).
+app.post('/api/interview-panel-login', async (req, res) => {
+  const email = hrAuth.normalizeEmail(req.body.email);
+  const password = String(req.body.password || '');
+  if (!hrAuth.isValidEmail(email) || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+  if (hrAuth.tooManyInterviewPanelLoginAttempts(req, email)) {
+    return res.status(429).json({ error: 'Too many attempts. Please try again later.' });
+  }
+  try {
+    const ok = await interviewPanelAccessService.verifyCredentials(email, password);
+    if (!ok) {
+      hrAuth.recordFailedInterviewPanelLogin(req, res, email);
+      return res.status(401).json({ error: 'Incorrect email or password' });
+    }
+    hrAuth.createInterviewPanelSession(res, email);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -179,7 +218,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 app.use('/api/workforce', hrAuth.requireHrAuth, workforceRoutes);
 app.use('/api/insurance', hrAuth.requireHrAuth, insuranceRoutes);
-app.use('/api/interview-panel', hrAuth.requireHrAuth, interviewPanelRoutes);
+// requireInterviewPanelAccess (not requireHrAuth) - an Interview-Panel-
+// scoped team member needs this, but nothing else above/below it.
+app.use('/api/interview-panel', hrAuth.requireInterviewPanelAccess, interviewPanelRoutes);
+// Admin-only - granting/revoking a scoped login is not itself something a
+// scoped login can do.
+app.use('/api/interview-panel-access', hrAuth.requireHrAuth, interviewPanelAccessRoutes);
 // No hrAuth here on purpose - see the /interview/candidate|interviewer page
 // routes above, and interviewPublicRoutes.js's own header comment.
 app.use('/api/interview', interviewPublicRoutes);

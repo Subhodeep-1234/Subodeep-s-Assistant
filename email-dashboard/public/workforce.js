@@ -5209,6 +5209,108 @@ document.getElementById('ipDismissNewLinks').addEventListener('click', () => {
   document.getElementById('ipNewLinksPanel').hidden = true;
 });
 
+// ---------- Team Access (admin-only: grant/revoke a scoped Interview-Panel-only login) ----------
+
+const teamAccessOverlay = document.getElementById('teamAccessOverlay');
+const teamAccessList = document.getElementById('teamAccessList');
+const teamAccessEmailInput = document.getElementById('teamAccessEmailInput');
+const teamAccessPasswordInput = document.getElementById('teamAccessPasswordInput');
+const teamAccessError = document.getElementById('teamAccessError');
+const teamAccessSaveBtn = document.getElementById('teamAccessSaveBtn');
+
+async function loadTeamAccessList() {
+  teamAccessList.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  try {
+    const data = await fetch('/api/interview-panel-access').then((r) => r.json());
+    if (data.error) throw new Error(data.error);
+    const access = data.access || [];
+    teamAccessList.innerHTML = access.length
+      ? access.map((a) => (
+          '<li data-email="' + escapeHtml(a.email) + '" style="cursor:default;">' +
+            '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+            '<span class="wf-emp-main">' +
+              '<span class="wf-emp-name">' + escapeHtml(a.email) + '</span>' +
+              '<span class="wf-emp-meta">Interview Panel only</span>' +
+            '</span>' +
+            '<button type="button" class="wf-ip-team-revoke-btn" data-revoke-email="' + escapeHtml(a.email) + '">Revoke</button>' +
+          '</li>'
+        )).join('')
+      : '<li class="empty">No team access granted yet.</li>';
+  } catch (err) {
+    teamAccessList.innerHTML = '<li class="empty">' + escapeHtml(err.message) + '</li>';
+  }
+}
+
+function openTeamAccessOverlay() {
+  teamAccessEmailInput.value = '';
+  teamAccessPasswordInput.value = '';
+  teamAccessError.hidden = true;
+  teamAccessOverlay.hidden = false;
+  loadTeamAccessList();
+}
+function closeTeamAccessOverlay() { teamAccessOverlay.hidden = true; }
+
+document.getElementById('ipTeamAccessBtn').addEventListener('click', openTeamAccessOverlay);
+document.getElementById('teamAccessCloseBtn').addEventListener('click', closeTeamAccessOverlay);
+document.getElementById('teamAccessCancelBtn').addEventListener('click', closeTeamAccessOverlay);
+teamAccessOverlay.addEventListener('click', (e) => { if (e.target === teamAccessOverlay) closeTeamAccessOverlay(); });
+
+teamAccessPasswordInput.addEventListener('input', () => {
+  teamAccessPasswordInput.value = teamAccessPasswordInput.value.replace(/\D/g, '').slice(0, 6);
+});
+
+teamAccessList.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-revoke-email]');
+  if (!btn) return;
+  const email = btn.dataset.revokeEmail;
+  if (!window.confirm('Revoke Interview Panel access for ' + email + '?')) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/interview-panel-access/' + encodeURIComponent(email), { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not revoke access.');
+    loadTeamAccessList();
+  } catch (err) {
+    teamAccessError.textContent = err.message;
+    teamAccessError.hidden = false;
+    btn.disabled = false;
+  }
+});
+
+teamAccessSaveBtn.addEventListener('click', async () => {
+  const email = teamAccessEmailInput.value.trim();
+  const password = teamAccessPasswordInput.value.trim();
+  teamAccessError.hidden = true;
+  if (!email) {
+    teamAccessError.textContent = 'Please enter an email address.';
+    teamAccessError.hidden = false;
+    return;
+  }
+  if (!/^\d{6}$/.test(password)) {
+    teamAccessError.textContent = 'Password must be exactly 6 digits.';
+    teamAccessError.hidden = false;
+    return;
+  }
+  teamAccessSaveBtn.disabled = true;
+  try {
+    const res = await fetch('/api/interview-panel-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not grant access.');
+    teamAccessEmailInput.value = '';
+    teamAccessPasswordInput.value = '';
+    loadTeamAccessList();
+  } catch (err) {
+    teamAccessError.textContent = err.message;
+    teamAccessError.hidden = false;
+  } finally {
+    teamAccessSaveBtn.disabled = false;
+  }
+});
+
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-copy-target]');
   if (!btn) return;
@@ -5401,19 +5503,45 @@ document.getElementById('ipPageBackBtn').addEventListener('click', (e) => {
 async function loadDrawerIdentity() {
   try {
     const data = await fetchJson('/api/hr-auth/me');
-    if (!data.email) return;
+    if (!data.email) return null;
     currentUserEmail = data.email;
     const name = getDisplayName(data.email);
     document.getElementById('drawerName').textContent = name;
     document.getElementById('drawerEmail').textContent = data.email;
     document.getElementById('greetingName').textContent = name;
+    return data;
   } catch {
     // Non-critical - drawer/greeting just keep their placeholder text.
+    return null;
   }
+}
+
+// A team member granted only the Interview Panel section (see the "Team
+// Access" popup on that view, and hrAuth's scoped ip_session) gets this
+// same SPA shell, but with every other section hidden from the drawer and
+// landing directly on Interview Panel instead of the Dashboard - the API
+// layer already refuses them anywhere else, this just keeps the UI from
+// dangling links that would only ever 401.
+function applyInterviewPanelOnlyMode() {
+  const allowed = new Set(['interviewPanel', 'profile']);
+  document.querySelectorAll('#wfDrawer [data-view]').forEach((btn) => {
+    if (!allowed.has(btn.dataset.view)) btn.hidden = true;
+  });
+  document.getElementById('demographicsToggle').hidden = true;
+  document.getElementById('demographicsSubmenu').hidden = true;
 }
 
 document.getElementById('greetingTime').textContent = greetingForHour(new Date().getHours());
 
-setView('overview', { resetHistory: true });
-loadFilterOptions();
-loadDrawerIdentity();
+(async function initApp() {
+  const identity = await loadDrawerIdentity();
+  if (identity && identity.scope === 'interviewPanel') {
+    applyInterviewPanelOnlyMode();
+    setView('interviewPanel', { resetHistory: true });
+  } else {
+    // Only a full admin can grant/revoke someone else's scoped access.
+    document.getElementById('ipTeamAccessBtn').hidden = false;
+    setView('overview', { resetHistory: true });
+    loadFilterOptions();
+  }
+})();

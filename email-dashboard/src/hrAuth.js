@@ -159,6 +159,81 @@ function requireHrAuth(req, res, next) {
   next();
 }
 
+// ---------- Interview Panel scoped session
+// A second, distinct session for an HR team member granted access to only
+// the Interview Panel section (via interviewPanelAccessService's admin-set
+// email+6-digit-password credential, not an OTP). requireInterviewPanelAccess
+// accepts EITHER this OR a full admin hr_session - every other admin route
+// keeps using requireHrAuth alone, so a scoped session can't reach them.
+
+const IP_COOKIE_NAME = 'ip_session';
+const IP_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function createInterviewPanelSession(res, email) {
+  const value = signedCookieValue(requireSessionSecret(), {
+    email: normalizeEmail(email),
+    scope: 'interviewPanel',
+    exp: Date.now() + IP_SESSION_MAX_AGE_MS
+  });
+  setCookie(res, IP_COOKIE_NAME, value, IP_SESSION_MAX_AGE_MS);
+}
+
+function readInterviewPanelSession(req) {
+  const cookies = parseCookies(req);
+  const payload = readSignedCookie(requireSessionSecret(), cookies[IP_COOKIE_NAME]);
+  if (!payload || !payload.email || payload.scope !== 'interviewPanel' || !payload.exp) return null;
+  if (Date.now() > payload.exp) return null;
+  return { email: payload.email, scope: 'interviewPanel' };
+}
+
+function destroyInterviewPanelSession(res) {
+  clearCookie(res, IP_COOKIE_NAME);
+}
+
+function requireInterviewPanelAccess(req, res, next) {
+  if (!process.env.HR_OTP_SECRET || !process.env.HR_SESSION_SECRET) {
+    return res.status(500).send('Missing configuration: HR_OTP_SECRET / HR_SESSION_SECRET.');
+  }
+  const adminSession = readSession(req);
+  if (adminSession) {
+    req.hrUser = adminSession;
+    return next();
+  }
+  const scopedSession = readInterviewPanelSession(req);
+  if (scopedSession) {
+    req.hrUser = scopedSession;
+    return next();
+  }
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not logged in' });
+  return res.redirect('/interview-panel-login');
+}
+
+// ---------- Interview Panel login attempt limiting (own cookie namespace,
+// separate from the OTP one above, so the two flows never interact).
+
+function ipLoginAttemptsCookieName(email) {
+  return 'ip_login_at_' + crypto.createHash('sha256').update(normalizeEmail(email)).digest('hex').slice(0, 16);
+}
+
+function tooManyInterviewPanelLoginAttempts(req, email) {
+  const cookies = parseCookies(req);
+  const payload = readSignedCookie(requireSessionSecret(), cookies[ipLoginAttemptsCookieName(email)]);
+  return Boolean(payload && payload.blockedUntil && Date.now() < payload.blockedUntil);
+}
+
+function recordFailedInterviewPanelLogin(req, res, email) {
+  const cookies = parseCookies(req);
+  const name = ipLoginAttemptsCookieName(email);
+  const payload = readSignedCookie(requireSessionSecret(), cookies[name]);
+  const windowMs = 15 * 60 * 1000;
+  const now = Date.now();
+  const stillInWindow = Boolean(payload && payload.windowStart && now - payload.windowStart < windowMs);
+  const count = stillInWindow ? payload.count + 1 : 1;
+  const windowStart = stillInWindow ? payload.windowStart : now;
+  const blockedUntil = count >= MAX_VERIFY_ATTEMPTS ? windowStart + windowMs : 0;
+  setCookie(res, name, signedCookieValue(requireSessionSecret(), { count, windowStart, blockedUntil }), windowMs);
+}
+
 // ---------- Resend cooldown + verify-attempt limiting (both stateless, per-email signed cookies).
 
 function cooldownCookieName(email) {
@@ -207,5 +282,11 @@ module.exports = {
   checkAndSetResendCooldown,
   tooManyAttempts,
   recordFailedAttempt,
-  RESEND_COOLDOWN_MS
+  RESEND_COOLDOWN_MS,
+  createInterviewPanelSession,
+  readInterviewPanelSession,
+  destroyInterviewPanelSession,
+  requireInterviewPanelAccess,
+  tooManyInterviewPanelLoginAttempts,
+  recordFailedInterviewPanelLogin
 };
