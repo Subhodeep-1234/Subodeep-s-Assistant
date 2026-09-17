@@ -2751,9 +2751,9 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 }
 .wf-ip-new-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.wf-ip-filter-row { display: flex; gap: 8px; }
+.wf-ip-filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .wf-ip-filter-pill {
-  flex: 1;
+  flex: 1 1 calc(50% - 4px);
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -2766,8 +2766,25 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   cursor: pointer;
   white-space: nowrap;
 }
-.wf-ip-filter-pill[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .wf-ip-filter-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Each pill's active color matches its status's own badge tone (see
+   ipStatusBadge/IP_STATUS_TONE in workforce.js) - "All" keeps the app's
+   base accent since it has no single status of its own. */
+.wf-ip-filter-pill[data-ip-filter="all"][aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.wf-ip-filter-pill[data-ip-filter="completed"][aria-pressed="true"] { background: var(--resolved); border-color: var(--resolved); color: var(--accent-ink); }
+.wf-ip-filter-pill[data-ip-filter="pendingCandidate"][aria-pressed="true"] { background: var(--important); border-color: var(--important); color: var(--accent-ink); }
+.wf-ip-filter-pill[data-ip-filter="pendingInterviewer"][aria-pressed="true"] { background: var(--warning); border-color: var(--warning); color: var(--accent-ink); }
+
+.wf-ip-pdf-note {
+  margin: 12px 0 0;
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
 
 .wf-ip-stepper { position: relative; }
 .wf-ip-step { display: flex; gap: 12px; position: relative; padding-bottom: 26px; }

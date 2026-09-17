@@ -5103,7 +5103,8 @@ function renderInterviewPanelList() {
   const needle = document.getElementById('ipSearchInput').value.trim().toLowerCase();
   const rows = ipCandidatesCache.filter((c) => {
     if (ipActiveFilter === 'completed' && c.status !== 'Completed') return false;
-    if (ipActiveFilter === 'pending' && c.status === 'Completed') return false;
+    if (ipActiveFilter === 'pendingCandidate' && c.status !== 'Pending Candidate') return false;
+    if (ipActiveFilter === 'pendingInterviewer' && c.status !== 'Pending Interviewer') return false;
     if (!needle) return true;
     return (c.name || '').toLowerCase().includes(needle) || (c.positionAppliedFor || '').toLowerCase().includes(needle);
   });
@@ -5284,10 +5285,12 @@ async function openInterviewPanelDetail(id) {
   const fullPanel = document.getElementById('ipDetailFullPanel');
   const linksPanel = document.getElementById('ipDetailLinksPanel');
   const pdfBtn = document.getElementById('ipDownloadPdfBtn');
+  const pdfIncompleteMsg = document.getElementById('ipPdfIncompleteMsg');
   stepperPanel.hidden = true;
   fullPanel.hidden = true;
   linksPanel.hidden = true;
   pdfBtn.hidden = true;
+  pdfIncompleteMsg.hidden = true;
   const bodyEl = document.getElementById('ipDetailBody');
   bodyEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   fullPanel.hidden = false;
@@ -5327,16 +5330,20 @@ async function openInterviewPanelDetail(id) {
     step2Status.textContent = interviewerDone ? 'Completed' : 'Pending Interviewer';
     step2Status.className = 'wf-ip-status tone-' + (interviewerDone ? 'resolved' : candidateDone ? 'warning' : 'important');
 
+    // Download PDF is always visible now, even before the process is
+    // done - clicking it early explains why instead of just disappearing.
+    pdfBtn.hidden = false;
     if (isComplete) {
       fullPanel.hidden = false;
       bodyEl.innerHTML = ipDetailSectionHtml(record);
-      pdfBtn.hidden = false;
       pdfBtn.onclick = () => {
+        pdfIncompleteMsg.hidden = true;
         window.open('/api/interview-panel/' + encodeURIComponent(id) + '/pdf', '_blank');
       };
     } else {
       fullPanel.hidden = true;
       linksPanel.hidden = false;
+      pdfBtn.onclick = () => { pdfIncompleteMsg.hidden = false; };
     }
   } catch (err) {
     fullPanel.hidden = false;
@@ -5344,10 +5351,20 @@ async function openInterviewPanelDetail(id) {
   }
 }
 
-document.getElementById('ipBackToList').addEventListener('click', () => {
-  document.getElementById('interviewPanelDetailPanel').hidden = true;
-  document.getElementById('interviewPanelListPanel').hidden = false;
-  loadInterviewPanelList();
+// The page-head back icon does double duty instead of a separate "Back to
+// list" button: while the detail sub-panel is open, it steps back to the
+// list (and stops the event here so the app's shared [data-back] handler
+// below doesn't also fire and jump all the way to the Dashboard); once
+// back on the list, the same click bubbles to that shared handler and
+// follows the normal viewHistory back-navigation used everywhere else.
+document.getElementById('ipPageBackBtn').addEventListener('click', (e) => {
+  const detailPanel = document.getElementById('interviewPanelDetailPanel');
+  if (!detailPanel.hidden) {
+    e.stopPropagation();
+    detailPanel.hidden = true;
+    document.getElementById('interviewPanelListPanel').hidden = false;
+    loadInterviewPanelList();
+  }
 });
 
 // ---------- Init ----------

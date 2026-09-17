@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=108" />
+  <link rel="stylesheet" href="workforce.css?v=109" />
 </head>
 <body>
   <div class="wf-shell">
@@ -625,14 +625,16 @@
          pattern as Directory's directoryListPanel/directoryDetailPanel. -->
     <section id="interviewPanelView" class="wf-view" hidden>
       <div class="wf-page-head">
-        <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
+        <button class="wf-icon-btn" data-back id="ipPageBackBtn" aria-label="Back">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
-        <h2 style="flex:1;">Interview Panel</h2>
-        <button type="button" class="wf-ip-new-btn" id="ipNewCandidateBtn">+ New Candidate</button>
+        <h2>Interview Panel</h2>
       </div>
 
       <div id="interviewPanelListPanel">
+        <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+          <button type="button" class="wf-ip-new-btn" id="ipNewCandidateBtn">+ New Candidate</button>
+        </div>
         <div class="wf-panel" id="ipNamePromptPanel" hidden>
           <p class="wf-note" style="margin-top:0;">Enter the candidate's name to generate their application link.</p>
           <input type="text" id="ipNewCandidateNameInput" placeholder="Candidate Name" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink); margin-bottom:10px;" />
@@ -674,7 +676,8 @@
           <div class="wf-ip-filter-row">
             <button type="button" class="wf-ip-filter-pill" data-ip-filter="all" aria-pressed="true">All</button>
             <button type="button" class="wf-ip-filter-pill" data-ip-filter="completed" aria-pressed="false">Completed</button>
-            <button type="button" class="wf-ip-filter-pill" data-ip-filter="pending" aria-pressed="false">Pending Candidates</button>
+            <button type="button" class="wf-ip-filter-pill" data-ip-filter="pendingCandidate" aria-pressed="false">Pending Candidates</button>
+            <button type="button" class="wf-ip-filter-pill" data-ip-filter="pendingInterviewer" aria-pressed="false">Pending Interviewer</button>
           </div>
         </div>
 
@@ -686,12 +689,6 @@
       </div>
 
       <div id="interviewPanelDetailPanel" hidden>
-        <div class="wf-panel">
-          <button type="button" class="wf-link-btn" id="ipBackToList">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back to list
-          </button>
-        </div>
-
         <!-- Shown while the record isn't Completed yet - a 2-step progress
              tracker instead of the full record, since most of it is still
              blank. Once both steps are done, re-opening this candidate from
@@ -745,6 +742,7 @@
           <span>Download PDF</span>
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M6 11l6 6 6-6"/><path d="M4 21h16"/></svg>
         </button>
+        <p class="wf-ip-pdf-note" id="ipPdfIncompleteMsg" hidden>To download the PDF, please complete the full interview process first.</p>
       </div>
     </section>
 
@@ -1379,6 +1377,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=200"></script>
+  <script src="workforce.js?v=201"></script>
 </body>
 </html>
