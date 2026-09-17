@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=107" />
+  <link rel="stylesheet" href="workforce.css?v=108" />
 </head>
 <body>
   <div class="wf-shell">
@@ -648,7 +648,7 @@
           <div class="wf-ip-link-row">
             <span>Candidate Form Link</span>
             <div class="wf-ip-link-copy">
-              <input type="text" id="ipNewCandidateLink" readonly />
+              <a href="#" id="ipNewCandidateLink" target="_blank" rel="noopener" class="wf-ip-link-anchor"></a>
               <button type="button" class="wf-icon-btn" data-copy-target="ipNewCandidateLink" aria-label="Copy candidate link">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
@@ -657,7 +657,7 @@
           <div class="wf-ip-link-row">
             <span>Interviewer Form Link</span>
             <div class="wf-ip-link-copy">
-              <input type="text" id="ipNewInterviewerLink" readonly />
+              <a href="#" id="ipNewInterviewerLink" target="_blank" rel="noopener" class="wf-ip-link-anchor"></a>
               <button type="button" class="wf-icon-btn" data-copy-target="ipNewInterviewerLink" aria-label="Copy interviewer link">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
@@ -679,9 +679,9 @@
         </div>
 
         <div class="wf-panel">
-          <div class="wf-dist-table" id="ipCandidateRows">
-            <div class="loading"><div class="spinner"></div></div>
-          </div>
+          <ul class="wf-emp-list" id="ipCandidateRows">
+            <li class="empty"><div class="loading"><div class="spinner"></div></div></li>
+          </ul>
         </div>
       </div>
 
@@ -720,7 +720,7 @@
           <div class="wf-ip-link-row">
             <span>Candidate Form Link</span>
             <div class="wf-ip-link-copy">
-              <input type="text" id="ipDetailCandidateLink" readonly />
+              <a href="#" id="ipDetailCandidateLink" target="_blank" rel="noopener" class="wf-ip-link-anchor"></a>
               <button type="button" class="wf-icon-btn" data-copy-target="ipDetailCandidateLink" aria-label="Copy candidate link">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
@@ -729,7 +729,7 @@
           <div class="wf-ip-link-row">
             <span>Interviewer Form Link</span>
             <div class="wf-ip-link-copy">
-              <input type="text" id="ipDetailInterviewerLink" readonly />
+              <a href="#" id="ipDetailInterviewerLink" target="_blank" rel="noopener" class="wf-ip-link-anchor"></a>
               <button type="button" class="wf-icon-btn" data-copy-target="ipDetailInterviewerLink" aria-label="Copy interviewer link">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
@@ -1379,6 +1379,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=199"></script>
+  <script src="workforce.js?v=200"></script>
 </body>
 </html>

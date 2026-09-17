@@ -5064,6 +5064,16 @@ const IP_STATUS_TONE = {
   'Completed': 'resolved'
 };
 
+// The Candidate/Interviewer share links are real anchors (not readonly text
+// inputs) - clicking one opens the form directly, matching the requirement
+// that these need no login anywhere. Still shows the full URL as the link
+// text so it can be read/selected for a manual copy-paste too.
+function setIpLinkAnchor(id, url) {
+  const el = document.getElementById(id);
+  el.href = url;
+  el.textContent = url;
+}
+
 function ipStatusBadge(status) {
   const tone = IP_STATUS_TONE[status] || 'important';
   return '<span class="wf-ip-status tone-' + tone + '">' + escapeHtml(status || 'Pending Candidate') + '</span>';
@@ -5099,20 +5109,18 @@ function renderInterviewPanelList() {
   });
 
   rowsEl.innerHTML = rows.length
-    ? '<div class="wf-dist-row wf-dist-header">' +
-        '<span class="wf-dist-label-col">Candidate</span>' +
-        '<span class="wf-dist-num-col">Status</span>' +
-      '</div>' +
-      rows.map((c) => (
-        '<div class="wf-dist-row clickable" tabindex="0" role="button" data-ip-id="' + escapeHtml(c.id) + '">' +
-          '<span class="wf-dist-label-col">' +
-            '<b>' + escapeHtml(c.name || 'New Candidate') + '</b>' +
-            (c.positionAppliedFor ? '<br><span class="wf-note-inline">' + escapeHtml(c.positionAppliedFor) + '</span>' : '') +
+    ? rows.map((c) => (
+        '<li data-ip-id="' + escapeHtml(c.id) + '">' +
+          '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+          '<span class="wf-emp-main">' +
+            '<span class="wf-emp-name">' + escapeHtml(c.name || 'New Candidate') + '</span>' +
+            '<span class="wf-emp-meta">' + escapeHtml(c.positionAppliedFor || 'Position not yet set') + '</span>' +
+            '<span class="wf-emp-role">' + ipStatusBadge(c.status) + '</span>' +
           '</span>' +
-          '<span class="wf-dist-num-col">' + ipStatusBadge(c.status) + '</span>' +
-        '</div>'
+          '<span class="wf-emp-chevron"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+        '</li>'
       )).join('')
-    : '<div class="empty">' + (ipCandidatesCache.length ? 'No candidates match.' : 'No candidates yet — tap "+ New Candidate" to add one.') + '</div>';
+    : '<li class="empty">' + (ipCandidatesCache.length ? 'No candidates match.' : 'No candidates yet — tap "+ New Candidate" to add one.') + '</li>';
 }
 
 document.getElementById('ipSearchInput').addEventListener('input', renderInterviewPanelList);
@@ -5178,8 +5186,8 @@ document.getElementById('ipNamePromptSubmit').addEventListener('click', async ()
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create a new candidate record.');
     document.getElementById('ipNamePromptPanel').hidden = true;
-    document.getElementById('ipNewCandidateLink').value = data.candidateLink;
-    document.getElementById('ipNewInterviewerLink').value = data.interviewerLink;
+    setIpLinkAnchor('ipNewCandidateLink', data.candidateLink);
+    setIpLinkAnchor('ipNewInterviewerLink', data.interviewerLink);
     document.getElementById('ipNewLinksPanel').hidden = false;
     loadInterviewPanelList();
   } catch (err) {
@@ -5197,13 +5205,18 @@ document.getElementById('ipDismissNewLinks').addEventListener('click', () => {
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-copy-target]');
   if (!btn) return;
-  const input = document.getElementById(btn.dataset.copyTarget);
-  if (!input) return;
+  const linkEl = document.getElementById(btn.dataset.copyTarget);
+  if (!linkEl) return;
   try {
-    await navigator.clipboard.writeText(input.value);
+    await navigator.clipboard.writeText(linkEl.textContent);
   } catch {
-    input.select();
+    const range = document.createRange();
+    range.selectNodeContents(linkEl);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
     document.execCommand('copy');
+    selection.removeAllRanges();
   }
   const original = btn.innerHTML;
   btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -5285,14 +5298,36 @@ async function openInterviewPanelDetail(id) {
     const record = data.candidate;
 
     if (record.candidateToken) {
-      document.getElementById('ipDetailCandidateLink').value = window.location.origin + '/interview/candidate/' + record.candidateToken;
-      document.getElementById('ipDetailInterviewerLink').value = window.location.origin + '/interview/interviewer/' + record.interviewerToken;
+      setIpLinkAnchor('ipDetailCandidateLink', window.location.origin + '/interview/candidate/' + record.candidateToken);
+      setIpLinkAnchor('ipDetailInterviewerLink', window.location.origin + '/interview/interviewer/' + record.interviewerToken);
     }
 
-    if (record.status === 'Completed') {
-      // Both steps are done - show the full record + PDF instead of the
-      // progress tracker (see the user's own spec: re-opening a completed
-      // candidate from the list should land here, not on the stepper).
+    // The tracker is populated from the two real submission timestamps
+    // regardless of status, then shown either on its own (candidate not yet
+    // Completed - see the user's own spec: full record + PDF only appears
+    // once both steps are done) or as a completed summary header above the
+    // full record once it is.
+    const isComplete = record.status === 'Completed';
+    stepperPanel.hidden = false;
+    document.getElementById('ipStepperCandidateName').textContent = record.name || 'New Candidate';
+    const step1 = document.getElementById('ipStepCandidate');
+    const step1Status = document.getElementById('ipStepCandidateStatus');
+    const step2 = document.getElementById('ipStepInterviewer');
+    const step2Status = document.getElementById('ipStepInterviewerStatus');
+    const candidateDone = Boolean(record.candidateTokenUsedAt);
+    const interviewerDone = Boolean(record.interviewerTokenUsedAt);
+    step1.classList.toggle('done', candidateDone);
+    // The connecting line lives on step 1's own element (see the CSS) - it
+    // only settles to a solid, static green once step 2 is also done; while
+    // only step 1 is done it plays the flowing "in progress" animation.
+    step1.classList.toggle('wf-ip-step-complete', candidateDone && interviewerDone);
+    step1Status.textContent = candidateDone ? 'Completed' : 'Pending Candidate';
+    step1Status.className = 'wf-ip-status tone-' + (candidateDone ? 'resolved' : 'important');
+    step2.classList.toggle('done', interviewerDone);
+    step2Status.textContent = interviewerDone ? 'Completed' : 'Pending Interviewer';
+    step2Status.className = 'wf-ip-status tone-' + (interviewerDone ? 'resolved' : candidateDone ? 'warning' : 'important');
+
+    if (isComplete) {
       fullPanel.hidden = false;
       bodyEl.innerHTML = ipDetailSectionHtml(record);
       pdfBtn.hidden = false;
@@ -5301,31 +5336,7 @@ async function openInterviewPanelDetail(id) {
       };
     } else {
       fullPanel.hidden = true;
-      stepperPanel.hidden = false;
       linksPanel.hidden = false;
-      document.getElementById('ipStepperCandidateName').textContent = record.name || 'New Candidate';
-      const step1 = document.getElementById('ipStepCandidate');
-      const step1Status = document.getElementById('ipStepCandidateStatus');
-      const step2 = document.getElementById('ipStepInterviewer');
-      const step2Status = document.getElementById('ipStepInterviewerStatus');
-      if (record.candidateTokenUsedAt) {
-        step1.classList.add('done');
-        step1Status.textContent = 'Completed';
-        step1Status.className = 'wf-ip-status tone-resolved';
-      } else {
-        step1.classList.remove('done');
-        step1Status.textContent = 'Pending Candidate';
-        step1Status.className = 'wf-ip-status tone-important';
-      }
-      if (record.interviewerTokenUsedAt) {
-        step2.classList.add('done');
-        step2Status.textContent = 'Completed';
-        step2Status.className = 'wf-ip-status tone-resolved';
-      } else {
-        step2.classList.remove('done');
-        step2Status.textContent = 'Pending Interviewer';
-        step2Status.className = 'wf-ip-status tone-' + (record.candidateTokenUsedAt ? 'warning' : 'important');
-      }
     }
   } catch (err) {
     fullPanel.hidden = false;

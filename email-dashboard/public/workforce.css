@@ -2700,18 +2700,26 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   color: var(--muted);
   margin-bottom: 6px;
 }
-.wf-ip-link-copy { display: flex; gap: 8px; }
-.wf-ip-link-copy input {
+.wf-ip-link-copy { display: flex; align-items: center; gap: 8px; }
+.wf-ip-link-anchor {
   flex: 1;
   min-width: 0;
+  display: block;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 9px 11px;
-  font: inherit;
   font-size: 0.8rem;
-  color: var(--ink);
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.wf-ip-link-anchor:hover,
+.wf-ip-link-anchor:focus-visible { text-decoration-color: var(--accent); }
+.wf-ip-link-anchor:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .wf-ip-link-copy .wf-icon-btn { flex-shrink: 0; }
 
 .wf-ip-detail-grid {
@@ -2770,10 +2778,32 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   left: 13px;
   top: 28px;
   bottom: 0;
-  width: 2px;
+  width: 3px;
+  border-radius: 2px;
   background: var(--line);
+  overflow: hidden;
 }
-.wf-ip-step.done:not(:last-child)::after { background: var(--resolved); }
+/* Step 1 done but step 2 still pending: a green stripe flows down the
+   connecting line toward step 2, like an online order tracker animating
+   between two stops - not yet the solid, settled green of a finished line. */
+.wf-ip-step.done:not(.wf-ip-step-complete):not(:last-child)::after {
+  background: repeating-linear-gradient(180deg, var(--resolved) 0 10px, var(--line) 10px 20px);
+  background-size: 100% 20px;
+  animation: wf-ip-line-flow 0.8s linear infinite;
+}
+/* Step 2 also done: the whole connecting line settles to a solid, static
+   green - the animation stops here. */
+.wf-ip-step.wf-ip-step-complete:not(:last-child)::after {
+  background: var(--resolved);
+  animation: none;
+}
+@keyframes wf-ip-line-flow {
+  from { background-position: 0 -20px; }
+  to { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wf-ip-step.done:not(.wf-ip-step-complete):not(:last-child)::after { animation: none; }
+}
 .wf-ip-step-dot {
   width: 28px;
   height: 28px;
