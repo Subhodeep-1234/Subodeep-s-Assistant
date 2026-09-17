@@ -205,7 +205,11 @@ function requireInterviewPanelAccess(req, res, next) {
     return next();
   }
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not logged in' });
-  return res.redirect('/interview-panel-login');
+  // /workforce.html is the shared shell both a full admin and a scoped
+  // team member land on - with no session at all, the general OTP login
+  // is the sensible default (a scoped user only ever reaches this page
+  // via their own direct /interview-panel-login link in the first place).
+  return res.redirect('/login');
 }
 
 // ---------- Interview Panel login attempt limiting (own cookie namespace,

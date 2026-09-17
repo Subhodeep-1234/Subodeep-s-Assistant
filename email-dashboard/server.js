@@ -101,8 +101,13 @@ app.get('/mail', requireAuth, (req, res) => {
 // requireInterviewPanelAccess (not requireHrAuth) - this same shell also
 // serves a team member scoped to only the Interview Panel section (see
 // hrAuth.js); workforce.js itself narrows what they can see once loaded.
+// Deliberately NOT in public/ - Vercel's routing gives an exact-path static
+// file priority over the catch-all rewrite to this Express app, which was
+// silently bypassing this route's auth check entirely (confirmed via a
+// missing X-Powered-By: Express header and a 200 with no session at all).
+// Living outside public/ forces every request through this handler.
 app.get('/workforce.html', hrAuth.requireInterviewPanelAccess, (req, res) => {
-  sendNoStore(res, path.join(__dirname, 'public', 'workforce.html'));
+  sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce.html'));
 });
 
 app.get('/login', (req, res) => {
