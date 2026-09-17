@@ -6,13 +6,13 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Interviewer Evaluation Form - Alcove Realty</title>
 <link rel="stylesheet" href="/styles.css?v=1" />
-<link rel="stylesheet" href="/interview-forms.css?v=3" />
+<link rel="stylesheet" href="/interview-forms.css?v=4" />
 </head>
 <body>
 <div class="iv-shell">
   <div class="iv-brand">
     <img class="iv-brand-logo" src="/assets/alcove-logo.png" alt="Alcove Realty" />
-    <span class="iv-brand-kicker">Interview Panel</span>
+    <span class="iv-brand-kicker">Interviewer Panel</span>
   </div>
 
   <div id="ivLoading" class="iv-loading">Loading interview form&hellip;</div>
@@ -83,7 +83,7 @@
 
       <div class="iv-section-title">Additional Note</div>
       <div class="iv-field">
-        <textarea id="f_additionalNote" name="additionalNote" required></textarea>
+        <textarea id="f_additionalNote" name="additionalNote"></textarea>
       </div>
 
       <button type="submit" class="iv-btn" id="ivSubmitBtn">Submit Evaluation</button>
@@ -97,20 +97,25 @@
   <div id="ivItOverlay" class="iv-overlay" hidden>
     <div class="iv-overlay-card" role="dialog" aria-modal="true" aria-labelledby="ivItOverlayTitle">
       <h3 id="ivItOverlayTitle">IT Requirements</h3>
-      <p class="iv-panel-sub" style="margin-bottom:16px;">Confirm the following are being arranged for this candidate.</p>
-      <label class="iv-checkbox-row">
+      <p class="iv-panel-sub" style="margin-bottom:16px;">Select at least one that applies to this candidate.</p>
+      <label class="iv-checkbox-row" id="ivItLaptopRow">
         <input type="checkbox" id="ivItLaptop" />
         <span>Laptop</span>
       </label>
-      <label class="iv-checkbox-row">
+      <label class="iv-checkbox-row" id="ivItMailRow">
         <input type="checkbox" id="ivItMail" />
         <span>Official Mail ID</span>
       </label>
-      <label class="iv-checkbox-row">
+      <label class="iv-checkbox-row" id="ivItSimRow">
         <input type="checkbox" id="ivItSim" />
         <span>Official SIM</span>
       </label>
-      <div class="iv-error" id="ivItError" hidden>Please confirm all three before continuing.</div>
+      <div class="iv-it-divider"><span>OR</span></div>
+      <label class="iv-checkbox-row" id="ivItNotApplicableRow">
+        <input type="checkbox" id="ivItNotApplicable" />
+        <span>Not Applicable for this Role <em>(e.g. Peon / Support Staff)</em></span>
+      </label>
+      <div class="iv-error" id="ivItError" hidden>Please select at least one option before continuing.</div>
       <button type="button" class="iv-btn" id="ivItOkBtn" style="margin-top:16px;">OK</button>
     </div>
   </div>
@@ -139,6 +144,6 @@
     <p id="ivStateErrorMsg">This link is invalid or has expired.</p>
   </div>
 </div>
-<script src="/interview-interviewer.js?v=3"></script>
+<script src="/interview-interviewer.js?v=4"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@ const { getSheetsClient } = require('./sheetsAuth');
 // pattern as INSURANCE_SHEET_ID/MOVEMENT_TRACKER_SHEET_ID.
 const SHEET_ID = process.env.INTERVIEW_PANEL_SHEET_ID || '1IMKovBhRqthjqAZSioYMKgYSkn2otnFAYhSbEHksrWU';
 const TAB = 'Interview Details';
-const LAST_COL = 'AT'; // 46 columns, A through AT
+const LAST_COL = 'AU'; // 47 columns, A through AU
 
 // 0-based column indexes, matching the header row written to the sheet.
 const COLS = {
@@ -56,7 +56,8 @@ const COLS = {
   itLaptop: 42,
   itOfficialMailId: 43,
   itOfficialSim: 44,
-  replacementForName: 45
+  replacementForName: 45,
+  itNotApplicable: 46
 };
 
 const STATUS = {
@@ -83,7 +84,7 @@ const INTERVIEWER_FIELDS = [
   'gradeCommunicationSkills', 'gradeAcademicPerformance', 'gradeJobKnowledge', 'gradeJobSuitability',
   'overallGrade', 'interviewStatus', 'newRejoinedReplacement', 'replacementForName', 'interviewerComments',
   'panelList', 'additionalNote', 'interviewerSignatureName', 'hrSignatureName',
-  'itLaptop', 'itOfficialMailId', 'itOfficialSim'
+  'itLaptop', 'itOfficialMailId', 'itOfficialSim', 'itNotApplicable'
 ];
 
 function generateToken() {

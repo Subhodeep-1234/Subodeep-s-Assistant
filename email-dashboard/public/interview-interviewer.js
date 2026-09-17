@@ -26,6 +26,11 @@
   var itLaptopCb = document.getElementById('ivItLaptop');
   var itMailCb = document.getElementById('ivItMail');
   var itSimCb = document.getElementById('ivItSim');
+  var itNotApplicableCb = document.getElementById('ivItNotApplicable');
+  var itLaptopRow = document.getElementById('ivItLaptopRow');
+  var itMailRow = document.getElementById('ivItMailRow');
+  var itSimRow = document.getElementById('ivItSimRow');
+  var itNotApplicableRow = document.getElementById('ivItNotApplicableRow');
   var itError = document.getElementById('ivItError');
   var itOkBtn = document.getElementById('ivItOkBtn');
 
@@ -56,7 +61,7 @@
 
   var computedOverallGrade = '';
   var itConfirmed = false;
-  var itValues = { laptop: false, mail: false, sim: false };
+  var itValues = { laptop: false, mail: false, sim: false, notApplicable: false };
   var panelEmployees = null; // lazily fetched, cached for the whole session
 
   function showOnly(el) {
@@ -137,11 +142,42 @@
   });
 
   // ---------- IT Requirements popup ----------
+  // At least one of Laptop/Official Mail ID/Official SIM, OR "Not
+  // Applicable" on its own (a role like Peon/Support Staff that needs none
+  // of them) - the two groups are mutually exclusive, so picking one side
+  // clears and disables the other rather than letting both be ticked at once.
+
+  function syncItRowStates() {
+    var anyItSelected = itLaptopCb.checked || itMailCb.checked || itSimCb.checked;
+    [itLaptopRow, itMailRow, itSimRow].forEach(function (row) {
+      row.classList.toggle('disabled', itNotApplicableCb.checked);
+    });
+    [itLaptopCb, itMailCb, itSimCb].forEach(function (cb) { cb.disabled = itNotApplicableCb.checked; });
+    itNotApplicableRow.classList.toggle('disabled', anyItSelected);
+    itNotApplicableCb.disabled = anyItSelected;
+  }
+
+  [itLaptopCb, itMailCb, itSimCb].forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      if (cb.checked) itNotApplicableCb.checked = false;
+      syncItRowStates();
+    });
+  });
+  itNotApplicableCb.addEventListener('change', function () {
+    if (itNotApplicableCb.checked) {
+      itLaptopCb.checked = false;
+      itMailCb.checked = false;
+      itSimCb.checked = false;
+    }
+    syncItRowStates();
+  });
 
   function openItOverlay() {
     itLaptopCb.checked = itValues.laptop;
     itMailCb.checked = itValues.mail;
     itSimCb.checked = itValues.sim;
+    itNotApplicableCb.checked = itValues.notApplicable;
+    syncItRowStates();
     itError.hidden = true;
     itOverlay.hidden = false;
   }
@@ -149,6 +185,7 @@
 
   function renderItSummary() {
     itSummary.innerHTML =
+      (itValues.notApplicable ? '<span>Not Applicable for this Role</span>' : '') +
       (itValues.laptop ? '<span>Laptop</span>' : '') +
       (itValues.mail ? '<span>Official Mail ID</span>' : '') +
       (itValues.sim ? '<span>Official SIM</span>' : '');
@@ -170,11 +207,16 @@
   editItBtn.addEventListener('click', openItOverlay);
 
   itOkBtn.addEventListener('click', function () {
-    if (!itLaptopCb.checked || !itMailCb.checked || !itSimCb.checked) {
+    if (!itLaptopCb.checked && !itMailCb.checked && !itSimCb.checked && !itNotApplicableCb.checked) {
       itError.hidden = false;
       return;
     }
-    itValues = { laptop: true, mail: true, sim: true };
+    itValues = {
+      laptop: itLaptopCb.checked,
+      mail: itMailCb.checked,
+      sim: itSimCb.checked,
+      notApplicable: itNotApplicableCb.checked
+    };
     itConfirmed = true;
     closeItOverlay();
     renderItSummary();
@@ -367,6 +409,7 @@
       payload.itLaptop = itValues.laptop ? 'Yes' : '';
       payload.itOfficialMailId = itValues.mail ? 'Yes' : '';
       payload.itOfficialSim = itValues.sim ? 'Yes' : '';
+      payload.itNotApplicable = itValues.notApplicable ? 'Yes' : '';
     }
 
     payload.newRejoinedReplacement = replacementSelect.value;
@@ -390,24 +433,20 @@
       errorBox.hidden = false;
       return;
     }
+    // Additional Note is the one deliberately optional field in this form.
     payload.additionalNote = document.getElementById('f_additionalNote').value.trim();
-    if (!payload.additionalNote) {
-      errorBox.textContent = 'Please enter an Additional Note.';
-      errorBox.hidden = false;
-      return;
-    }
 
+    // Every row shown in the Interview Panel List is mandatory - a row left
+    // blank must be removed with its own [x] rather than submitted empty.
     var panelList = [];
     var missingPanelSelection = false;
     Array.prototype.forEach.call(panelistRowsEl.children, function (row) {
-      var searchVal = row.querySelector('.iv-panelist-search').value.trim();
       var sel = row.getSelected();
-      if (!searchVal) return; // an untouched row is fine, just skipped
       if (!sel) { missingPanelSelection = true; return; }
       panelList.push(sel);
     });
     if (missingPanelSelection) {
-      errorBox.textContent = 'Please select a panel member from the search results, or clear that row.';
+      errorBox.textContent = 'Please select a panel member from the search results for every row, or remove that row.';
       errorBox.hidden = false;
       return;
     }
