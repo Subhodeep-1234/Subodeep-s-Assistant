@@ -2753,11 +2753,14 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 
 .wf-ip-filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .wf-ip-filter-pill {
-  flex: 1 1 calc(50% - 4px);
+  /* Sized to its own label, not stretched to match the others - "All"
+     stays a small pill instead of ballooning to the width of "Pending
+     Interviewer". */
+  flex: 0 0 auto;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 8px 6px;
+  padding: 7px 13px;
   font: inherit;
   font-size: 0.74rem;
   font-weight: 700;
@@ -2770,10 +2773,10 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 /* Each pill's active color matches its status's own badge tone (see
    ipStatusBadge/IP_STATUS_TONE in workforce.js) - "All" keeps the app's
    base accent since it has no single status of its own. */
-.wf-ip-filter-pill[data-ip-filter="all"][aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.wf-ip-filter-pill[data-ip-filter="completed"][aria-pressed="true"] { background: var(--resolved); border-color: var(--resolved); color: var(--accent-ink); }
-.wf-ip-filter-pill[data-ip-filter="pendingCandidate"][aria-pressed="true"] { background: var(--important); border-color: var(--important); color: var(--accent-ink); }
-.wf-ip-filter-pill[data-ip-filter="pendingInterviewer"][aria-pressed="true"] { background: var(--warning); border-color: var(--warning); color: var(--accent-ink); }
+.wf-ip-filter-pill[data-ip-filter="all"][aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+.wf-ip-filter-pill[data-ip-filter="completed"][aria-pressed="true"] { background: var(--resolved-bg); border-color: var(--resolved); color: var(--resolved); }
+.wf-ip-filter-pill[data-ip-filter="pendingCandidate"][aria-pressed="true"] { background: var(--important-bg); border-color: var(--important); color: var(--important); }
+.wf-ip-filter-pill[data-ip-filter="pendingInterviewer"][aria-pressed="true"] { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
 
 .wf-ip-pdf-note {
   margin: 12px 0 0;

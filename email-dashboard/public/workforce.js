@@ -5383,6 +5383,12 @@ document.getElementById('ipPageBackBtn').addEventListener('click', (e) => {
   const detailPanel = document.getElementById('interviewPanelDetailPanel');
   if (!detailPanel.hidden) {
     e.stopPropagation();
+    // Every other section's back button gets visually "reset" because
+    // clicking it swaps the whole view out from under it - this one stays
+    // mounted on screen for the in-section list<->detail step, so its own
+    // focus-visible ring would otherwise stay stuck around it after the
+    // click instead of disappearing the way it does everywhere else.
+    e.currentTarget.blur();
     ipCurrentDetailId = null;
     detailPanel.hidden = true;
     document.getElementById('interviewPanelListPanel').hidden = false;
