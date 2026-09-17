@@ -488,6 +488,46 @@ async function sendMail({ to, subject, text }) {
   await gmail().users.messages.send({ userId: 'me', requestBody: { raw } });
 }
 
+// multipart/alternative - a plain-text part alongside the real HTML one,
+// in that order (least-preferred first, most-preferred last, per RFC 2046)
+// so a client that can't render HTML still shows something readable
+// instead of a blank message. Used for the OTP login-code email
+// (src/emailService.js) - buildRawMessage/sendMail above stay untouched
+// (plain-text-only) for anything that doesn't need a styled body.
+function buildRawMessageAlternative({ to, subject, text, html }) {
+  const boundary = 'wf_alt_' + Date.now().toString(36);
+  const lines = [
+    `To: ${to}`,
+    `Subject: ${encodeHeaderText(subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(text, 'utf8').toString('base64'),
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(html, 'utf8').toString('base64'),
+    '',
+    `--${boundary}--`
+  ];
+  return Buffer.from(lines.join('\r\n'))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+async function sendMailWithHtml({ to, subject, text, html }) {
+  const raw = buildRawMessageAlternative({ to, subject, text, html });
+  await gmail().users.messages.send({ userId: 'me', requestBody: { raw } });
+}
+
 // Base64 content is wrapped at 76 chars per line - not strictly required by
 // Gmail's API, but keeps the raw message a well-formed RFC 2045 MIME body.
 function wrapBase64(b64) {
@@ -542,5 +582,6 @@ module.exports = {
   trashMessage,
   getUpcomingJoinings,
   sendMail,
+  sendMailWithHtml,
   sendMailWithAttachment
 };
