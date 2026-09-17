@@ -131,6 +131,7 @@ body {
 
 /* Shared topbar icon-button + avatar - used on both the Mail Management
    and Workforce Management pages so the two headers match. */
+.wf-icon-btn[hidden] { display: none; }
 .wf-icon-btn {
   width: 38px;
   height: 38px;

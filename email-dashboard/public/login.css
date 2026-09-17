@@ -51,7 +51,7 @@ body {
 .login-step h1 { margin: 0 0 4px; font-size: 1.3rem; font-weight: 700; color: var(--ink); }
 .login-sub { font-size: 0.85rem; color: var(--muted); line-height: 1.5; margin-bottom: 26px; }
 
-#emailForm, #otpForm { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+#emailForm, #otpForm, #loginForm { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 
 #emailInput,
 .login-input {

@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
-  <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=111" />
+  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="workforce.css?v=112" />
 </head>
 <body>
   <div class="wf-shell">
@@ -20,7 +20,7 @@
         <button class="wf-icon-btn" id="refreshBtn" title="Refresh" aria-label="Refresh">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
-        <button class="wf-avatar" id="profileAvatar" title="Subhodeep Kundu Chowdhury — click to change photo" aria-label="Upload profile photo">SK</button>
+        <button class="wf-avatar" id="profileAvatar" title="Tap to change photo" aria-label="Upload profile photo">—</button>
         <input type="file" id="profilePhotoInput" accept="image/*" hidden />
       </div>
     </header>
@@ -28,7 +28,7 @@
     <div class="wf-drawer-backdrop" id="wfDrawerBackdrop" hidden></div>
     <nav class="wf-drawer" id="wfDrawer" hidden aria-label="Menu">
       <div class="wf-drawer-head">
-        <button class="wf-avatar lg" id="drawerAvatar" title="Tap to change photo" aria-label="Upload profile photo">SK</button>
+        <button class="wf-avatar lg" id="drawerAvatar" title="Tap to change photo" aria-label="Upload profile photo">—</button>
         <div class="wf-drawer-name" id="drawerName">—</div>
         <div class="wf-drawer-email" id="drawerEmail"></div>
       </div>
@@ -97,7 +97,7 @@
     </nav>
 
     <!-- Overview -->
-    <section id="overviewView" class="wf-view">
+    <section id="overviewView" class="wf-view" hidden>
       <div class="wf-greeting">
         <div class="wf-greeting-sub" id="greetingTime">Good Morning,</div>
         <div class="wf-greeting-name" id="greetingName">—</div>
@@ -1331,7 +1331,7 @@
         <h2>Profile</h2>
       </div>
       <div class="wf-panel" style="text-align:center;">
-        <button class="wf-avatar lg" id="profileAvatarLg" style="margin:0 auto 8px;" title="Tap to change photo" aria-label="Upload profile photo">SK</button>
+        <button class="wf-avatar lg" id="profileAvatarLg" style="margin:0 auto 8px;" title="Tap to change photo" aria-label="Upload profile photo">—</button>
         <div class="wf-note" style="margin:0 0 12px;">Tap photo to change it</div>
         <div class="wf-profile-name-row" id="profileNameRow"></div>
         <div style="font-size:.82rem; color:var(--muted); margin-bottom:18px;" id="profileEmail"></div>
@@ -1355,26 +1355,48 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div class="wf-mail-compose-body">
-        <p class="wf-note" style="margin-top:0;">Grant a team member their own login that only unlocks Interview Panel - nothing else in this dashboard.</p>
-        <ul class="wf-emp-list" id="teamAccessList" style="margin-bottom:16px;">
-          <li class="empty">Loading…</li>
-        </ul>
-        <div class="wf-mail-field">
-          <span class="wf-mail-field-label">Email</span>
-          <input type="email" id="teamAccessEmailInput" placeholder="teammate@alcoverealty.in" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink);" />
+
+      <div id="teamAccessListPage">
+        <div class="wf-mail-compose-body">
+          <p class="wf-note" style="margin-top:0;">Grant a team member their own login that only unlocks Interview Panel - nothing else in this dashboard. Tap an email below to change its password.</p>
+          <ul class="wf-emp-list" id="teamAccessList" style="margin-bottom:16px;">
+            <li class="empty">Loading…</li>
+          </ul>
+          <div class="wf-mail-field">
+            <span class="wf-mail-field-label">Email</span>
+            <input type="email" id="teamAccessEmailInput" placeholder="teammate@alcoverealty.in" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink);" />
+          </div>
+          <div class="wf-mail-field">
+            <span class="wf-mail-field-label">6-Digit Password</span>
+            <input type="text" id="teamAccessPasswordInput" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink); letter-spacing:0.2em;" />
+          </div>
+          <p class="wf-mail-compose-error" id="teamAccessError" hidden></p>
         </div>
-        <div class="wf-mail-field">
-          <span class="wf-mail-field-label">6-Digit Password</span>
-          <input type="text" id="teamAccessPasswordInput" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink); letter-spacing:0.2em;" />
+        <div class="wf-mail-compose-foot">
+          <button class="wf-clear-btn" id="teamAccessCancelBtn" type="button">Close</button>
+          <button class="wf-send-mail-btn" id="teamAccessSaveBtn" type="button">
+            <span>Grant Access</span>
+          </button>
         </div>
-        <p class="wf-mail-compose-error" id="teamAccessError" hidden></p>
       </div>
-      <div class="wf-mail-compose-foot">
-        <button class="wf-clear-btn" id="teamAccessCancelBtn" type="button">Close</button>
-        <button class="wf-send-mail-btn" id="teamAccessSaveBtn" type="button">
-          <span>Grant Access</span>
-        </button>
+
+      <!-- Page 2, inside the same popup: change one existing teammate's password. -->
+      <div id="teamAccessEditPage" hidden>
+        <div class="wf-mail-compose-body">
+          <button type="button" class="wf-link-btn" id="teamAccessBackBtn" style="margin-bottom:14px;">&larr; Back</button>
+          <p class="wf-note" style="margin-top:0;">Set a new 6-digit password for <strong id="teamAccessEditEmail"></strong>.</p>
+          <div class="wf-mail-field">
+            <span class="wf-mail-field-label">New 6-Digit Password</span>
+            <input type="text" id="teamAccessEditPasswordInput" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink); letter-spacing:0.2em;" />
+          </div>
+          <p class="wf-mail-compose-error" id="teamAccessEditError" hidden></p>
+        </div>
+        <div class="wf-mail-compose-foot">
+          <button class="wf-clear-btn" id="teamAccessEditCancelBtn" type="button">Cancel</button>
+          <button class="wf-send-mail-btn" id="teamAccessEditSaveBtn" type="button">
+            <span>Update Password</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -1416,6 +1438,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=204"></script>
+  <script src="workforce.js?v=205"></script>
 </body>
 </html>

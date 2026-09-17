@@ -60,18 +60,57 @@ function formatNameFromEmail(email) {
 const PROFILE_NAME_KEY = 'dashboardProfileName';
 let currentUserEmail = '';
 
+// Scoped per-email so two different logins on the same browser/device
+// (e.g. an admin and a scoped Interview-Panel teammate sharing a laptop)
+// never show each other's saved custom display name.
+function profileNameKey(email) {
+  return PROFILE_NAME_KEY + ':' + String(email || '').toLowerCase();
+}
+
 function getDisplayName(email) {
-  const saved = localStorage.getItem(PROFILE_NAME_KEY);
-  return saved || formatNameFromEmail(email);
+  const scoped = localStorage.getItem(profileNameKey(email));
+  if (scoped) return scoped;
+  // One-time migration from the old global (pre-multi-user) key, so an
+  // admin's already-customized name doesn't just silently disappear.
+  const legacy = localStorage.getItem(PROFILE_NAME_KEY);
+  if (legacy) {
+    localStorage.setItem(profileNameKey(email), legacy);
+    localStorage.removeItem(PROFILE_NAME_KEY);
+    return legacy;
+  }
+  return formatNameFromEmail(email);
+}
+
+// "SK" for "Subhodeep Kundu Chowdhury" was hardcoded into the avatar
+// buttons before this app had more than one real user - now computed from
+// whoever is actually logged in (an admin's saved display name, or a
+// scoped team member's own email), so a teammate's avatar shows their own
+// initials instead of the admin's.
+function getInitials(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+function applyAvatarIdentity(email) {
+  const initials = getInitials(getDisplayName(email));
+  ['profileAvatar', 'drawerAvatar', 'profileAvatarLg'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = initials;
+    el.title = 'Tap to change photo';
+  });
 }
 
 function setDisplayName(name) {
   const trimmed = name.trim();
-  if (trimmed) localStorage.setItem(PROFILE_NAME_KEY, trimmed);
-  else localStorage.removeItem(PROFILE_NAME_KEY);
+  if (trimmed) localStorage.setItem(profileNameKey(currentUserEmail), trimmed);
+  else localStorage.removeItem(profileNameKey(currentUserEmail));
   const display = getDisplayName(currentUserEmail);
   document.getElementById('greetingName').textContent = display;
   document.getElementById('drawerName').textContent = display;
+  applyAvatarIdentity(currentUserEmail);
   renderProfileNameRow();
 }
 
@@ -5090,6 +5129,11 @@ let ipActiveFilter = 'all';
 // re-render that exact record (e.g. a step that just went from Pending to
 // Completed) instead of only refreshing the list underneath it.
 let ipCurrentDetailId = null;
+// True for a team member scoped to only this section (see
+// applyInterviewPanelOnlyMode) - their landing page has no Dashboard to
+// go back to, so the page-head back icon only appears once they've
+// actually drilled into a candidate's detail.
+let ipOnlyMode = false;
 
 async function loadInterviewPanelList() {
   const rowsEl = document.getElementById('ipCandidateRows');
@@ -5212,11 +5256,17 @@ document.getElementById('ipDismissNewLinks').addEventListener('click', () => {
 // ---------- Team Access (admin-only: grant/revoke a scoped Interview-Panel-only login) ----------
 
 const teamAccessOverlay = document.getElementById('teamAccessOverlay');
+const teamAccessListPage = document.getElementById('teamAccessListPage');
+const teamAccessEditPage = document.getElementById('teamAccessEditPage');
 const teamAccessList = document.getElementById('teamAccessList');
 const teamAccessEmailInput = document.getElementById('teamAccessEmailInput');
 const teamAccessPasswordInput = document.getElementById('teamAccessPasswordInput');
 const teamAccessError = document.getElementById('teamAccessError');
 const teamAccessSaveBtn = document.getElementById('teamAccessSaveBtn');
+const teamAccessEditEmail = document.getElementById('teamAccessEditEmail');
+const teamAccessEditPasswordInput = document.getElementById('teamAccessEditPasswordInput');
+const teamAccessEditError = document.getElementById('teamAccessEditError');
+const teamAccessEditSaveBtn = document.getElementById('teamAccessEditSaveBtn');
 
 async function loadTeamAccessList() {
   teamAccessList.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
@@ -5226,13 +5276,15 @@ async function loadTeamAccessList() {
     const access = data.access || [];
     teamAccessList.innerHTML = access.length
       ? access.map((a) => (
-          '<li data-email="' + escapeHtml(a.email) + '" style="cursor:default;">' +
+          '<li style="cursor:default;">' +
             '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
             '<span class="wf-emp-main">' +
-              '<span class="wf-emp-name">' + escapeHtml(a.email) + '</span>' +
-              '<span class="wf-emp-meta">Interview Panel only</span>' +
+              '<button type="button" class="wf-ip-team-email-btn" data-open-email="' + escapeHtml(a.email) + '">' + escapeHtml(a.email) + '</button>' +
+              '<span class="wf-ip-team-meta-row">' +
+                '<span class="wf-emp-meta">Interview Panel only</span>' +
+                '<button type="button" class="wf-ip-team-revoke-btn" data-revoke-email="' + escapeHtml(a.email) + '">Revoke</button>' +
+              '</span>' +
             '</span>' +
-            '<button type="button" class="wf-ip-team-revoke-btn" data-revoke-email="' + escapeHtml(a.email) + '">Revoke</button>' +
           '</li>'
         )).join('')
       : '<li class="empty">No team access granted yet.</li>';
@@ -5241,10 +5293,25 @@ async function loadTeamAccessList() {
   }
 }
 
+function showTeamAccessListPage() {
+  teamAccessEditPage.hidden = true;
+  teamAccessListPage.hidden = false;
+}
+
+function showTeamAccessEditPage(email) {
+  teamAccessEditEmail.textContent = email;
+  teamAccessEditPasswordInput.value = '';
+  teamAccessEditError.hidden = true;
+  teamAccessListPage.hidden = true;
+  teamAccessEditPage.hidden = false;
+  teamAccessEditPasswordInput.focus();
+}
+
 function openTeamAccessOverlay() {
   teamAccessEmailInput.value = '';
   teamAccessPasswordInput.value = '';
   teamAccessError.hidden = true;
+  showTeamAccessListPage();
   teamAccessOverlay.hidden = false;
   loadTeamAccessList();
 }
@@ -5255,16 +5322,27 @@ document.getElementById('teamAccessCloseBtn').addEventListener('click', closeTea
 document.getElementById('teamAccessCancelBtn').addEventListener('click', closeTeamAccessOverlay);
 teamAccessOverlay.addEventListener('click', (e) => { if (e.target === teamAccessOverlay) closeTeamAccessOverlay(); });
 
+document.getElementById('teamAccessBackBtn').addEventListener('click', showTeamAccessListPage);
+document.getElementById('teamAccessEditCancelBtn').addEventListener('click', showTeamAccessListPage);
+
 teamAccessPasswordInput.addEventListener('input', () => {
   teamAccessPasswordInput.value = teamAccessPasswordInput.value.replace(/\D/g, '').slice(0, 6);
 });
+teamAccessEditPasswordInput.addEventListener('input', () => {
+  teamAccessEditPasswordInput.value = teamAccessEditPasswordInput.value.replace(/\D/g, '').slice(0, 6);
+});
 
 teamAccessList.addEventListener('click', async (e) => {
-  const btn = e.target.closest('[data-revoke-email]');
-  if (!btn) return;
-  const email = btn.dataset.revokeEmail;
+  const openBtn = e.target.closest('[data-open-email]');
+  if (openBtn) {
+    showTeamAccessEditPage(openBtn.dataset.openEmail);
+    return;
+  }
+  const revokeBtn = e.target.closest('[data-revoke-email]');
+  if (!revokeBtn) return;
+  const email = revokeBtn.dataset.revokeEmail;
   if (!window.confirm('Revoke Interview Panel access for ' + email + '?')) return;
-  btn.disabled = true;
+  revokeBtn.disabled = true;
   try {
     const res = await fetch('/api/interview-panel-access/' + encodeURIComponent(email), { method: 'DELETE' });
     const data = await res.json();
@@ -5273,7 +5351,7 @@ teamAccessList.addEventListener('click', async (e) => {
   } catch (err) {
     teamAccessError.textContent = err.message;
     teamAccessError.hidden = false;
-    btn.disabled = false;
+    revokeBtn.disabled = false;
   }
 });
 
@@ -5308,6 +5386,33 @@ teamAccessSaveBtn.addEventListener('click', async () => {
     teamAccessError.hidden = false;
   } finally {
     teamAccessSaveBtn.disabled = false;
+  }
+});
+
+teamAccessEditSaveBtn.addEventListener('click', async () => {
+  const email = teamAccessEditEmail.textContent;
+  const password = teamAccessEditPasswordInput.value.trim();
+  teamAccessEditError.hidden = true;
+  if (!/^\d{6}$/.test(password)) {
+    teamAccessEditError.textContent = 'Password must be exactly 6 digits.';
+    teamAccessEditError.hidden = false;
+    return;
+  }
+  teamAccessEditSaveBtn.disabled = true;
+  try {
+    const res = await fetch('/api/interview-panel-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not update password.');
+    showTeamAccessListPage();
+  } catch (err) {
+    teamAccessEditError.textContent = err.message;
+    teamAccessEditError.hidden = false;
+  } finally {
+    teamAccessEditSaveBtn.disabled = false;
   }
 });
 
@@ -5405,6 +5510,9 @@ async function openInterviewPanelDetail(id) {
   ipCurrentDetailId = id;
   document.getElementById('interviewPanelListPanel').hidden = true;
   document.getElementById('interviewPanelDetailPanel').hidden = false;
+  // A scoped-mode user has no back icon on the list (nothing above it to
+  // go back to) - it only appears once they're actually in a detail view.
+  if (ipOnlyMode) document.getElementById('ipPageBackBtn').hidden = false;
   const stepperPanel = document.getElementById('ipDetailStepperPanel');
   const fullPanel = document.getElementById('ipDetailFullPanel');
   const linksPanel = document.getElementById('ipDetailLinksPanel');
@@ -5494,6 +5602,7 @@ document.getElementById('ipPageBackBtn').addEventListener('click', (e) => {
     ipCurrentDetailId = null;
     detailPanel.hidden = true;
     document.getElementById('interviewPanelListPanel').hidden = false;
+    if (ipOnlyMode) e.currentTarget.hidden = true;
     loadInterviewPanelList();
   }
 });
@@ -5509,6 +5618,7 @@ async function loadDrawerIdentity() {
     document.getElementById('drawerName').textContent = name;
     document.getElementById('drawerEmail').textContent = data.email;
     document.getElementById('greetingName').textContent = name;
+    applyAvatarIdentity(data.email);
     return data;
   } catch {
     // Non-critical - drawer/greeting just keep their placeholder text.
@@ -5523,12 +5633,16 @@ async function loadDrawerIdentity() {
 // layer already refuses them anywhere else, this just keeps the UI from
 // dangling links that would only ever 401.
 function applyInterviewPanelOnlyMode() {
+  ipOnlyMode = true;
   const allowed = new Set(['interviewPanel', 'profile']);
   document.querySelectorAll('#wfDrawer [data-view]').forEach((btn) => {
     if (!allowed.has(btn.dataset.view)) btn.hidden = true;
   });
   document.getElementById('demographicsToggle').hidden = true;
   document.getElementById('demographicsSubmenu').hidden = true;
+  // No Dashboard to fall back to - the page-head back icon starts hidden
+  // and only reappears once they've drilled into a candidate's detail.
+  document.getElementById('ipPageBackBtn').hidden = true;
 }
 
 document.getElementById('greetingTime').textContent = greetingForHour(new Date().getHours());

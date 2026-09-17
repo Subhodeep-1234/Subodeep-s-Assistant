@@ -2757,9 +2757,9 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--surface);
-  color: var(--muted);
-  border: 1px solid var(--line);
+  background: var(--move-blue);
+  color: #fff;
+  border: 1px solid var(--move-blue);
   border-radius: 999px;
   padding: 8px 13px;
   font: inherit;
@@ -2767,9 +2767,10 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: 0 2px 6px var(--shadow);
 }
-.wf-ip-team-access-btn:hover { color: var(--accent); border-color: var(--accent); }
-.wf-ip-team-access-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wf-ip-team-access-btn:hover { opacity: 0.9; }
+.wf-ip-team-access-btn:focus-visible { outline: 2px solid var(--move-blue); outline-offset: 2px; }
 .wf-ip-team-access-btn[hidden] { display: none; }
 
 .wf-ip-team-revoke-btn {
@@ -2785,6 +2786,32 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   cursor: pointer;
 }
 .wf-ip-team-revoke-btn:disabled { opacity: 0.6; cursor: default; }
+
+.wf-ip-team-email-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  word-break: break-all;
+}
+.wf-ip-team-email-btn:hover,
+.wf-ip-team-email-btn:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
+
+.wf-ip-team-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+}
 
 .wf-ip-filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .wf-ip-filter-pill {
