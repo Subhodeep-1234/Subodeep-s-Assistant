@@ -346,6 +346,7 @@ function setView(view, opts = {}) {
   if (view === 'interviewPanel') {
     // Always land back on the candidate list, never mid-detail from a
     // previous visit - same idea as orgChart/letterGenerator above.
+    ipCurrentDetailId = null;
     document.getElementById('interviewPanelDetailPanel').hidden = true;
     document.getElementById('interviewPanelListPanel').hidden = false;
     document.getElementById('ipNewLinksPanel').hidden = true;
@@ -378,7 +379,7 @@ function loadView(view, forceRefresh) {
   if (view === 'profile') return loadProfile();
   if (view === 'movement') return loadMovementView();
   if (view === 'letterGenerator') return loadLetterGeneratorView();
-  if (view === 'interviewPanel') return loadInterviewPanelList();
+  if (view === 'interviewPanel') return refreshInterviewPanelView();
   // exit / attrition are static "not available" panels — nothing to fetch.
   return Promise.resolve();
 }
@@ -5084,6 +5085,11 @@ function ipStatusBadge(status) {
 // so there's no need to hit the sheet again on every keystroke or pill click.
 let ipCandidatesCache = [];
 let ipActiveFilter = 'all';
+// The candidate currently open in the detail sub-panel, if any - so the
+// global Refresh button (see refreshInterviewPanelView) can re-fetch and
+// re-render that exact record (e.g. a step that just went from Pending to
+// Completed) instead of only refreshing the list underneath it.
+let ipCurrentDetailId = null;
 
 async function loadInterviewPanelList() {
   const rowsEl = document.getElementById('ipCandidateRows');
@@ -5278,7 +5284,23 @@ function ipDetailSectionHtml(record) {
   return html;
 }
 
+// Called both on a fresh entry into this view (detail panel is already
+// forced hidden by setView's reset above, so this is just the list) and by
+// the global Refresh button (see refreshBtn's click handler) - in the
+// latter case, if a candidate's detail is currently open, re-fetch and
+// re-render that exact record instead of only the list underneath it, so a
+// status change made elsewhere (e.g. the interviewer just submitted) shows
+// up immediately without navigating away and back.
+function refreshInterviewPanelView() {
+  const detailPanel = document.getElementById('interviewPanelDetailPanel');
+  if (!detailPanel.hidden && ipCurrentDetailId) {
+    return openInterviewPanelDetail(ipCurrentDetailId);
+  }
+  return loadInterviewPanelList();
+}
+
 async function openInterviewPanelDetail(id) {
+  ipCurrentDetailId = id;
   document.getElementById('interviewPanelListPanel').hidden = true;
   document.getElementById('interviewPanelDetailPanel').hidden = false;
   const stepperPanel = document.getElementById('ipDetailStepperPanel');
@@ -5361,6 +5383,7 @@ document.getElementById('ipPageBackBtn').addEventListener('click', (e) => {
   const detailPanel = document.getElementById('interviewPanelDetailPanel');
   if (!detailPanel.hidden) {
     e.stopPropagation();
+    ipCurrentDetailId = null;
     detailPanel.hidden = true;
     document.getElementById('interviewPanelListPanel').hidden = false;
     loadInterviewPanelList();
