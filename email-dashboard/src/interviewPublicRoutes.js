@@ -7,8 +7,26 @@
 // systems.
 const express = require('express');
 const interviewPanelService = require('./interviewPanelService');
+const employeeService = require('./employeeService');
 
 const router = express.Router();
+
+// Minimal, non-sensitive fields only (name/designation/department) - used by
+// the Interviewer Form's Interview Panel List search-select. Deliberately
+// hand-picks just these three fields rather than forwarding employeeService's
+// full record, which also carries Aadhar/PAN/contact/salary data that has no
+// business being reachable from a page with no login at all.
+router.get('/panel-employees', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    const active = employees
+      .filter((e) => e.status === 'ACTIVE' && e.name)
+      .map((e) => ({ name: e.name, designation: e.designation, department: e.department }));
+    res.json({ employees: active });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not load the employee list.' });
+  }
+});
 
 // Only the fields a candidate is actually allowed to write - the read-only
 // GET below never exposes interviewer-only fields to this page at all.

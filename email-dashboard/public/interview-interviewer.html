@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Interviewer Evaluation Form - Alcove Realty</title>
 <link rel="stylesheet" href="/styles.css?v=1" />
-<link rel="stylesheet" href="/interview-forms.css?v=2" />
+<link rel="stylesheet" href="/interview-forms.css?v=3" />
 </head>
 <body>
 <div class="iv-shell">
@@ -27,16 +27,19 @@
 
     <form id="ivForm">
       <div class="iv-section-title">Evaluation</div>
-      <div id="ivGradeFields"></div>
+      <div class="iv-eval-legend">
+        <span><b>A</b> Outstanding</span>
+        <span><b>B+</b> V.Good</span>
+        <span><b>B</b> Good</span>
+        <span><b>C</b> Average</span>
+        <span><b>D</b> Below Average</span>
+      </div>
+      <div class="iv-eval-table" id="ivGradeFields"></div>
 
-      <div class="iv-field">
-        <label>Overall Grade<span class="iv-required">*</span></label>
-        <div class="iv-grade-grid" data-grade-field="overallGrade">
-          <button type="button" class="iv-grade-btn" data-value="A">A</button>
-          <button type="button" class="iv-grade-btn" data-value="B+">B+</button>
-          <button type="button" class="iv-grade-btn" data-value="B">B</button>
-          <button type="button" class="iv-grade-btn" data-value="C">C</button>
-          <button type="button" class="iv-grade-btn" data-value="D">D</button>
+      <div class="iv-overall-card">
+        <div class="iv-overall-label">Overall Grade <span class="iv-overall-hint">(calculated automatically from the criteria above)</span></div>
+        <div class="iv-overall-body" id="ivOverallBody">
+          <span class="iv-overall-placeholder">Select the criteria above to calculate</span>
         </div>
       </div>
 
@@ -50,18 +53,28 @@
           <option value="Rejected">Rejected</option>
         </select>
       </div>
+      <div class="iv-field" id="ivItSummaryField" hidden>
+        <label>IT Requirements</label>
+        <div class="iv-it-summary" id="ivItSummary"></div>
+        <button type="button" class="iv-link-btn" id="ivEditItRequirements">Edit IT Requirements</button>
+      </div>
+
       <div class="iv-field">
-        <label for="f_newRejoinedReplacement">New / Rejoined / Replacement</label>
-        <select id="f_newRejoinedReplacement" name="newRejoinedReplacement">
+        <label for="f_newRejoinedReplacement">New / Rejoined / Replacement<span class="iv-required">*</span></label>
+        <select id="f_newRejoinedReplacement" name="newRejoinedReplacement" required>
           <option value="">Select&hellip;</option>
           <option value="New">New</option>
           <option value="Rejoined">Rejoined</option>
           <option value="Replacement">Replacement</option>
         </select>
       </div>
+      <div class="iv-field" id="ivReplacementFieldWrap" hidden>
+        <label for="f_replacementForName">Name of Replacement<span class="iv-required">*</span></label>
+        <input type="text" id="f_replacementForName" name="replacementForName" />
+      </div>
       <div class="iv-field">
-        <label for="f_interviewerComments">Interviewer Comments</label>
-        <textarea id="f_interviewerComments" name="interviewerComments"></textarea>
+        <label for="f_interviewerComments">Interviewer Comments<span class="iv-required">*</span></label>
+        <textarea id="f_interviewerComments" name="interviewerComments" required></textarea>
       </div>
 
       <div class="iv-section-title">Interview Panel List</div>
@@ -70,18 +83,36 @@
 
       <div class="iv-section-title">Additional Note</div>
       <div class="iv-field">
-        <textarea id="f_additionalNote" name="additionalNote"></textarea>
-      </div>
-
-      <div class="iv-section-title">Signatures</div>
-      <div class="iv-field-row">
-        <div class="iv-field"><label for="f_interviewerSignatureName">Interviewer Name (typed)<span class="iv-required">*</span></label><input type="text" id="f_interviewerSignatureName" name="interviewerSignatureName" required /></div>
-        <div class="iv-field"><label for="f_hrSignatureName">HR Dept. Name (typed)</label><input type="text" id="f_hrSignatureName" name="hrSignatureName" /></div>
+        <textarea id="f_additionalNote" name="additionalNote" required></textarea>
       </div>
 
       <button type="submit" class="iv-btn" id="ivSubmitBtn">Submit Evaluation</button>
       <div class="iv-error" id="ivError" hidden></div>
     </form>
+  </div>
+
+  <!-- IT Requirements popup - opens when Interview Status is set to
+       Selected, same idea as the app's Send Mail compose popup: a small
+       overlay card the interviewer must complete before it closes. -->
+  <div id="ivItOverlay" class="iv-overlay" hidden>
+    <div class="iv-overlay-card" role="dialog" aria-modal="true" aria-labelledby="ivItOverlayTitle">
+      <h3 id="ivItOverlayTitle">IT Requirements</h3>
+      <p class="iv-panel-sub" style="margin-bottom:16px;">Confirm the following are being arranged for this candidate.</p>
+      <label class="iv-checkbox-row">
+        <input type="checkbox" id="ivItLaptop" />
+        <span>Laptop</span>
+      </label>
+      <label class="iv-checkbox-row">
+        <input type="checkbox" id="ivItMail" />
+        <span>Official Mail ID</span>
+      </label>
+      <label class="iv-checkbox-row">
+        <input type="checkbox" id="ivItSim" />
+        <span>Official SIM</span>
+      </label>
+      <div class="iv-error" id="ivItError" hidden>Please confirm all three before continuing.</div>
+      <button type="button" class="iv-btn" id="ivItOkBtn" style="margin-top:16px;">OK</button>
+    </div>
   </div>
 
   <div id="ivStateAlready" class="iv-panel iv-state iv-state-success" hidden>
@@ -108,6 +139,6 @@
     <p id="ivStateErrorMsg">This link is invalid or has expired.</p>
   </div>
 </div>
-<script src="/interview-interviewer.js?v=2"></script>
+<script src="/interview-interviewer.js?v=3"></script>
 </body>
 </html>

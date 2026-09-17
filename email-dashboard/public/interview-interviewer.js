@@ -14,6 +14,20 @@
   var gradeFieldsEl = document.getElementById('ivGradeFields');
   var panelistRowsEl = document.getElementById('ivPanelistRows');
   var addPanelistBtn = document.getElementById('ivAddPanelist');
+  var overallBody = document.getElementById('ivOverallBody');
+  var statusSelect = document.getElementById('f_interviewStatus');
+  var replacementSelect = document.getElementById('f_newRejoinedReplacement');
+  var replacementFieldWrap = document.getElementById('ivReplacementFieldWrap');
+  var replacementNameInput = document.getElementById('f_replacementForName');
+  var itSummaryField = document.getElementById('ivItSummaryField');
+  var itSummary = document.getElementById('ivItSummary');
+  var editItBtn = document.getElementById('ivEditItRequirements');
+  var itOverlay = document.getElementById('ivItOverlay');
+  var itLaptopCb = document.getElementById('ivItLaptop');
+  var itMailCb = document.getElementById('ivItMail');
+  var itSimCb = document.getElementById('ivItSim');
+  var itError = document.getElementById('ivItError');
+  var itOkBtn = document.getElementById('ivItOkBtn');
 
   var COMPETENCIES = [
     { key: 'gradeIntelligence', label: 'Intelligence' },
@@ -26,6 +40,8 @@
     { key: 'gradeJobSuitability', label: 'Job Suitability' }
   ];
   var GRADES = ['A', 'B+', 'B', 'C', 'D'];
+  var GRADE_SCORE = { A: 5, 'B+': 4, B: 3, C: 2, D: 1 };
+  var GRADE_DESC = { A: 'Outstanding', 'B+': 'V.Good', B: 'Good', C: 'Average', D: 'Below Average' };
 
   var CANDIDATE_LABELS = [
     ['name', 'Name'], ['positionAppliedFor', 'Position Applied For'],
@@ -38,6 +54,11 @@
     ['expectedSalary', 'Expected Salary'], ['noticePeriod', 'Notice Period']
   ];
 
+  var computedOverallGrade = '';
+  var itConfirmed = false;
+  var itValues = { laptop: false, mail: false, sim: false };
+  var panelEmployees = null; // lazily fetched, cached for the whole session
+
   function showOnly(el) {
     [loadingEl, panelEl, stateAlready, stateDone, stateWait, stateError].forEach(function (e) {
       e.hidden = e !== el;
@@ -49,16 +70,19 @@
     showOnly(stateError);
   }
 
+  // ---------- Evaluation grid ----------
+
   function buildGradeRow(key, label) {
-    var wrap = document.createElement('div');
-    wrap.className = 'iv-field';
-    var labelEl = document.createElement('label');
+    var row = document.createElement('div');
+    row.className = 'iv-eval-row';
+    var labelEl = document.createElement('span');
+    labelEl.className = 'iv-eval-row-label';
     labelEl.textContent = label;
     var req = document.createElement('span');
     req.className = 'iv-required';
     req.textContent = '*';
     labelEl.appendChild(req);
-    wrap.appendChild(labelEl);
+    row.appendChild(labelEl);
     var grid = document.createElement('div');
     grid.className = 'iv-grade-grid';
     grid.setAttribute('data-grade-field', key);
@@ -70,13 +94,37 @@
       btn.textContent = g;
       grid.appendChild(btn);
     });
-    wrap.appendChild(grid);
-    return wrap;
+    row.appendChild(grid);
+    return row;
   }
 
   COMPETENCIES.forEach(function (c) {
     gradeFieldsEl.appendChild(buildGradeRow(c.key, c.label));
   });
+
+  function recomputeOverallGrade() {
+    var scores = [];
+    COMPETENCIES.forEach(function (c) {
+      var grid = form.querySelector('[data-grade-field="' + c.key + '"]');
+      var active = grid.querySelector('.iv-grade-btn.active');
+      if (active) scores.push(GRADE_SCORE[active.getAttribute('data-value')]);
+    });
+    if (!scores.length) {
+      computedOverallGrade = '';
+      overallBody.innerHTML = '<span class="iv-overall-placeholder">Select the criteria above to calculate</span>';
+      return;
+    }
+    var avgScore = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
+    var percent = Math.round((avgScore / 5) * 100);
+    var grade = percent >= 90 ? 'A' : percent >= 70 ? 'B+' : percent >= 50 ? 'B' : percent >= 30 ? 'C' : 'D';
+    computedOverallGrade = grade;
+    overallBody.innerHTML =
+      '<span class="iv-overall-percent">' + percent + '%</span>' +
+      '<span class="iv-overall-meta">' +
+        '<span class="iv-overall-grade-pill">' + grade + '</span>' +
+        '<span class="iv-overall-grade-desc">' + GRADE_DESC[grade] + (scores.length < COMPETENCIES.length ? ' (partial - ' + scores.length + ' of ' + COMPETENCIES.length + ' rated)' : '') + '</span>' +
+      '</span>';
+  }
 
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.iv-grade-btn');
@@ -85,29 +133,172 @@
     Array.prototype.forEach.call(grid.querySelectorAll('.iv-grade-btn'), function (b) {
       b.classList.toggle('active', b === btn);
     });
+    recomputeOverallGrade();
   });
 
-  function addPanelistRow(prefill) {
+  // ---------- IT Requirements popup ----------
+
+  function openItOverlay() {
+    itLaptopCb.checked = itValues.laptop;
+    itMailCb.checked = itValues.mail;
+    itSimCb.checked = itValues.sim;
+    itError.hidden = true;
+    itOverlay.hidden = false;
+  }
+  function closeItOverlay() { itOverlay.hidden = true; }
+
+  function renderItSummary() {
+    itSummary.innerHTML =
+      (itValues.laptop ? '<span>Laptop</span>' : '') +
+      (itValues.mail ? '<span>Official Mail ID</span>' : '') +
+      (itValues.sim ? '<span>Official SIM</span>' : '');
+    itSummaryField.hidden = false;
+  }
+
+  statusSelect.addEventListener('change', function () {
+    if (statusSelect.value === 'Selected') {
+      if (itConfirmed) {
+        renderItSummary();
+      } else {
+        openItOverlay();
+      }
+    } else {
+      itSummaryField.hidden = true;
+    }
+  });
+
+  editItBtn.addEventListener('click', openItOverlay);
+
+  itOkBtn.addEventListener('click', function () {
+    if (!itLaptopCb.checked || !itMailCb.checked || !itSimCb.checked) {
+      itError.hidden = false;
+      return;
+    }
+    itValues = { laptop: true, mail: true, sim: true };
+    itConfirmed = true;
+    closeItOverlay();
+    renderItSummary();
+  });
+
+  itOverlay.addEventListener('click', function (e) {
+    if (e.target === itOverlay) closeItOverlay();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !itOverlay.hidden) closeItOverlay();
+  });
+
+  // ---------- Replacement name ----------
+
+  replacementSelect.addEventListener('change', function () {
+    var isReplacement = replacementSelect.value === 'Replacement';
+    replacementFieldWrap.hidden = !isReplacement;
+    replacementNameInput.required = isReplacement;
+    if (!isReplacement) replacementNameInput.value = '';
+  });
+
+  // ---------- Interview Panel List (search-select from active employees) ----------
+
+  function loadPanelEmployees() {
+    if (panelEmployees) return Promise.resolve(panelEmployees);
+    return fetch('/api/interview/panel-employees')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        panelEmployees = Array.isArray(data.employees) ? data.employees : [];
+        return panelEmployees;
+      })
+      .catch(function () {
+        panelEmployees = [];
+        return panelEmployees;
+      });
+  }
+
+  function addPanelistRow() {
     var row = document.createElement('div');
     row.className = 'iv-panelist-row';
     row.innerHTML =
-      '<input type="text" placeholder="Name" data-panel="name" />' +
-      '<input type="text" placeholder="Designation" data-panel="designation" />' +
-      '<input type="text" placeholder="Department" data-panel="department" />' +
-      '<button type="button" class="iv-panelist-remove" aria-label="Remove">' +
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
-    if (prefill) {
-      row.querySelector('[data-panel="name"]').value = prefill.name || '';
-      row.querySelector('[data-panel="designation"]').value = prefill.designation || '';
-      row.querySelector('[data-panel="department"]').value = prefill.department || '';
+      '<div class="iv-panelist-top">' +
+        '<div class="iv-panelist-search-wrap">' +
+          '<input type="text" class="iv-panelist-search" placeholder="Search employee by name" autocomplete="off" />' +
+          '<ul class="iv-panelist-suggest" hidden></ul>' +
+        '</div>' +
+        '<button type="button" class="iv-panelist-remove" aria-label="Remove">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' +
+      '</div>' +
+      '<div class="iv-panelist-meta" hidden></div>';
+
+    var searchInput = row.querySelector('.iv-panelist-search');
+    var suggestEl = row.querySelector('.iv-panelist-suggest');
+    var metaEl = row.querySelector('.iv-panelist-meta');
+    var selected = null;
+
+    function renderSuggestions(list) {
+      if (!list.length) {
+        suggestEl.innerHTML = '<li class="empty">No matching employees</li>';
+        suggestEl.hidden = false;
+        return;
+      }
+      suggestEl.innerHTML = list.slice(0, 8).map(function (emp, i) {
+        return '<li data-idx="' + i + '"><b></b><span></span></li>';
+      }).join('');
+      Array.prototype.forEach.call(suggestEl.children, function (li, i) {
+        li.querySelector('b').textContent = list[i].name;
+        li.querySelector('span').textContent = [list[i].designation, list[i].department].filter(Boolean).join(' · ');
+        li.addEventListener('click', function () { selectEmployee(list[i]); });
+      });
+      suggestEl.hidden = false;
     }
-    row.querySelector('.iv-panelist-remove').addEventListener('click', function () {
-      row.remove();
+
+    function selectEmployee(emp) {
+      selected = emp;
+      searchInput.value = emp.name;
+      metaEl.hidden = false;
+      metaEl.innerHTML =
+        (emp.designation ? '<span>Designation: <b>' + escapeHtml(emp.designation) + '</b></span>' : '') +
+        (emp.department ? '<span>Dept: <b>' + escapeHtml(emp.department) + '</b></span>' : '');
+      suggestEl.hidden = true;
+    }
+
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    searchInput.addEventListener('input', function () {
+      selected = null;
+      metaEl.hidden = true;
+      metaEl.innerHTML = '';
+      var needle = searchInput.value.trim().toLowerCase();
+      if (!needle) { suggestEl.hidden = true; return; }
+      loadPanelEmployees().then(function (all) {
+        var matches = all.filter(function (e) { return e.name.toLowerCase().indexOf(needle) !== -1; });
+        renderSuggestions(matches);
+      });
     });
+    searchInput.addEventListener('focus', function () {
+      if (searchInput.value.trim() && !selected) searchInput.dispatchEvent(new Event('input'));
+    });
+
+    row.querySelector('.iv-panelist-remove').addEventListener('click', function () { row.remove(); });
+    row.getSelected = function () { return selected; };
     panelistRowsEl.appendChild(row);
   }
 
   addPanelistBtn.addEventListener('click', function () { addPanelistRow(); });
+
+  // One delegated listener for every panelist row's suggestion dropdown,
+  // rather than a new document-level listener per row (which would leak a
+  // reference to each row even after it's removed via its own [x] button).
+  document.addEventListener('click', function (e) {
+    Array.prototype.forEach.call(panelistRowsEl.querySelectorAll('.iv-panelist-row'), function (row) {
+      if (!row.contains(e.target)) {
+        var suggestEl = row.querySelector('.iv-panelist-suggest');
+        if (suggestEl) suggestEl.hidden = true;
+      }
+    });
+  });
+
+  // ---------- Load ----------
 
   fetch('/api/interview/interviewer/' + encodeURIComponent(token))
     .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
@@ -136,6 +327,7 @@
         candidateBox.appendChild(row);
       });
       addPanelistRow();
+      loadPanelEmployees();
       showOnly(panelEl);
     })
     .catch(function () { showError('Something went wrong loading this form. Please try again.'); });
@@ -146,38 +338,85 @@
 
     var payload = {};
     var missingGrade = false;
-    COMPETENCIES.concat([{ key: 'overallGrade' }]).forEach(function (c) {
+    COMPETENCIES.forEach(function (c) {
       var grid = form.querySelector('[data-grade-field="' + c.key + '"]');
       var active = grid.querySelector('.iv-grade-btn.active');
       if (!active) { missingGrade = true; return; }
       payload[c.key] = active.getAttribute('data-value');
     });
-    if (missingGrade) {
-      errorBox.textContent = 'Please select a grade for every evaluation criterion, including Overall Grade.';
+    if (missingGrade || !computedOverallGrade) {
+      errorBox.textContent = 'Please select a grade for every evaluation criterion.';
+      errorBox.hidden = false;
+      return;
+    }
+    payload.overallGrade = computedOverallGrade;
+
+    payload.interviewStatus = statusSelect.value;
+    if (!payload.interviewStatus) {
+      errorBox.textContent = 'Please select an Interview Status.';
+      errorBox.hidden = false;
+      return;
+    }
+    if (payload.interviewStatus === 'Selected' && !itConfirmed) {
+      errorBox.textContent = 'Please confirm IT Requirements before submitting.';
+      errorBox.hidden = false;
+      openItOverlay();
+      return;
+    }
+    if (payload.interviewStatus === 'Selected') {
+      payload.itLaptop = itValues.laptop ? 'Yes' : '';
+      payload.itOfficialMailId = itValues.mail ? 'Yes' : '';
+      payload.itOfficialSim = itValues.sim ? 'Yes' : '';
+    }
+
+    payload.newRejoinedReplacement = replacementSelect.value;
+    if (!payload.newRejoinedReplacement) {
+      errorBox.textContent = 'Please select New / Rejoined / Replacement.';
+      errorBox.hidden = false;
+      return;
+    }
+    if (payload.newRejoinedReplacement === 'Replacement') {
+      payload.replacementForName = replacementNameInput.value.trim();
+      if (!payload.replacementForName) {
+        errorBox.textContent = 'Please enter the name of replacement.';
+        errorBox.hidden = false;
+        return;
+      }
+    }
+
+    payload.interviewerComments = document.getElementById('f_interviewerComments').value.trim();
+    if (!payload.interviewerComments) {
+      errorBox.textContent = 'Please enter Interviewer Comments.';
+      errorBox.hidden = false;
+      return;
+    }
+    payload.additionalNote = document.getElementById('f_additionalNote').value.trim();
+    if (!payload.additionalNote) {
+      errorBox.textContent = 'Please enter an Additional Note.';
       errorBox.hidden = false;
       return;
     }
 
-    payload.interviewStatus = document.getElementById('f_interviewStatus').value;
-    payload.newRejoinedReplacement = document.getElementById('f_newRejoinedReplacement').value;
-    payload.interviewerComments = document.getElementById('f_interviewerComments').value;
-    payload.additionalNote = document.getElementById('f_additionalNote').value;
-    payload.interviewerSignatureName = document.getElementById('f_interviewerSignatureName').value;
-    payload.hrSignatureName = document.getElementById('f_hrSignatureName').value;
-
-    if (!payload.interviewStatus || !payload.interviewerSignatureName) {
-      errorBox.textContent = 'Please fill in all required fields.';
+    var panelList = [];
+    var missingPanelSelection = false;
+    Array.prototype.forEach.call(panelistRowsEl.children, function (row) {
+      var searchVal = row.querySelector('.iv-panelist-search').value.trim();
+      var sel = row.getSelected();
+      if (!searchVal) return; // an untouched row is fine, just skipped
+      if (!sel) { missingPanelSelection = true; return; }
+      panelList.push(sel);
+    });
+    if (missingPanelSelection) {
+      errorBox.textContent = 'Please select a panel member from the search results, or clear that row.';
       errorBox.hidden = false;
       return;
     }
-
-    payload.panelList = Array.prototype.map.call(panelistRowsEl.children, function (row) {
-      return {
-        name: row.querySelector('[data-panel="name"]').value,
-        designation: row.querySelector('[data-panel="designation"]').value,
-        department: row.querySelector('[data-panel="department"]').value
-      };
-    }).filter(function (p) { return p.name || p.designation || p.department; });
+    if (!panelList.length) {
+      errorBox.textContent = 'Please add at least one Interview Panel List member.';
+      errorBox.hidden = false;
+      return;
+    }
+    payload.panelList = panelList;
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
