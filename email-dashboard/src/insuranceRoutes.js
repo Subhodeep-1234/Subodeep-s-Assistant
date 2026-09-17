@@ -186,15 +186,35 @@ router.get('/exits', async (req, res) => {
   }
 });
 
+// Live default To/Cc for the Exits Send Mail compose popup to pre-fill
+// (public/workforce.js's openMailCompose) - same lookup the send route
+// itself falls back to when no override is given.
+router.get('/exits/mail-defaults', async (req, res) => {
+  try {
+    const recipients = await insuranceService.getMailRecipients();
+    res.json(recipients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Emails the same rows the Exits page's own PDF export shows (Self row
 // first, family rows right after) as a real attachment, straight to the
 // company's Mediclaim contacts. Regenerates fresh rather than trusting
 // whatever the client last rendered, since this is a real outbound email.
 router.post('/exits/send-mail', async (req, res) => {
   try {
+    // The Send Mail compose popup always sends whatever's currently in its
+    // To/Cc fields (defaulted from, but editable past, the Mail Id sheet) -
+    // only falls back to looking those up itself when called without an
+    // override, e.g. a future direct API caller.
+    const overrideTo = req.body && typeof req.body.to === 'string' ? req.body.to.trim() : '';
+
     const [insuranceData, recipients] = await Promise.all([
       insuranceService.getInsuranceData({}),
-      insuranceService.getMailRecipients()
+      overrideTo
+        ? Promise.resolve({ to: overrideTo, cc: req.body && typeof req.body.cc === 'string' ? req.body.cc.trim() : '' })
+        : insuranceService.getMailRecipients()
     ]);
     const rawRows = analytics.sortDeletionsSelfFirst(insuranceData.deletions);
 
@@ -267,6 +287,17 @@ router.get('/additions', async (req, res) => {
   }
 });
 
+// Live default To/Cc for the Additions Send Mail compose popup to pre-fill
+// (public/workforce.js's openMailCompose).
+router.get('/additions/mail-defaults', async (req, res) => {
+  try {
+    const recipients = await insuranceService.getMailRecipients();
+    res.json(recipients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Emails the same rows the New Addition Requests page's own PDF export
 // shows (Self row first, family rows right after) as a real attachment,
 // straight to the company's Mediclaim contacts. Regenerates fresh rather
@@ -274,9 +305,13 @@ router.get('/additions', async (req, res) => {
 // outbound email.
 router.post('/additions/send-mail', async (req, res) => {
   try {
+    const overrideTo = req.body && typeof req.body.to === 'string' ? req.body.to.trim() : '';
+
     const [insuranceData, recipients] = await Promise.all([
       insuranceService.getInsuranceData({}),
-      insuranceService.getMailRecipients()
+      overrideTo
+        ? Promise.resolve({ to: overrideTo, cc: req.body && typeof req.body.cc === 'string' ? req.body.cc.trim() : '' })
+        : insuranceService.getMailRecipients()
     ]);
     const rawRows = analytics.sortAdditionsSelfFirst(insuranceData.additions);
 

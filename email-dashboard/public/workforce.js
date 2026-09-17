@@ -2517,27 +2517,12 @@ document.getElementById('hiExitsClearFilters').addEventListener('click', () => {
   applyHiExitsFilters();
 });
 
-document.getElementById('sendHiExitsMail').addEventListener('click', async () => {
-  const btn = document.getElementById('sendHiExitsMail');
-  const label = btn.querySelector('span');
-  if (btn.disabled) return;
-  const originalLabel = label.textContent;
-  btn.disabled = true;
-  label.textContent = 'Sending…';
-  try {
-    const res = await fetch('/api/insurance/exits/send-mail', { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
-    label.textContent = 'Sent ✓';
-    setTimeout(() => {
-      label.textContent = originalLabel;
-      btn.disabled = false;
-    }, 3000);
-  } catch (err) {
-    alert('Failed to send mail: ' + err.message);
-    label.textContent = originalLabel;
-    btn.disabled = false;
-  }
+document.getElementById('sendHiExitsMail').addEventListener('click', () => {
+  openMailCompose({
+    defaultsUrl: '/api/insurance/exits/mail-defaults',
+    sendUrl: '/api/insurance/exits/send-mail',
+    sendBody: {}
+  });
 });
 
 // ---------- New Addition Requests (Health Insurance drill-down, from the
@@ -2665,27 +2650,12 @@ document.getElementById('hiAdditionsClearFilters').addEventListener('click', () 
   applyHiAdditionsFilters();
 });
 
-document.getElementById('sendHiAdditionsMail').addEventListener('click', async () => {
-  const btn = document.getElementById('sendHiAdditionsMail');
-  const label = btn.querySelector('span');
-  if (btn.disabled) return;
-  const originalLabel = label.textContent;
-  btn.disabled = true;
-  label.textContent = 'Sending…';
-  try {
-    const res = await fetch('/api/insurance/additions/send-mail', { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to send mail');
-    label.textContent = 'Sent ✓';
-    setTimeout(() => {
-      label.textContent = originalLabel;
-      btn.disabled = false;
-    }, 3000);
-  } catch (err) {
-    alert('Failed to send mail: ' + err.message);
-    label.textContent = originalLabel;
-    btn.disabled = false;
-  }
+document.getElementById('sendHiAdditionsMail').addEventListener('click', () => {
+  openMailCompose({
+    defaultsUrl: '/api/insurance/additions/mail-defaults',
+    sendUrl: '/api/insurance/additions/send-mail',
+    sendBody: {}
+  });
 });
 
 // ---------- Total Exits (Health Insurance drill-down) ----------
