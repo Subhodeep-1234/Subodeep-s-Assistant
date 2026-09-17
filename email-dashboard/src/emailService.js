@@ -40,7 +40,7 @@ function buildOtpEmailHtml({ greetingName, code }) {
         '<p style="margin:0 0 28px; font-size:15px; line-height:1.5; color:#5b6169;">' + greeting + '</p>' +
         '<div style="border:2px dashed #1d5c63; background:#e3eeed; border-radius:14px; padding:22px 16px; text-align:center; margin-bottom:28px;">' +
           '<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; color:#5b6169; text-transform:uppercase; margin-bottom:10px;">Verification Code</div>' +
-          '<div style="font-size:34px; font-weight:800; letter-spacing:10px; color:#1d5c63;">' + escapeHtml(code) + '</div>' +
+          '<div style="font-size:30px; font-weight:800; letter-spacing:6px; color:#1d5c63; white-space:nowrap;">' + escapeHtml(code) + '</div>' +
         '</div>' +
         '<p style="margin:0 0 8px; font-size:14px; line-height:1.5; color:#181b1d;">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>' +
         '<p style="margin:20px 0 0; font-size:12.5px; line-height:1.5; color:#828a90;">If you did not request this code, you can safely ignore this email.</p>' +
