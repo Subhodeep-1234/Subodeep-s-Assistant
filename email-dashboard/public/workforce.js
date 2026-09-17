@@ -349,6 +349,7 @@ function setView(view, opts = {}) {
     document.getElementById('interviewPanelDetailPanel').hidden = true;
     document.getElementById('interviewPanelListPanel').hidden = false;
     document.getElementById('ipNewLinksPanel').hidden = true;
+    document.getElementById('ipNamePromptPanel').hidden = true;
   }
   // All views live in the same scrolling document (sections are toggled via
   // [hidden], not real navigation), so the old scroll position otherwise
@@ -5068,32 +5069,61 @@ function ipStatusBadge(status) {
   return '<span class="wf-ip-status tone-' + tone + '">' + escapeHtml(status || 'Pending Candidate') + '</span>';
 }
 
+// Fetched once per visit, then searched/filtered entirely client-side -
+// the list is small (interview candidates, not the whole employee roster),
+// so there's no need to hit the sheet again on every keystroke or pill click.
+let ipCandidatesCache = [];
+let ipActiveFilter = 'all';
+
 async function loadInterviewPanelList() {
   const rowsEl = document.getElementById('ipCandidateRows');
   rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     const data = await fetch('/api/interview-panel').then((r) => r.json());
     if (data.error) throw new Error(data.error);
-    const rows = data.candidates || [];
-    rowsEl.innerHTML = rows.length
-      ? '<div class="wf-dist-row wf-dist-header">' +
-          '<span class="wf-dist-label-col">Candidate</span>' +
-          '<span class="wf-dist-num-col">Status</span>' +
-        '</div>' +
-        rows.map((c) => (
-          '<div class="wf-dist-row clickable" tabindex="0" role="button" data-ip-id="' + escapeHtml(c.id) + '">' +
-            '<span class="wf-dist-label-col">' +
-              '<b>' + escapeHtml(c.name || 'New Candidate') + '</b>' +
-              (c.positionAppliedFor ? '<br><span class="wf-note-inline">' + escapeHtml(c.positionAppliedFor) + '</span>' : '') +
-            '</span>' +
-            '<span class="wf-dist-num-col">' + ipStatusBadge(c.status) + '</span>' +
-          '</div>'
-        )).join('')
-      : '<div class="empty">No candidates yet — tap "+ New Candidate" to add one.</div>';
+    ipCandidatesCache = data.candidates || [];
+    renderInterviewPanelList();
   } catch (err) {
     rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
+
+function renderInterviewPanelList() {
+  const rowsEl = document.getElementById('ipCandidateRows');
+  const needle = document.getElementById('ipSearchInput').value.trim().toLowerCase();
+  const rows = ipCandidatesCache.filter((c) => {
+    if (ipActiveFilter === 'completed' && c.status !== 'Completed') return false;
+    if (ipActiveFilter === 'pending' && c.status === 'Completed') return false;
+    if (!needle) return true;
+    return (c.name || '').toLowerCase().includes(needle) || (c.positionAppliedFor || '').toLowerCase().includes(needle);
+  });
+
+  rowsEl.innerHTML = rows.length
+    ? '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Candidate</span>' +
+        '<span class="wf-dist-num-col">Status</span>' +
+      '</div>' +
+      rows.map((c) => (
+        '<div class="wf-dist-row clickable" tabindex="0" role="button" data-ip-id="' + escapeHtml(c.id) + '">' +
+          '<span class="wf-dist-label-col">' +
+            '<b>' + escapeHtml(c.name || 'New Candidate') + '</b>' +
+            (c.positionAppliedFor ? '<br><span class="wf-note-inline">' + escapeHtml(c.positionAppliedFor) + '</span>' : '') +
+          '</span>' +
+          '<span class="wf-dist-num-col">' + ipStatusBadge(c.status) + '</span>' +
+        '</div>'
+      )).join('')
+    : '<div class="empty">' + (ipCandidatesCache.length ? 'No candidates match.' : 'No candidates yet — tap "+ New Candidate" to add one.') + '</div>';
+}
+
+document.getElementById('ipSearchInput').addEventListener('input', renderInterviewPanelList);
+
+document.querySelectorAll('.wf-ip-filter-pill').forEach((pill) => {
+  pill.addEventListener('click', () => {
+    ipActiveFilter = pill.dataset.ipFilter;
+    document.querySelectorAll('.wf-ip-filter-pill').forEach((p) => p.setAttribute('aria-pressed', String(p === pill)));
+    renderInterviewPanelList();
+  });
+});
 
 document.getElementById('ipCandidateRows').addEventListener('click', (e) => {
   const row = e.target.closest('[data-ip-id]');
@@ -5108,15 +5138,46 @@ document.getElementById('ipCandidateRows').addEventListener('keydown', (e) => {
   row.click();
 });
 
-document.getElementById('ipNewCandidateBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('ipNewCandidateBtn');
+// "+ New Candidate" only asks for a name up front (everything else is
+// filled in by the candidate themselves via their own form link) - clicking
+// it reveals a small inline prompt in the same spot the links panel takes
+// over once creation succeeds.
+document.getElementById('ipNewCandidateBtn').addEventListener('click', () => {
+  const promptPanel = document.getElementById('ipNamePromptPanel');
+  document.getElementById('ipNewLinksPanel').hidden = true;
+  promptPanel.hidden = !promptPanel.hidden;
+  if (!promptPanel.hidden) {
+    document.getElementById('ipNewCandidateNameInput').value = '';
+    document.getElementById('ipListError').hidden = true;
+    document.getElementById('ipNewCandidateNameInput').focus();
+  }
+});
+
+document.getElementById('ipNamePromptCancel').addEventListener('click', () => {
+  document.getElementById('ipNamePromptPanel').hidden = true;
+});
+
+document.getElementById('ipNamePromptSubmit').addEventListener('click', async () => {
+  const nameInput = document.getElementById('ipNewCandidateNameInput');
   const errEl = document.getElementById('ipListError');
+  const btn = document.getElementById('ipNamePromptSubmit');
+  const name = nameInput.value.trim();
   errEl.hidden = true;
+  if (!name) {
+    errEl.textContent = 'Please enter the candidate\'s name.';
+    errEl.hidden = false;
+    return;
+  }
   btn.disabled = true;
   try {
-    const res = await fetch('/api/interview-panel', { method: 'POST' });
+    const res = await fetch('/api/interview-panel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create a new candidate record.');
+    document.getElementById('ipNamePromptPanel').hidden = true;
     document.getElementById('ipNewCandidateLink').value = data.candidateLink;
     document.getElementById('ipNewInterviewerLink').value = data.interviewerLink;
     document.getElementById('ipNewLinksPanel').hidden = false;
@@ -5206,29 +5267,68 @@ function ipDetailSectionHtml(record) {
 async function openInterviewPanelDetail(id) {
   document.getElementById('interviewPanelListPanel').hidden = true;
   document.getElementById('interviewPanelDetailPanel').hidden = false;
-  document.getElementById('ipDetailLinksPanel').hidden = true;
-  document.getElementById('ipDownloadPdfBtn').hidden = true;
+  const stepperPanel = document.getElementById('ipDetailStepperPanel');
+  const fullPanel = document.getElementById('ipDetailFullPanel');
+  const linksPanel = document.getElementById('ipDetailLinksPanel');
+  const pdfBtn = document.getElementById('ipDownloadPdfBtn');
+  stepperPanel.hidden = true;
+  fullPanel.hidden = true;
+  linksPanel.hidden = true;
+  pdfBtn.hidden = true;
   const bodyEl = document.getElementById('ipDetailBody');
   bodyEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  fullPanel.hidden = false;
   try {
     const res = await fetch('/api/interview-panel/' + encodeURIComponent(id));
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not load this candidate.');
     const record = data.candidate;
-    bodyEl.innerHTML = ipDetailSectionHtml(record);
 
     if (record.candidateToken) {
       document.getElementById('ipDetailCandidateLink').value = window.location.origin + '/interview/candidate/' + record.candidateToken;
       document.getElementById('ipDetailInterviewerLink').value = window.location.origin + '/interview/interviewer/' + record.interviewerToken;
-      document.getElementById('ipDetailLinksPanel').hidden = false;
     }
 
-    const pdfBtn = document.getElementById('ipDownloadPdfBtn');
-    pdfBtn.hidden = false;
-    pdfBtn.onclick = () => {
-      window.open('/api/interview-panel/' + encodeURIComponent(id) + '/pdf', '_blank');
-    };
+    if (record.status === 'Completed') {
+      // Both steps are done - show the full record + PDF instead of the
+      // progress tracker (see the user's own spec: re-opening a completed
+      // candidate from the list should land here, not on the stepper).
+      fullPanel.hidden = false;
+      bodyEl.innerHTML = ipDetailSectionHtml(record);
+      pdfBtn.hidden = false;
+      pdfBtn.onclick = () => {
+        window.open('/api/interview-panel/' + encodeURIComponent(id) + '/pdf', '_blank');
+      };
+    } else {
+      fullPanel.hidden = true;
+      stepperPanel.hidden = false;
+      linksPanel.hidden = false;
+      document.getElementById('ipStepperCandidateName').textContent = record.name || 'New Candidate';
+      const step1 = document.getElementById('ipStepCandidate');
+      const step1Status = document.getElementById('ipStepCandidateStatus');
+      const step2 = document.getElementById('ipStepInterviewer');
+      const step2Status = document.getElementById('ipStepInterviewerStatus');
+      if (record.candidateTokenUsedAt) {
+        step1.classList.add('done');
+        step1Status.textContent = 'Completed';
+        step1Status.className = 'wf-ip-status tone-resolved';
+      } else {
+        step1.classList.remove('done');
+        step1Status.textContent = 'Pending Candidate';
+        step1Status.className = 'wf-ip-status tone-important';
+      }
+      if (record.interviewerTokenUsedAt) {
+        step2.classList.add('done');
+        step2Status.textContent = 'Completed';
+        step2Status.className = 'wf-ip-status tone-resolved';
+      } else {
+        step2.classList.remove('done');
+        step2Status.textContent = 'Pending Interviewer';
+        step2Status.className = 'wf-ip-status tone-' + (record.candidateTokenUsedAt ? 'warning' : 'important');
+      }
+    }
   } catch (err) {
+    fullPanel.hidden = false;
     bodyEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }

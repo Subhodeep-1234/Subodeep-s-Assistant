@@ -2726,3 +2726,68 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 @media (max-width: 480px) {
   .wf-ip-detail-grid { grid-template-columns: 1fr; }
 }
+
+.wf-ip-new-btn {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px var(--shadow);
+  white-space: nowrap;
+}
+.wf-ip-new-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wf-ip-filter-row { display: flex; gap: 8px; }
+.wf-ip-filter-pill {
+  flex: 1;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 6px;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wf-ip-filter-pill[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.wf-ip-filter-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wf-ip-stepper { position: relative; }
+.wf-ip-step { display: flex; gap: 12px; position: relative; padding-bottom: 26px; }
+.wf-ip-step:last-child { padding-bottom: 0; }
+.wf-ip-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+.wf-ip-step.done:not(:last-child)::after { background: var(--resolved); }
+.wf-ip-step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--other-bg);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.wf-ip-step.done .wf-ip-step-dot { background: var(--resolved); color: var(--accent-ink); }
+.wf-ip-step-body { padding-top: 3px; }
+.wf-ip-step-title { font-size: 0.9rem; font-weight: 700; color: var(--ink); margin-bottom: 5px; }

@@ -171,10 +171,12 @@ async function getByInterviewerToken(token) {
   return found ? rowToRecord(found.row, found.rowIndex) : null;
 }
 
-// New candidate records start completely blank apart from id/timestamps/
-// tokens/status - the candidate fills every one of their own fields
-// themselves via the Candidate Form (see CANDIDATE_FIELDS above).
-async function createCandidate(createdBy) {
+// New candidate records start blank apart from id/timestamps/tokens/status
+// and the name HR types in on creation (just a label for the dashboard list
+// before the candidate opens their form) - every other field is still filled
+// by the candidate themselves via the Candidate Form (see CANDIDATE_FIELDS
+// above), which overwrites this name with whatever they submit.
+async function createCandidate(createdBy, name) {
   const rows = await getAllRows();
   const maxId = rows.reduce((max, row) => {
     const n = parseInt(row[COLS.id], 10);
@@ -192,6 +194,7 @@ async function createCandidate(createdBy) {
   newRow[COLS.status] = STATUS.PENDING_CANDIDATE;
   newRow[COLS.candidateToken] = candidateToken;
   newRow[COLS.interviewerToken] = interviewerToken;
+  newRow[COLS.name] = name ? String(name).trim() : '';
 
   const sheets = getSheetsClient();
   await sheets.spreadsheets.values.append({

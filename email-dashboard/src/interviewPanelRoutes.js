@@ -27,7 +27,9 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const created = await interviewPanelService.createCandidate(req.hrUser.email);
+    const name = req.body && typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) return res.status(400).json({ error: 'Candidate name is required.' });
+    const created = await interviewPanelService.createCandidate(req.hrUser.email, name);
     const base = baseUrl(req);
     res.json({
       ok: true,

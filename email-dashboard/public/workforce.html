@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=6" />
-  <link rel="stylesheet" href="workforce.css?v=106" />
+  <link rel="stylesheet" href="workforce.css?v=107" />
 </head>
 <body>
   <div class="wf-shell">
@@ -628,15 +628,19 @@
         <button class="wf-icon-btn" data-back aria-label="Back to Dashboard">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
-        <h2>Interview Panel</h2>
+        <h2 style="flex:1;">Interview Panel</h2>
+        <button type="button" class="wf-ip-new-btn" id="ipNewCandidateBtn">+ New Candidate</button>
       </div>
 
       <div id="interviewPanelListPanel">
-        <div class="wf-panel">
-          <button type="button" class="wf-letter-proceed-btn" id="ipNewCandidateBtn" style="margin-top:0;">
-            <span>+ New Candidate</span>
-          </button>
-          <div class="error-banner" id="ipListError" hidden></div>
+        <div class="wf-panel" id="ipNamePromptPanel" hidden>
+          <p class="wf-note" style="margin-top:0;">Enter the candidate's name to generate their application link.</p>
+          <input type="text" id="ipNewCandidateNameInput" placeholder="Candidate Name" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink); margin-bottom:10px;" />
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="wf-link-btn" id="ipNamePromptCancel">Cancel</button>
+            <button type="button" class="wf-letter-proceed-btn" id="ipNamePromptSubmit" style="margin:0; flex:1;">Create</button>
+          </div>
+          <div class="error-banner" id="ipListError" hidden style="margin-top:10px;"></div>
         </div>
 
         <div id="ipNewLinksPanel" class="wf-panel" hidden>
@@ -663,6 +667,18 @@
         </div>
 
         <div class="wf-panel">
+          <div style="position:relative; margin-bottom:12px;">
+            <input type="search" id="ipSearchInput" placeholder="Search by name or position…" autocomplete="off" style="width:100%; background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:10px 12px 10px 34px; font:inherit; font-size:.85rem; color:var(--ink);" />
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:11px; top:50%; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <div class="wf-ip-filter-row">
+            <button type="button" class="wf-ip-filter-pill" data-ip-filter="all" aria-pressed="true">All</button>
+            <button type="button" class="wf-ip-filter-pill" data-ip-filter="completed" aria-pressed="false">Completed</button>
+            <button type="button" class="wf-ip-filter-pill" data-ip-filter="pending" aria-pressed="false">Pending Candidates</button>
+          </div>
+        </div>
+
+        <div class="wf-panel">
           <div class="wf-dist-table" id="ipCandidateRows">
             <div class="loading"><div class="spinner"></div></div>
           </div>
@@ -675,9 +691,31 @@
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back to list
           </button>
         </div>
-        <div class="wf-panel" id="ipDetailBody">
-          <div class="loading"><div class="spinner"></div></div>
+
+        <!-- Shown while the record isn't Completed yet - a 2-step progress
+             tracker instead of the full record, since most of it is still
+             blank. Once both steps are done, re-opening this candidate from
+             the list shows ipDetailFullPanel instead (see openInterviewPanelDetail). -->
+        <div class="wf-panel" id="ipDetailStepperPanel" hidden>
+          <h3 class="wf-letter-form-section-title" style="margin-top:0;" id="ipStepperCandidateName">Candidate</h3>
+          <div class="wf-ip-stepper">
+            <div class="wf-ip-step" id="ipStepCandidate">
+              <div class="wf-ip-step-dot">1</div>
+              <div class="wf-ip-step-body">
+                <div class="wf-ip-step-title">Candidate Details</div>
+                <span class="wf-ip-status tone-important" id="ipStepCandidateStatus">Pending Candidate</span>
+              </div>
+            </div>
+            <div class="wf-ip-step" id="ipStepInterviewer">
+              <div class="wf-ip-step-dot">2</div>
+              <div class="wf-ip-step-body">
+                <div class="wf-ip-step-title">Interviewer Evaluation</div>
+                <span class="wf-ip-status tone-important" id="ipStepInterviewerStatus">Pending Interviewer</span>
+              </div>
+            </div>
+          </div>
         </div>
+
         <div class="wf-panel" id="ipDetailLinksPanel" hidden>
           <div class="wf-ip-link-row">
             <span>Candidate Form Link</span>
@@ -697,6 +735,11 @@
               </button>
             </div>
           </div>
+        </div>
+
+        <!-- Shown once the record is Completed - the full record + PDF. -->
+        <div class="wf-panel" id="ipDetailFullPanel" hidden>
+          <div id="ipDetailBody"></div>
         </div>
         <button type="button" class="wf-letter-proceed-btn" id="ipDownloadPdfBtn" hidden>
           <span>Download PDF</span>
@@ -1336,6 +1379,6 @@
 
   <script src="vendor/chart.js/chart.umd.js"></script>
   <script src="profile.js?v=2"></script>
-  <script src="workforce.js?v=198"></script>
+  <script src="workforce.js?v=199"></script>
 </body>
 </html>
