@@ -53,7 +53,11 @@
     var wrap = document.createElement('div');
     wrap.className = 'iv-field';
     var labelEl = document.createElement('label');
-    labelEl.textContent = label + ' *';
+    labelEl.textContent = label;
+    var req = document.createElement('span');
+    req.className = 'iv-required';
+    req.textContent = '*';
+    labelEl.appendChild(req);
     wrap.appendChild(labelEl);
     var grid = document.createElement('div');
     grid.className = 'iv-grade-grid';

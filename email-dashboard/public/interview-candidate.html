@@ -5,16 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Candidate Interview Application - Alcove Realty</title>
-<link rel="stylesheet" href="styles.css?v=1" />
-<link rel="stylesheet" href="interview-forms.css?v=1" />
+<link rel="stylesheet" href="/styles.css?v=1" />
+<link rel="stylesheet" href="/interview-forms.css?v=2" />
 </head>
 <body>
 <div class="iv-shell">
   <div class="iv-brand">
-    <div class="iv-brand-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg>
-    </div>
-    <div class="iv-wordmark">Alcove Realty<span>Interview Panel</span></div>
+    <img class="iv-brand-logo" src="/assets/alcove-logo.png" alt="Alcove Realty" />
+    <span class="iv-brand-kicker">Interview Panel</span>
   </div>
 
   <div id="ivLoading" class="iv-loading">Loading your application form&hellip;</div>
@@ -24,9 +22,9 @@
     <p class="iv-panel-sub">Please fill in your details below. Once submitted, this form cannot be edited again.</p>
     <form id="ivForm">
       <div class="iv-section-title">Personal Details</div>
-      <div class="iv-field"><label for="f_name">Full Name *</label><input type="text" id="f_name" name="name" required /></div>
+      <div class="iv-field"><label for="f_name">Full Name<span class="iv-required">*</span></label><input type="text" id="f_name" name="name" required /></div>
       <div class="iv-field-row">
-        <div class="iv-field"><label for="f_contactNo">Contact No *</label><input type="tel" id="f_contactNo" name="contactNo" required /></div>
+        <div class="iv-field"><label for="f_contactNo">Contact No<span class="iv-required">*</span></label><input type="tel" id="f_contactNo" name="contactNo" required /></div>
         <div class="iv-field"><label for="f_email">Email</label><input type="email" id="f_email" name="email" /></div>
       </div>
       <div class="iv-field-row">
@@ -36,7 +34,7 @@
       <div class="iv-field"><label for="f_currentPosition">Current Position</label><input type="text" id="f_currentPosition" name="currentPosition" /></div>
 
       <div class="iv-section-title">Interview Details</div>
-      <div class="iv-field"><label for="f_positionAppliedFor">Position Applied For *</label><input type="text" id="f_positionAppliedFor" name="positionAppliedFor" required /></div>
+      <div class="iv-field"><label for="f_positionAppliedFor">Position Applied For<span class="iv-required">*</span></label><input type="text" id="f_positionAppliedFor" name="positionAppliedFor" required /></div>
       <div class="iv-field-row">
         <div class="iv-field"><label for="f_interviewDate">Interview Date</label><input type="date" id="f_interviewDate" name="interviewDate" /></div>
         <div class="iv-field"><label for="f_interviewPlace">Interview Place</label><input type="text" id="f_interviewPlace" name="interviewPlace" /></div>
@@ -82,24 +80,24 @@
     </form>
   </div>
 
-  <div id="ivStateAlready" class="iv-state iv-state-success" hidden>
+  <div id="ivStateAlready" class="iv-panel iv-state iv-state-success" hidden>
     <div class="iv-state-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
     <h2>Already Submitted</h2>
     <p>This application has already been submitted and cannot be edited again. Thank you.</p>
   </div>
 
-  <div id="ivStateDone" class="iv-state iv-state-success" hidden>
+  <div id="ivStateDone" class="iv-panel iv-state iv-state-success" hidden>
     <div class="iv-state-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
     <h2>Application Submitted</h2>
     <p>Thank you. Your interview panel will be in touch. You may close this page now.</p>
   </div>
 
-  <div id="ivStateError" class="iv-state iv-state-error" hidden>
+  <div id="ivStateError" class="iv-panel iv-state iv-state-error" hidden>
     <div class="iv-state-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>
     <h2>Link Not Valid</h2>
     <p id="ivStateErrorMsg">This link is invalid or has expired.</p>
   </div>
 </div>
-<script src="interview-candidate.js?v=1"></script>
+<script src="/interview-candidate.js?v=2"></script>
 </body>
 </html>
