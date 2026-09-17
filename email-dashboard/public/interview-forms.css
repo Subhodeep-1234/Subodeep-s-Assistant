@@ -1,0 +1,186 @@
+/* Shared by both public, token-based Interview Panel pages (Candidate Form,
+   Interviewer Form) - same color tokens/fonts as styles.css, but its own
+   standalone layout, same idea as login.css. Neither page is part of the
+   authenticated workforce.js SPA - a candidate/interviewer never logs in. */
+body {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 0;
+}
+
+.iv-shell {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  padding: 28px 20px 40px;
+}
+
+.iv-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.iv-brand-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.iv-wordmark {
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.iv-wordmark span { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+.iv-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px 18px;
+  box-shadow: 0 4px 16px var(--shadow);
+}
+
+.iv-panel h1 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; color: var(--ink); }
+.iv-panel-sub { font-size: 0.82rem; color: var(--muted); line-height: 1.5; margin: 0 0 18px; }
+
+.iv-readonly-box {
+  background: var(--other-bg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  font-size: 0.82rem;
+}
+.iv-readonly-box .iv-readonly-title { font-weight: 700; color: var(--ink); margin-bottom: 8px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+.iv-readonly-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
+.iv-readonly-row span:first-child { color: var(--muted); }
+.iv-readonly-row span:last-child { color: var(--ink); font-weight: 600; text-align: right; }
+
+.iv-section-title { font-size: 0.8rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.03em; margin: 20px 0 10px; }
+.iv-section-title:first-child { margin-top: 0; }
+
+.iv-field { margin-bottom: 14px; }
+.iv-field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.iv-field input[type="text"],
+.iv-field input[type="email"],
+.iv-field input[type="tel"],
+.iv-field input[type="date"],
+.iv-field select,
+.iv-field textarea {
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+.iv-field textarea { resize: vertical; min-height: 70px; }
+.iv-field input:focus-visible,
+.iv-field select:focus-visible,
+.iv-field textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.iv-field-row { display: flex; gap: 10px; }
+.iv-field-row .iv-field { flex: 1; }
+
+.iv-btn {
+  width: 100%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px var(--shadow);
+  margin-top: 8px;
+}
+.iv-btn:disabled { opacity: 0.6; cursor: default; }
+.iv-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.iv-error {
+  margin-top: 12px;
+  background: var(--important-bg);
+  color: var(--important);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+}
+
+.iv-state {
+  text-align: center;
+  padding: 40px 12px;
+}
+.iv-state-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--resolved-bg);
+  color: var(--resolved);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+.iv-state.iv-state-error .iv-state-icon { background: var(--important-bg); color: var(--important); }
+.iv-state.iv-state-wait .iv-state-icon { background: var(--warning-bg); color: var(--warning); }
+.iv-state h2 { margin: 0 0 6px; font-size: 1.05rem; color: var(--ink); }
+.iv-state p { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+.iv-grade-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+.iv-grade-btn {
+  flex: 1;
+  min-width: 52px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 4px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: center;
+}
+.iv-grade-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.iv-grade-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.iv-panelist-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.iv-panelist-row input { flex: 1; min-width: 0; }
+.iv-panelist-remove {
+  background: none;
+  border: none;
+  color: var(--important);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.iv-add-panelist-btn {
+  background: none;
+  border: 1px dashed var(--line);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.iv-loading { text-align: center; padding: 60px 0; color: var(--muted); font-size: 0.85rem; }

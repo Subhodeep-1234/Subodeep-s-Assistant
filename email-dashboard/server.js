@@ -8,6 +8,8 @@ const insuranceRoutes = require('./src/insuranceRoutes');
 const hrAuth = require('./src/hrAuth');
 const emailService = require('./src/emailService');
 const movementTracker = require('./src/movementTracker');
+const interviewPanelRoutes = require('./src/interviewPanelRoutes');
+const interviewPublicRoutes = require('./src/interviewPublicRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -102,6 +104,20 @@ app.get('/login', (req, res) => {
   sendNoStore(res, path.join(__dirname, 'public', 'login.html'));
 });
 
+// Fully public, no session of any kind - a candidate/interviewer isn't a
+// user of this system, just someone holding a long random token in the
+// URL (verified per-request against the sheet by interviewPublicRoutes,
+// not by hrAuth or Google OAuth). The token itself is read client-side
+// from the URL path, not used for routing here - same static-shell-plus-
+// client-side-token pattern either page needs regardless of which token
+// they were sent.
+app.get('/interview/candidate/:token', (req, res) => {
+  sendNoStore(res, path.join(__dirname, 'public', 'interview-candidate.html'));
+});
+app.get('/interview/interviewer/:token', (req, res) => {
+  sendNoStore(res, path.join(__dirname, 'public', 'interview-interviewer.html'));
+});
+
 app.post('/api/hr-auth/request-otp', async (req, res) => {
   const email = hrAuth.normalizeEmail(req.body.email);
   if (!hrAuth.isValidEmail(email)) {
@@ -163,6 +179,10 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 app.use('/api/workforce', hrAuth.requireHrAuth, workforceRoutes);
 app.use('/api/insurance', hrAuth.requireHrAuth, insuranceRoutes);
+app.use('/api/interview-panel', hrAuth.requireHrAuth, interviewPanelRoutes);
+// No hrAuth here on purpose - see the /interview/candidate|interviewer page
+// routes above, and interviewPublicRoutes.js's own header comment.
+app.use('/api/interview', interviewPublicRoutes);
 
 // Read-only equivalents of the old standalone Mail Management page's two
 // most useful reports, folded into the HR app's own menu. These still run

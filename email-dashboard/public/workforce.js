@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiAdditions', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterForm', 'letterSuccess', 'letterGenerator'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiAdditions', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterForm', 'letterSuccess', 'letterGenerator', 'interviewPanel'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -343,6 +343,13 @@ function setView(view, opts = {}) {
     document.getElementById('letterGenError').hidden = true;
     document.getElementById('letterGenNote').hidden = true;
   }
+  if (view === 'interviewPanel') {
+    // Always land back on the candidate list, never mid-detail from a
+    // previous visit - same idea as orgChart/letterGenerator above.
+    document.getElementById('interviewPanelDetailPanel').hidden = true;
+    document.getElementById('interviewPanelListPanel').hidden = false;
+    document.getElementById('ipNewLinksPanel').hidden = true;
+  }
   // All views live in the same scrolling document (sections are toggled via
   // [hidden], not real navigation), so the old scroll position otherwise
   // carries over - e.g. leaving a long list scrolled down, then reopening
@@ -370,6 +377,7 @@ function loadView(view, forceRefresh) {
   if (view === 'profile') return loadProfile();
   if (view === 'movement') return loadMovementView();
   if (view === 'letterGenerator') return loadLetterGeneratorView();
+  if (view === 'interviewPanel') return loadInterviewPanelList();
   // exit / attrition are static "not available" panels — nothing to fetch.
   return Promise.resolve();
 }
@@ -5046,6 +5054,190 @@ async function loadQualityView() {
     completenessEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
+
+// ---------- Interview Panel ----------
+
+const IP_STATUS_TONE = {
+  'Pending Candidate': 'important',
+  'Pending Interviewer': 'warning',
+  'Completed': 'resolved'
+};
+
+function ipStatusBadge(status) {
+  const tone = IP_STATUS_TONE[status] || 'important';
+  return '<span class="wf-ip-status tone-' + tone + '">' + escapeHtml(status || 'Pending Candidate') + '</span>';
+}
+
+async function loadInterviewPanelList() {
+  const rowsEl = document.getElementById('ipCandidateRows');
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetch('/api/interview-panel').then((r) => r.json());
+    if (data.error) throw new Error(data.error);
+    const rows = data.candidates || [];
+    rowsEl.innerHTML = rows.length
+      ? '<div class="wf-dist-row wf-dist-header">' +
+          '<span class="wf-dist-label-col">Candidate</span>' +
+          '<span class="wf-dist-num-col">Status</span>' +
+        '</div>' +
+        rows.map((c) => (
+          '<div class="wf-dist-row clickable" tabindex="0" role="button" data-ip-id="' + escapeHtml(c.id) + '">' +
+            '<span class="wf-dist-label-col">' +
+              '<b>' + escapeHtml(c.name || 'New Candidate') + '</b>' +
+              (c.positionAppliedFor ? '<br><span class="wf-note-inline">' + escapeHtml(c.positionAppliedFor) + '</span>' : '') +
+            '</span>' +
+            '<span class="wf-dist-num-col">' + ipStatusBadge(c.status) + '</span>' +
+          '</div>'
+        )).join('')
+      : '<div class="empty">No candidates yet — tap "+ New Candidate" to add one.</div>';
+  } catch (err) {
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+document.getElementById('ipCandidateRows').addEventListener('click', (e) => {
+  const row = e.target.closest('[data-ip-id]');
+  if (!row) return;
+  openInterviewPanelDetail(row.dataset.ipId);
+});
+document.getElementById('ipCandidateRows').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-ip-id]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
+document.getElementById('ipNewCandidateBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('ipNewCandidateBtn');
+  const errEl = document.getElementById('ipListError');
+  errEl.hidden = true;
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/interview-panel', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create a new candidate record.');
+    document.getElementById('ipNewCandidateLink').value = data.candidateLink;
+    document.getElementById('ipNewInterviewerLink').value = data.interviewerLink;
+    document.getElementById('ipNewLinksPanel').hidden = false;
+    loadInterviewPanelList();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('ipDismissNewLinks').addEventListener('click', () => {
+  document.getElementById('ipNewLinksPanel').hidden = true;
+});
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-copy-target]');
+  if (!btn) return;
+  const input = document.getElementById(btn.dataset.copyTarget);
+  if (!input) return;
+  try {
+    await navigator.clipboard.writeText(input.value);
+  } catch {
+    input.select();
+    document.execCommand('copy');
+  }
+  const original = btn.innerHTML;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  setTimeout(() => { btn.innerHTML = original; }, 1200);
+});
+
+const IP_DETAIL_FIELDS = [
+  ['Personal Details', [
+    ['name', 'Name'], ['contactNo', 'Contact No'], ['email', 'Email'],
+    ['qualification', 'Qualification'], ['experience', 'Experience'], ['currentPosition', 'Current Position']
+  ]],
+  ['Interview Details', [
+    ['positionAppliedFor', 'Position Applied For'], ['interviewDate', 'Interview Date'],
+    ['interviewPlace', 'Interview Place'], ['interviewMode', 'Interview Mode'], ['referenceName', 'Reference Name']
+  ]],
+  ['Company & Compensation', [
+    ['presentLastCompany', 'Present/Last Company'], ['designation', 'Designation'],
+    ['currentLastSalaryDrawn', 'Current/Last Salary Drawn'], ['expectedSalary', 'Expected Salary'], ['noticePeriod', 'Notice Period']
+  ]],
+  ['Alcove Projects', [
+    ['workedOnAlcoveProjects', 'Worked on Alcove Projects Earlier'], ['alcoveProjectsDetails', 'Details']
+  ]],
+  ['Evaluation', [
+    ['gradeIntelligence', 'Intelligence'], ['gradeAttitude', 'Attitude'], ['gradePersonality', 'Personality'],
+    ['gradeConfidence', 'Confidence'], ['gradeCommunicationSkills', 'Communication Skills'],
+    ['gradeAcademicPerformance', 'Academic Performance'], ['gradeJobKnowledge', 'Job Knowledge'],
+    ['gradeJobSuitability', 'Job Suitability'], ['overallGrade', 'Overall Grade']
+  ]],
+  ['Decision', [
+    ['interviewStatus', 'Interview Status'], ['newRejoinedReplacement', 'New / Rejoined / Replacement'],
+    ['interviewerComments', 'Interviewer Comments'], ['additionalNote', 'Additional Note'],
+    ['interviewerSignatureName', 'Interviewer Signature'], ['hrSignatureName', 'HR Signature']
+  ]]
+];
+
+function ipDetailSectionHtml(record) {
+  let html = '<div class="wf-ip-status-row">' + ipStatusBadge(record.status) + '</div>';
+  IP_DETAIL_FIELDS.forEach(([title, fields]) => {
+    const filled = fields.filter(([key]) => record[key]);
+    if (!filled.length) return;
+    html += '<h3 class="wf-letter-form-section-title">' + escapeHtml(title) + '</h3>';
+    html += '<div class="wf-ip-detail-grid">' +
+      filled.map(([key, label]) =>
+        '<div class="wf-ip-detail-item"><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(record[key]) + '</b></div>'
+      ).join('') +
+      '</div>';
+  });
+  if (Array.isArray(record.panelList) && record.panelList.length) {
+    html += '<h3 class="wf-letter-form-section-title">Interview Panel List</h3>';
+    html += '<div class="wf-dist-table">' +
+      record.panelList.map((p) =>
+        '<div class="wf-dist-row"><span class="wf-dist-label-col">' + escapeHtml(p.name || '') +
+        (p.designation ? ' · ' + escapeHtml(p.designation) : '') +
+        (p.department ? ' · ' + escapeHtml(p.department) : '') + '</span></div>'
+      ).join('') +
+      '</div>';
+  }
+  return html;
+}
+
+async function openInterviewPanelDetail(id) {
+  document.getElementById('interviewPanelListPanel').hidden = true;
+  document.getElementById('interviewPanelDetailPanel').hidden = false;
+  document.getElementById('ipDetailLinksPanel').hidden = true;
+  document.getElementById('ipDownloadPdfBtn').hidden = true;
+  const bodyEl = document.getElementById('ipDetailBody');
+  bodyEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const res = await fetch('/api/interview-panel/' + encodeURIComponent(id));
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not load this candidate.');
+    const record = data.candidate;
+    bodyEl.innerHTML = ipDetailSectionHtml(record);
+
+    if (record.candidateToken) {
+      document.getElementById('ipDetailCandidateLink').value = window.location.origin + '/interview/candidate/' + record.candidateToken;
+      document.getElementById('ipDetailInterviewerLink').value = window.location.origin + '/interview/interviewer/' + record.interviewerToken;
+      document.getElementById('ipDetailLinksPanel').hidden = false;
+    }
+
+    const pdfBtn = document.getElementById('ipDownloadPdfBtn');
+    pdfBtn.hidden = false;
+    pdfBtn.onclick = () => {
+      window.open('/api/interview-panel/' + encodeURIComponent(id) + '/pdf', '_blank');
+    };
+  } catch (err) {
+    bodyEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+document.getElementById('ipBackToList').addEventListener('click', () => {
+  document.getElementById('interviewPanelDetailPanel').hidden = true;
+  document.getElementById('interviewPanelListPanel').hidden = false;
+  loadInterviewPanelList();
+});
 
 // ---------- Init ----------
 
