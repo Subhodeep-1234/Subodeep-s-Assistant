@@ -164,6 +164,11 @@ app.post('/api/hr-auth/verify-otp', (req, res) => {
     return res.status(401).json({ error: 'Incorrect or expired code' });
   }
   hrAuth.createSession(res, email);
+  // Clears any leftover scoped ip_session on this browser - otherwise a
+  // stale one wouldn't matter here (requireHrAuth never looks at it), but
+  // it's the same reasoning as clearing hr_session below: one browser
+  // should only ever be in one mode at a time.
+  hrAuth.destroyInterviewPanelSession(res);
   res.json({ ok: true });
 });
 
@@ -205,6 +210,12 @@ app.post('/api/interview-panel-login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect email or password' });
     }
     hrAuth.createInterviewPanelSession(res, email);
+    // A browser that's still holding a full admin hr_session (e.g. the
+    // admin's own device, testing this login without logging out of their
+    // own account first) would otherwise keep landing on the full
+    // dashboard - requireInterviewPanelAccess checks the admin session
+    // first, so it wins even though this scoped login just succeeded.
+    hrAuth.destroySession(res);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -93,15 +93,84 @@ function getInitials(name) {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
+const PROFILE_PHOTO_KEY = 'dashboardProfilePhoto';
+const AVATAR_IDS = ['profileAvatar', 'drawerAvatar', 'profileAvatarLg'];
+
+// Scoped per-email for the same reason as profileNameKey above - a photo
+// saved by one login on a shared browser should never show up for a
+// different login on that same device.
+function profilePhotoKey(email) {
+  return PROFILE_PHOTO_KEY + ':' + String(email || '').toLowerCase();
+}
+
+function getSavedPhoto(email) {
+  const scoped = localStorage.getItem(profilePhotoKey(email));
+  if (scoped) return scoped;
+  // One-time migration from the old global (pre-multi-user) key, written
+  // by this app's original profile.js - so an already-set photo doesn't
+  // just silently disappear the first time this runs.
+  const legacy = localStorage.getItem(PROFILE_PHOTO_KEY);
+  if (legacy) {
+    localStorage.setItem(profilePhotoKey(email), legacy);
+    localStorage.removeItem(PROFILE_PHOTO_KEY);
+    return legacy;
+  }
+  return null;
+}
+
 function applyAvatarIdentity(email) {
   const initials = getInitials(getDisplayName(email));
-  ['profileAvatar', 'drawerAvatar', 'profileAvatarLg'].forEach((id) => {
+  const photoDataUrl = getSavedPhoto(email);
+  AVATAR_IDS.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.textContent = initials;
     el.title = 'Tap to change photo';
+    el.innerHTML = photoDataUrl
+      ? '<img src="' + photoDataUrl + '" alt="" />'
+      : escapeHtml(initials);
   });
 }
+
+// Downscaled through a canvas before it ever touches localStorage - a
+// phone photo straight out of <input type=file> can be several MB, well
+// past what's sane to keep in localStorage (a handful of MB quota, shared
+// with everything else this app stores there).
+function resizeImageToDataUrl(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Could not read that image.')); };
+    img.src = objectUrl;
+  });
+}
+
+const profilePhotoInput = document.getElementById('profilePhotoInput');
+AVATAR_IDS.forEach((id) => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => profilePhotoInput.click());
+});
+profilePhotoInput.addEventListener('change', async () => {
+  const file = profilePhotoInput.files && profilePhotoInput.files[0];
+  profilePhotoInput.value = '';
+  if (!file) return;
+  try {
+    const dataUrl = await resizeImageToDataUrl(file, 300, 0.85);
+    localStorage.setItem(profilePhotoKey(currentUserEmail), dataUrl);
+    applyAvatarIdentity(currentUserEmail);
+  } catch {
+    // A bad/corrupt image file just leaves the existing avatar as-is.
+  }
+});
 
 function setDisplayName(name) {
   const trimmed = name.trim();
