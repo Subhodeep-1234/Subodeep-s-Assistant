@@ -5537,12 +5537,19 @@ document.addEventListener('click', async (e) => {
 // ---------- Send via WhatsApp (Interview Panel's Candidate/Interviewer links only) ----------
 
 const ipWhatsappOverlay = document.getElementById('ipWhatsappOverlay');
+const ipWhatsappPhoneField = document.getElementById('ipWhatsappPhoneField');
 const ipWhatsappPhoneInput = document.getElementById('ipWhatsappPhoneInput');
 const ipWhatsappPhoneError = document.getElementById('ipWhatsappPhoneError');
+const ipWhatsappEmployeeField = document.getElementById('ipWhatsappEmployeeField');
+const ipWhatsappEmployeeSearchInput = document.getElementById('ipWhatsappEmployeeSearchInput');
+const ipWhatsappEmployeeSuggest = document.getElementById('ipWhatsappEmployeeSuggest');
+const ipWhatsappEmployeeError = document.getElementById('ipWhatsappEmployeeError');
 const ipWhatsappError = document.getElementById('ipWhatsappError');
 const ipWhatsappSendBtn = document.getElementById('ipWhatsappSendBtn');
 let ipWhatsappPendingLink = null;
 let ipWhatsappPendingType = 'candidate';
+let ipWhatsappSelectedEmployee = null;
+let ipWhatsappEmployeeCache = null; // lazily fetched, reused for the rest of the session
 
 // Same two shapes the backend itself accepts (see whatsappService.js's
 // normalizePhone) - a bare 10-digit Indian mobile, or one already carrying
@@ -5569,17 +5576,85 @@ function renderIpWhatsappPhoneValidity() {
 
 ipWhatsappPhoneInput.addEventListener('input', renderIpWhatsappPhoneValidity);
 
+async function loadIpWhatsappEmployees() {
+  if (ipWhatsappEmployeeCache) return ipWhatsappEmployeeCache;
+  const res = await fetch('/api/interview-panel/employees-whatsapp');
+  const data = await res.json();
+  ipWhatsappEmployeeCache = Array.isArray(data.employees) ? data.employees : [];
+  return ipWhatsappEmployeeCache;
+}
+
+function renderIpWhatsappEmployeeSuggest(matches) {
+  ipWhatsappEmployeeSuggest.innerHTML = '';
+  if (!matches.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'No matching employee found.';
+    ipWhatsappEmployeeSuggest.appendChild(li);
+    ipWhatsappEmployeeSuggest.hidden = false;
+    return;
+  }
+  matches.slice(0, 20).forEach((emp) => {
+    const li = document.createElement('li');
+    const b = document.createElement('b');
+    b.textContent = emp.name;
+    const sub = document.createElement('span');
+    sub.className = 'wf-mail-suggest-sub';
+    sub.textContent = emp.contactNumber;
+    li.appendChild(b);
+    li.appendChild(sub);
+    li.addEventListener('click', () => {
+      ipWhatsappSelectedEmployee = emp;
+      ipWhatsappEmployeeSearchInput.value = emp.name;
+      ipWhatsappEmployeeSuggest.hidden = true;
+      ipWhatsappEmployeeError.hidden = true;
+    });
+    ipWhatsappEmployeeSuggest.appendChild(li);
+  });
+  ipWhatsappEmployeeSuggest.hidden = false;
+}
+
+ipWhatsappEmployeeSearchInput.addEventListener('input', async () => {
+  ipWhatsappSelectedEmployee = null; // typing again invalidates a prior selection
+  ipWhatsappEmployeeError.hidden = true;
+  const query = ipWhatsappEmployeeSearchInput.value.trim().toLowerCase();
+  if (!query) { ipWhatsappEmployeeSuggest.hidden = true; return; }
+  const employees = await loadIpWhatsappEmployees();
+  const matches = employees.filter((emp) => emp.name.toLowerCase().includes(query));
+  renderIpWhatsappEmployeeSuggest(matches);
+});
+
+ipWhatsappEmployeeSearchInput.addEventListener('focus', () => {
+  if (ipWhatsappEmployeeSearchInput.value.trim()) ipWhatsappEmployeeSuggest.hidden = false;
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#ipWhatsappEmployeeField')) ipWhatsappEmployeeSuggest.hidden = true;
+});
+
 function openIpWhatsappOverlay(linkEl, formType) {
   ipWhatsappPendingLink = linkEl.textContent.trim();
   ipWhatsappPendingType = formType;
   ipWhatsappPhoneInput.value = '';
   ipWhatsappPhoneInput.classList.remove('invalid');
   ipWhatsappPhoneError.hidden = true;
+  ipWhatsappEmployeeSearchInput.value = '';
+  ipWhatsappSelectedEmployee = null;
+  ipWhatsappEmployeeSuggest.hidden = true;
+  ipWhatsappEmployeeError.hidden = true;
   ipWhatsappError.hidden = true;
   ipWhatsappSendBtn.disabled = false;
   ipWhatsappSendBtn.querySelector('span').textContent = 'Send';
+  const isInterviewer = formType === 'interviewer';
+  ipWhatsappPhoneField.hidden = isInterviewer;
+  ipWhatsappEmployeeField.hidden = !isInterviewer;
   ipWhatsappOverlay.hidden = false;
-  ipWhatsappPhoneInput.focus();
+  if (isInterviewer) {
+    loadIpWhatsappEmployees();
+    ipWhatsappEmployeeSearchInput.focus();
+  } else {
+    ipWhatsappPhoneInput.focus();
+  }
 }
 function closeIpWhatsappOverlay() { ipWhatsappOverlay.hidden = true; }
 
@@ -5597,13 +5672,25 @@ ipWhatsappOverlay.addEventListener('click', (e) => { if (e.target === ipWhatsapp
 
 ipWhatsappSendBtn.addEventListener('click', async () => {
   ipWhatsappError.hidden = true;
-  const validity = renderIpWhatsappPhoneValidity();
-  if (validity.state === 'empty') {
-    ipWhatsappError.textContent = "Please enter the candidate's WhatsApp number.";
-    ipWhatsappError.hidden = false;
-    return;
+  let phoneDigits;
+
+  if (ipWhatsappPendingType === 'interviewer') {
+    if (!ipWhatsappSelectedEmployee) {
+      ipWhatsappEmployeeError.textContent = 'Search and select the interviewer from the list.';
+      ipWhatsappEmployeeError.hidden = false;
+      return;
+    }
+    phoneDigits = ipWhatsappSelectedEmployee.contactNumber;
+  } else {
+    const validity = renderIpWhatsappPhoneValidity();
+    if (validity.state === 'empty') {
+      ipWhatsappError.textContent = "Please enter the candidate's WhatsApp number.";
+      ipWhatsappError.hidden = false;
+      return;
+    }
+    if (validity.state === 'invalid') return; // inline error under the field already explains why
+    phoneDigits = validity.digits;
   }
-  if (validity.state === 'invalid') return; // inline error under the field already explains why
 
   const label = ipWhatsappSendBtn.querySelector('span');
   ipWhatsappSendBtn.disabled = true;
@@ -5612,7 +5699,7 @@ ipWhatsappSendBtn.addEventListener('click', async () => {
     const res = await fetch('/api/interview-panel/send-whatsapp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: validity.digits, link: ipWhatsappPendingLink, formType: ipWhatsappPendingType })
+      body: JSON.stringify({ phone: phoneDigits, link: ipWhatsappPendingLink, formType: ipWhatsappPendingType })
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not send the WhatsApp message.');

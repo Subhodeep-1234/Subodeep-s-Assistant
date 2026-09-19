@@ -2,6 +2,7 @@ const express = require('express');
 const interviewPanelService = require('./interviewPanelService');
 const { buildInterviewAssessmentPdf } = require('./interviewAssessmentPdf');
 const { sendWhatsAppMessage } = require('./whatsappService');
+const employeeService = require('./employeeService');
 
 const router = express.Router();
 
@@ -43,6 +44,26 @@ router.post('/', async (req, res) => {
       candidateLink: base + '/interview/candidate/' + created.candidateToken,
       interviewerLink: base + '/interview/interviewer/' + created.interviewerToken
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Placed before the /:id route below - Express matches by declaration
+// order, and "employees-whatsapp" would otherwise satisfy :id and 404 as
+// "candidate not found" instead of ever reaching this handler.
+// Interview-Panel-authenticated only (not the fully public interview/
+// routes) - the interviewer is an internal employee, so their contact
+// number (HR Master's own "Contact Number" column) is fair to expose
+// here, unlike the public panel-employees lookup which deliberately
+// leaves it out.
+router.get('/employees-whatsapp', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    const active = employees
+      .filter((e) => e.status === 'ACTIVE' && e.name && e.contactNumber)
+      .map((e) => ({ name: e.name, contactNumber: e.contactNumber }));
+    res.json({ employees: active });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

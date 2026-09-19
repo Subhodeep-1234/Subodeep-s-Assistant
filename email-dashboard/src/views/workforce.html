@@ -1368,10 +1368,22 @@
         </button>
       </div>
       <div class="wf-mail-compose-body">
-        <div class="wf-mail-field">
-          <span class="wf-mail-field-label">Candidate's WhatsApp No.</span>
+        <!-- Candidate: a free-text number, since candidates aren't in the
+             employee master. -->
+        <div class="wf-mail-field" id="ipWhatsappPhoneField">
+          <span class="wf-mail-field-label" id="ipWhatsappFieldLabel">Candidate's WhatsApp No.</span>
           <input type="tel" id="ipWhatsappPhoneInput" class="wf-ip-whatsapp-phone-input" placeholder="e.g. 98765 43210" autocomplete="off" />
           <p class="wf-ip-field-error" id="ipWhatsappPhoneError" hidden></p>
+        </div>
+        <!-- Interviewer: a search-select against the real active-employee
+             list, since the interviewer is always one of our own people -
+             their number comes from HR Master's own Contact Number column,
+             never typed by hand. -->
+        <div class="wf-mail-field" id="ipWhatsappEmployeeField" hidden style="position:relative;">
+          <span class="wf-mail-field-label">Interviewer's WhatsApp No.</span>
+          <input type="text" id="ipWhatsappEmployeeSearchInput" class="wf-ip-whatsapp-phone-input" placeholder="Search employee by name" autocomplete="off" />
+          <ul class="wf-mail-suggest" id="ipWhatsappEmployeeSuggest" hidden></ul>
+          <p class="wf-ip-field-error" id="ipWhatsappEmployeeError" hidden></p>
         </div>
         <p class="wf-mail-compose-error" id="ipWhatsappError" hidden></p>
       </div>
@@ -1477,6 +1489,6 @@
   </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=209"></script>
+  <script src="workforce.js?v=210"></script>
 </body>
 </html>
