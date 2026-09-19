@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=8" />
-  <link rel="stylesheet" href="workforce.css?v=113" />
+  <link rel="stylesheet" href="workforce.css?v=114" />
 </head>
 <body>
   <div class="wf-shell">
@@ -1370,7 +1370,8 @@
       <div class="wf-mail-compose-body">
         <div class="wf-mail-field">
           <span class="wf-mail-field-label">Candidate's WhatsApp No.</span>
-          <input type="tel" id="ipWhatsappPhoneInput" placeholder="e.g. 98765 43210" autocomplete="off" style="width:100%; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:.88rem; color:var(--ink);" />
+          <input type="tel" id="ipWhatsappPhoneInput" class="wf-ip-whatsapp-phone-input" placeholder="e.g. 98765 43210" autocomplete="off" />
+          <p class="wf-ip-field-error" id="ipWhatsappPhoneError" hidden></p>
         </div>
         <p class="wf-mail-compose-error" id="ipWhatsappError" hidden></p>
       </div>
@@ -1476,6 +1477,6 @@
   </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=208"></script>
+  <script src="workforce.js?v=209"></script>
 </body>
 </html>

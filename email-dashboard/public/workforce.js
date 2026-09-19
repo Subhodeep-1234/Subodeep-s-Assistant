@@ -5538,16 +5538,46 @@ document.addEventListener('click', async (e) => {
 
 const ipWhatsappOverlay = document.getElementById('ipWhatsappOverlay');
 const ipWhatsappPhoneInput = document.getElementById('ipWhatsappPhoneInput');
+const ipWhatsappPhoneError = document.getElementById('ipWhatsappPhoneError');
 const ipWhatsappError = document.getElementById('ipWhatsappError');
 const ipWhatsappSendBtn = document.getElementById('ipWhatsappSendBtn');
 let ipWhatsappPendingLink = null;
 let ipWhatsappPendingType = 'candidate';
 
+// Same two shapes the backend itself accepts (see whatsappService.js's
+// normalizePhone) - a bare 10-digit Indian mobile, or one already carrying
+// the "91" country code.
+function ipWhatsappPhoneValidity(raw) {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return { state: 'empty' };
+  if (digits.length === 10 || (digits.length === 12 && digits.startsWith('91'))) return { state: 'valid', digits };
+  return { state: 'invalid', digits };
+}
+
+function renderIpWhatsappPhoneValidity() {
+  const validity = ipWhatsappPhoneValidity(ipWhatsappPhoneInput.value);
+  const showError = validity.state === 'invalid';
+  ipWhatsappPhoneInput.classList.toggle('invalid', showError);
+  ipWhatsappPhoneError.hidden = !showError;
+  if (showError) {
+    ipWhatsappPhoneError.textContent = validity.digits.length < 10
+      ? 'Enter the full 10-digit WhatsApp number.'
+      : 'That has too many digits for a WhatsApp number - check and re-enter.';
+  }
+  return validity;
+}
+
+ipWhatsappPhoneInput.addEventListener('input', renderIpWhatsappPhoneValidity);
+
 function openIpWhatsappOverlay(linkEl, formType) {
   ipWhatsappPendingLink = linkEl.textContent.trim();
   ipWhatsappPendingType = formType;
   ipWhatsappPhoneInput.value = '';
+  ipWhatsappPhoneInput.classList.remove('invalid');
+  ipWhatsappPhoneError.hidden = true;
   ipWhatsappError.hidden = true;
+  ipWhatsappSendBtn.disabled = false;
+  ipWhatsappSendBtn.querySelector('span').textContent = 'Send';
   ipWhatsappOverlay.hidden = false;
   ipWhatsappPhoneInput.focus();
 }
@@ -5566,27 +5596,32 @@ document.getElementById('ipWhatsappBackBtn').addEventListener('click', closeIpWh
 ipWhatsappOverlay.addEventListener('click', (e) => { if (e.target === ipWhatsappOverlay) closeIpWhatsappOverlay(); });
 
 ipWhatsappSendBtn.addEventListener('click', async () => {
-  const phone = ipWhatsappPhoneInput.value.trim();
   ipWhatsappError.hidden = true;
-  if (!phone) {
+  const validity = renderIpWhatsappPhoneValidity();
+  if (validity.state === 'empty') {
     ipWhatsappError.textContent = "Please enter the candidate's WhatsApp number.";
     ipWhatsappError.hidden = false;
     return;
   }
+  if (validity.state === 'invalid') return; // inline error under the field already explains why
+
+  const label = ipWhatsappSendBtn.querySelector('span');
   ipWhatsappSendBtn.disabled = true;
+  label.textContent = 'Sending…';
   try {
     const res = await fetch('/api/interview-panel/send-whatsapp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, link: ipWhatsappPendingLink, formType: ipWhatsappPendingType })
+      body: JSON.stringify({ phone: validity.digits, link: ipWhatsappPendingLink, formType: ipWhatsappPendingType })
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'Could not send the WhatsApp message.');
-    closeIpWhatsappOverlay();
+    label.textContent = 'Sent ✓';
+    setTimeout(closeIpWhatsappOverlay, 1200);
   } catch (err) {
     ipWhatsappError.textContent = err.message;
     ipWhatsappError.hidden = false;
-  } finally {
+    label.textContent = 'Send';
     ipWhatsappSendBtn.disabled = false;
   }
 });

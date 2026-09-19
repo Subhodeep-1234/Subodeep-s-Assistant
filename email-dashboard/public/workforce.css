@@ -2573,6 +2573,21 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 .wf-mail-field:last-child { margin-bottom: 0; }
 .wf-mail-field-label { display: block; font-size: 0.76rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
 
+.wf-ip-whatsapp-phone-input {
+  width: 100%;
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+.wf-ip-whatsapp-phone-input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+.wf-ip-whatsapp-phone-input.invalid { border-color: var(--important); }
+.wf-ip-whatsapp-phone-input.invalid:focus-visible { box-shadow: 0 0 0 3px var(--important-bg); }
+.wf-ip-field-error { margin: 6px 0 0; font-size: 0.76rem; color: var(--important); font-weight: 600; }
+
 /* The chip field itself looks like a text input (border/radius/padding),
    but is really a flex container holding real chip elements plus one
    actual <input> that shrinks/grows to fill whatever room is left -
