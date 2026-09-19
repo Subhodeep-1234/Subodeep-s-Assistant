@@ -131,6 +131,29 @@ function applyAvatarIdentity(email) {
   });
 }
 
+// applyAvatarIdentity needs the real logged-in email, which only exists
+// after an /api/hr-auth/me round trip resolves (see initApp) - on a slow
+// or cold-started request that round trip can take a moment, and until it
+// does the avatars would otherwise sit on their bare "-" HTML fallback,
+// reading as "my photo disappeared" on every reload even though it's still
+// sitting in localStorage the whole time. Rendered here, synchronously,
+// before that fetch even starts: if exactly one saved photo exists on this
+// browser (by far the common case - one person per device), show it
+// immediately as a best guess. applyAvatarIdentity() then confirms or
+// corrects it once the real session is known, which only actually changes
+// anything in the rare case of two different logins sharing one browser.
+(function renderBestGuessAvatarPhoto() {
+  const scopedKeys = Object.keys(localStorage).filter((k) => k.indexOf(PROFILE_PHOTO_KEY + ':') === 0);
+  const dataUrl = scopedKeys.length === 1
+    ? localStorage.getItem(scopedKeys[0])
+    : (!scopedKeys.length ? localStorage.getItem(PROFILE_PHOTO_KEY) : null);
+  if (!dataUrl) return;
+  AVATAR_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<img src="' + dataUrl + '" alt="" />';
+  });
+})();
+
 // Downscaled through a canvas before it ever touches localStorage - a
 // phone photo straight out of <input type=file> can be several MB, well
 // past what's sane to keep in localStorage (a handful of MB quota, shared
@@ -373,7 +396,12 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   if (!e.target.closest('[data-back]')) return;
   const prev = viewHistory.pop();
-  setView(prev || 'overview', { isBack: true });
+  // A drawer pick always resets viewHistory (see wfDrawer's own click
+  // handler above), so Profile's back button - reached that way, same as
+  // any other drawer item - has nothing to pop and falls back here. For a
+  // scoped Interview-Panel-only login, 'overview' is the admin Dashboard,
+  // which they can't load - their only other page is Interview Panel.
+  setView(prev || (ipOnlyMode ? 'interviewPanel' : 'overview'), { isBack: true });
 });
 
 function openDrawer() {
