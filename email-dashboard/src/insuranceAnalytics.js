@@ -161,8 +161,12 @@ function buildAnnualPremiumBreakdown(members) {
 }
 
 // Every Active member (Self + family) flat, one row each - the Total
-// Insured Lives drill-down.
+// Insured Lives drill-down. Grouped by employeeId (as before), but now with
+// the Self row always first within its group and family rows right after -
+// same self-first tiebreak this list's own PDF export (exportHiTlPdf) has
+// always used, so the on-screen order and the exported order stay in sync.
 function buildTotalInsuredLivesList(members) {
+  const isSelf = (m) => String(m.relationship || '').toLowerCase() === 'self';
   return members
     .filter((m) => m.status === 'Active')
     .map((m) => ({
@@ -171,7 +175,7 @@ function buildTotalInsuredLivesList(members) {
       relationship: m.relationship,
       premiumWithGST: m.premiumWithGST
     }))
-    .sort((a, b) => a.employeeId.localeCompare(b.employeeId));
+    .sort((a, b) => a.employeeId.localeCompare(b.employeeId) || (Number(isSelf(b)) - Number(isSelf(a))));
 }
 
 // Every Member List row (Self + family) for one employee - the Employee
