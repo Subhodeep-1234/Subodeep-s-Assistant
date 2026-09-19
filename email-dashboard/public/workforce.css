@@ -2569,6 +2569,14 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 
 .wf-mail-compose-body { padding: 14px 16px; overflow-y: auto; }
 
+/* The interviewer employee-search dropdown is absolutely positioned (see
+   .wf-mail-suggest) so it doesn't add to this body's own flow height - the
+   body's overflow-y:auto was clipping it short and forcing a scroll to see
+   the rest of the matches. Only this popup needs the fix; Team Access and
+   Send Mail still use the shared .wf-mail-compose-body scroll as before. */
+#ipWhatsappOverlay .wf-mail-compose-body { overflow: visible; }
+#ipWhatsappEmployeeSuggest { max-height: 300px; }
+
 .wf-mail-field { position: relative; margin-bottom: 14px; }
 .wf-mail-field:last-child { margin-bottom: 0; }
 .wf-mail-field-label { display: block; font-size: 0.76rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
