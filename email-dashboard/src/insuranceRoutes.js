@@ -149,6 +149,49 @@ router.get('/total-insured-lives', async (req, res) => {
   }
 });
 
+// The "Employee Insurance Profile" card - clicked from any of the employee
+// name lists above (Covered Employees, Family Members, Total Insured Lives,
+// Pending Exits, New Addition Requests, Total Exits). Policy Type/Validity
+// come from the same manually-entered Policy_Info sheet as the Policy
+// Information page; Sum Insured is this employee's own Member List row, not
+// a company-wide figure, since Sum Insured is actually collar-based.
+router.get('/employee/:employeeId', async (req, res) => {
+  try {
+    const forceRefresh = wantsForceRefresh(req);
+    const [insuranceData, hrData, policyValues] = await Promise.all([
+      insuranceService.getInsuranceData({ forceRefresh }),
+      employeeService.getEmployeeData({ forceRefresh }),
+      policyInfoService.getPolicyInfo()
+    ]);
+    const employeeId = req.params.employeeId;
+    const profile = analytics.buildEmployeeInsuranceProfile(insuranceData.members, employeeId);
+    if (!profile || !profile.self) {
+      return res.status(404).json({ error: 'This employee has no active record in the Member List.' });
+    }
+    const hr = hrData.employees.find((e) => e.employeeId === employeeId);
+
+    res.json({
+      employeeId,
+      name: profile.self.name,
+      department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+      designation: hr ? hr.designation : '',
+      status: profile.self.status,
+      policyType: policyValues.policyType || '',
+      policyStartDate: policyValues.policyStartDate || '',
+      policyEndDate: policyValues.policyEndDate || '',
+      sumInsured: profile.self.sumInsured,
+      selfPremium: profile.self.premiumWithGST,
+      family: profile.family,
+      familyCount: profile.familyCount,
+      totalPremium: profile.totalPremium,
+      premiumByGroup: profile.premiumByGroup,
+      countByGroup: profile.countByGroup
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Deletions tab has no Department/Designation column either - cross-referenced
 // the same way covered-employees is, by Employee ID against the HR Master sheet.
 router.get('/exits', async (req, res) => {

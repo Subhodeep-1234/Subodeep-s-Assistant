@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=8" />
-  <link rel="stylesheet" href="workforce.css?v=115" />
+  <link rel="stylesheet" href="workforce.css?v=116" />
 </head>
 <body>
   <div class="wf-shell">
@@ -1488,7 +1488,27 @@
     </div>
   </div>
 
+  <!-- Employee Insurance Profile (Health Insurance drill-down) - opened by
+       clicking any employee name row in Covered Employees / Family Members
+       / Total Insured Lives / Pending Exits / New Addition Requests / Total
+       Exits. A modal (not a separate .wf-view page) since the same card is
+       reachable from 6 different list contexts, and this keeps each list's
+       own scroll position/filters untouched underneath. -->
+  <div class="wf-modal-overlay" id="hiEmpProfileOverlay" hidden>
+    <div class="wf-mail-compose hi-ep-card" role="dialog" aria-modal="true" aria-label="Employee Insurance Profile">
+      <div class="wf-mail-compose-head">
+        <h3>Employee Insurance Profile</h3>
+        <button class="wf-icon-btn" id="hiEmpProfileCloseBtn" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="wf-mail-compose-body" id="hiEmpProfileBody">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=210"></script>
+  <script src="workforce.js?v=211"></script>
 </body>
 </html>

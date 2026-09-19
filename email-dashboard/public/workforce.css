@@ -2577,6 +2577,12 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 #ipWhatsappOverlay .wf-mail-compose-body { overflow: visible; }
 #ipWhatsappEmployeeSuggest { max-height: 300px; }
 
+/* Employee Insurance Profile popup - wider than the other .wf-mail-compose
+   popups since it holds a policy-info grid + a member table, not just a
+   couple of form fields. */
+.hi-ep-card { width: min(480px, 100%); }
+.hi-ep-section-title { font-size: 0.82rem; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+
 .wf-mail-field { position: relative; margin-bottom: 14px; }
 .wf-mail-field:last-child { margin-bottom: 0; }
 .wf-mail-field-label { display: block; font-size: 0.76rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }

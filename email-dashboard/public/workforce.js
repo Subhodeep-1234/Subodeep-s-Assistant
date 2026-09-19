@@ -1724,6 +1724,7 @@ async function loadHealthInsuranceView(forceRefresh) {
 const POLICY_INFO_FIELD_STYLE = {
   insurerName: { icon: 'shield', tone: 'ins-blue' },
   tpaName: { icon: 'building', tone: 'ins-purple' },
+  policyType: { icon: 'fileText', tone: 'ins-orange' },
   policyStartDate: { icon: 'calendar', tone: 'ins-green' },
   policyEndDate: { icon: 'calendar', tone: 'ins-orange' },
   sumInsuredDirectors: { icon: 'money', tone: 'ins-blue' },
@@ -2142,7 +2143,7 @@ function renderCoveredEmployeesList(items) {
     ? items
         .map(
           (e) =>
-            '<li>' +
+            '<li data-employee-id="' + escapeHtml(e.employeeId) + '">' +
               '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
               '<span class="wf-emp-main">' +
                 '<span class="hi-ce-name-row">' +
@@ -2266,7 +2267,7 @@ function renderHiFamilyMembersList(items) {
     ? items
         .map(
           (e) =>
-            '<li>' +
+            '<li data-employee-id="' + escapeHtml(e.employeeId) + '">' +
               '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
@@ -2382,7 +2383,7 @@ function renderHiTotalLivesList(items) {
     ? items
         .map(
           (e) =>
-            '<li>' +
+            '<li data-employee-id="' + escapeHtml(e.employeeId) + '">' +
               '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
@@ -2600,7 +2601,7 @@ function renderHiExitsList(items) {
     ? items
         .map(
           (e) =>
-            '<li>' +
+            '<li data-employee-id="' + escapeHtml(e.employeeId) + '">' +
               '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
@@ -2734,7 +2735,7 @@ function renderHiAdditionsList(items) {
     ? items
         .map(
           (e) =>
-            '<li>' +
+            '<li data-employee-id="' + escapeHtml(e.employeeId) + '">' +
               '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
@@ -2867,7 +2868,7 @@ function renderHiTotalExitsList(items) {
     ? items
         .map(
           (e) =>
-            '<li>' +
+            '<li data-employee-id="' + escapeHtml(e.employeeId) + '">' +
               '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
               '<span class="wf-emp-main">' +
                 '<span class="wf-emp-name">' + escapeHtml(e.name) + '</span>' +
@@ -3119,6 +3120,174 @@ function renderJoiningLine(canvasId, buckets, onPointClick) {
     plugins: [joiningValueLabelsPlugin]
   });
 }
+
+// ---------- Employee Insurance Profile (Health Insurance drill-down) ----------
+// Opened by clicking any employee name row in Covered Employees, Family
+// Members, Total Insured Lives, Pending Exits, New Addition Requests, or
+// Total Exits - all six share this one popup instead of each list getting
+// its own detail page, since the underlying record (that Employee ID's
+// Member List rows) is identical regardless of which list linked here.
+
+const hiEmpProfileOverlay = document.getElementById('hiEmpProfileOverlay');
+const hiEmpProfileBody = document.getElementById('hiEmpProfileBody');
+let hiEmpProfileTab = 'family';
+
+const HI_EP_PREMIUM_GROUP_LABELS = { employees: 'Self', spouse: 'Spouse', children: 'Children', parents: 'Parents', other: 'Other' };
+
+function closeHiEmpProfile() { hiEmpProfileOverlay.hidden = true; }
+document.getElementById('hiEmpProfileCloseBtn').addEventListener('click', closeHiEmpProfile);
+hiEmpProfileOverlay.addEventListener('click', (e) => { if (e.target === hiEmpProfileOverlay) closeHiEmpProfile(); });
+
+async function openHiEmpProfile(employeeId) {
+  if (!employeeId) return;
+  hiEmpProfileTab = 'family';
+  hiEmpProfileBody.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  hiEmpProfileOverlay.hidden = false;
+  try {
+    const data = await fetchJson('/api/insurance/employee/' + encodeURIComponent(employeeId));
+    renderHiEmpProfile(data);
+  } catch (err) {
+    hiEmpProfileBody.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function hiEmpProfileMemberRow(name, metaExtra, status, sumInsured, premium) {
+  return (
+    '<li style="cursor:default;">' +
+      '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+      '<span class="wf-emp-main">' +
+        '<span class="hi-ce-name-row">' +
+          '<span class="wf-emp-name">' + escapeHtml(name) + '</span>' +
+          '<span class="wf-status-chip ' + statusChipClass(String(status || '').toUpperCase()) + '">' + escapeHtml(status || '—') + '</span>' +
+        '</span>' +
+        (metaExtra ? '<span class="wf-emp-meta">' + metaExtra + '</span>' : '') +
+        '<span class="hi-ce-sub">Coverage ₹' + Number(sumInsured || 0).toLocaleString('en-IN') + ' &nbsp;|&nbsp; Premium ₹' + Math.round(premium || 0).toLocaleString('en-IN') + '</span>' +
+      '</span>' +
+    '</li>'
+  );
+}
+
+function renderHiEmpProfile(data) {
+  const validity = (data.policyStartDate || data.policyEndDate)
+    ? (data.policyStartDate ? formatDate(data.policyStartDate) : '—') + ' - ' + (data.policyEndDate ? formatDate(data.policyEndDate) : '—')
+    : '—';
+
+  hiEmpProfileBody.innerHTML =
+    '<div class="wf-emp-profile-head">' +
+      '<span class="wf-emp-profile-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
+      '<div class="wf-emp-profile-info">' +
+        '<div class="wf-emp-profile-name-row">' +
+          '<span class="name">' + escapeHtml(data.name) + '</span>' +
+          '<span class="wf-status-chip ' + statusChipClass(String(data.status || '').toUpperCase()) + '">' + escapeHtml(data.status || '—') + '</span>' +
+        '</div>' +
+        '<div class="wf-emp-profile-sub">' + escapeHtml(data.employeeId) +
+          (data.department ? ' · ' + escapeHtml(titleCase(data.department)) : '') +
+          (data.designation ? ' · ' + escapeHtml(titleCase(data.designation)) : '') +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="wf-field-section">' +
+      (data.policyType
+        ? '<div class="wf-field-row">' +
+            '<span class="wf-field-icon">' + icon('fileText', 15) + '</span>' +
+            '<span class="wf-field-label">Policy Type</span>' +
+            '<span class="wf-field-value">' + escapeHtml(data.policyType) + '</span>' +
+          '</div>'
+        : '') +
+      '<div class="wf-field-row">' +
+        '<span class="wf-field-icon">' + icon('money', 15) + '</span>' +
+        '<span class="wf-field-label">Sum Insured</span>' +
+        '<span class="wf-field-value">' + (data.sumInsured ? '₹' + Number(data.sumInsured).toLocaleString('en-IN') : '—') + '</span>' +
+      '</div>' +
+      '<div class="wf-field-row">' +
+        '<span class="wf-field-icon">' + icon('calendar', 15) + '</span>' +
+        '<span class="wf-field-label">Validity</span>' +
+        '<span class="wf-field-value">' + escapeHtml(validity) + '</span>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="wf-subtabs" id="hiEpTabs">' +
+      '<button class="wf-subtab" data-ep-tab="family" aria-pressed="true" type="button">Family Members</button>' +
+      '<button class="wf-subtab" data-ep-tab="premium" aria-pressed="false" type="button">Premium Breakdown</button>' +
+    '</div>' +
+
+    '<div id="hiEpTabFamily">' +
+      '<div class="hi-ep-section-title">Covered Members</div>' +
+      '<ul class="wf-emp-list">' +
+        hiEmpProfileMemberRow(data.name + ' (Self)', null, data.status, data.sumInsured, data.selfPremium) +
+        data.family
+          .map((m) => hiEmpProfileMemberRow(
+            m.name,
+            escapeHtml(m.relationship) + (m.age ? ' · Age ' + escapeHtml(m.age) : ''),
+            m.status,
+            m.sumInsured,
+            m.premiumWithGST
+          ))
+          .join('') +
+      '</ul>' +
+      '<div class="hi-ce-total-row">' +
+        '<span>Total Family Members: <b>' + data.familyCount + '</b></span>' +
+        '<span>Total Annual Premium: <b>₹' + Math.round(data.totalPremium).toLocaleString('en-IN') + '</b></span>' +
+      '</div>' +
+    '</div>' +
+
+    '<div id="hiEpTabPremium" hidden>' +
+      renderHiEpPremiumBreakdown(data) +
+    '</div>';
+}
+
+function renderHiEpPremiumBreakdown(data) {
+  const c = chartColors();
+  const groupColors = { employees: c.accent, spouse: c.warning, children: c.candidate, parents: c.important, other: c.muted };
+  const groupKeys = Object.keys(HI_EP_PREMIUM_GROUP_LABELS).filter((k) => data.countByGroup[k] > 0);
+  const totalCount = groupKeys.reduce((sum, k) => sum + data.countByGroup[k], 0);
+  const totalPremium = groupKeys.reduce((sum, k) => sum + data.premiumByGroup[k], 0);
+
+  return (
+    '<div class="wf-dist-table">' +
+      '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Group</span>' +
+        '<span class="wf-dist-num-col">Count</span>' +
+        '<span class="wf-dist-num-col">Premium</span>' +
+      '</div>' +
+      groupKeys
+        .map((key) => (
+          '<div class="wf-dist-row">' +
+            '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + groupColors[key] + '"></span>' + HI_EP_PREMIUM_GROUP_LABELS[key] + '</span>' +
+            '<span class="wf-dist-num-col">' + data.countByGroup[key] + '</span>' +
+            '<span class="wf-dist-num-col">₹' + Math.round(data.premiumByGroup[key]).toLocaleString('en-IN') + '</span>' +
+          '</div>'
+        ))
+        .join('') +
+      '<div class="wf-dist-row wf-dist-total-row">' +
+        '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-dist-num-col">' + totalCount + '</span>' +
+        '<span class="wf-dist-num-col">₹' + Math.round(totalPremium).toLocaleString('en-IN') + '</span>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+hiEmpProfileBody.addEventListener('click', (e) => {
+  const tabBtn = e.target.closest('[data-ep-tab]');
+  if (!tabBtn) return;
+  hiEmpProfileTab = tabBtn.dataset.epTab;
+  hiEmpProfileBody.querySelectorAll('[data-ep-tab]').forEach((b) => b.setAttribute('aria-pressed', String(b === tabBtn)));
+  document.getElementById('hiEpTabFamily').hidden = hiEmpProfileTab !== 'family';
+  document.getElementById('hiEpTabPremium').hidden = hiEmpProfileTab !== 'premium';
+});
+
+// Scoped to just these six list ids (not a global [data-employee-id]
+// listener) so this never interferes with Employee Directory's own,
+// differently-keyed (data-emp-idx) click handler on a similarly-styled list.
+['hiCeList', 'hiFmList', 'hiTlList', 'hiExitsList', 'hiAdditionsList', 'hiTeList'].forEach((listId) => {
+  document.getElementById(listId).addEventListener('click', (e) => {
+    const li = e.target.closest('[data-employee-id]');
+    if (!li) return;
+    openHiEmpProfile(li.dataset.employeeId);
+  });
+});
 
 // ---------- Workforce Movement ----------
 // Joining Trend is real data (DOJ dates from Employee_Master, same

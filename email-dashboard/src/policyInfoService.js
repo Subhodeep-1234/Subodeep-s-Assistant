@@ -17,6 +17,7 @@ const TAB = 'Policy_Info';
 const FIELDS = [
   { key: 'insurerName', label: 'Insurer Name' },
   { key: 'tpaName', label: 'TPA Name' },
+  { key: 'policyType', label: 'Policy Type' },
   { key: 'policyStartDate', label: 'Policy Start Date' },
   { key: 'policyEndDate', label: 'Policy End Date' },
   { key: 'sumInsuredDirectors', label: 'Directors', group: 'Sum Insured' },

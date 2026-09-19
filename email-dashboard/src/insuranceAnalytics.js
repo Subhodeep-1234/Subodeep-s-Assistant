@@ -174,6 +174,51 @@ function buildTotalInsuredLivesList(members) {
     .sort((a, b) => a.employeeId.localeCompare(b.employeeId));
 }
 
+// Every Member List row (Self + family) for one employee - the Employee
+// Insurance Profile card. Returns null when that employee has no row at all
+// in Member List (e.g. a Pending Exit already dropped off it, or a New
+// Addition not yet on it) so the route can tell the difference from a real
+// employee with zero coverage.
+function buildEmployeeInsuranceProfile(members, employeeId) {
+  const rows = members.filter((m) => m.employeeId === employeeId);
+  if (!rows.length) return null;
+  const isSelf = (m) => String(m.relationship || '').toLowerCase() === 'self';
+  const selfRow = rows.find(isSelf);
+  const familyRows = rows.filter((m) => !isSelf(m));
+
+  const premiumByGroup = { employees: 0, spouse: 0, children: 0, parents: 0, other: 0 };
+  const countByGroup = { employees: 0, spouse: 0, children: 0, parents: 0, other: 0 };
+  rows.forEach((m) => {
+    const group = relationshipGroup(m.relationship);
+    premiumByGroup[group] += m.premiumWithGST;
+    countByGroup[group] += 1;
+  });
+
+  return {
+    self: selfRow
+      ? {
+          name: selfRow.name,
+          sumInsured: selfRow.sumInsured,
+          premiumWithGST: selfRow.premiumWithGST,
+          status: selfRow.status,
+          grade: selfRow.grade
+        }
+      : null,
+    family: familyRows.map((m) => ({
+      name: m.name,
+      relationship: m.relationship,
+      age: m.age,
+      sumInsured: m.sumInsured,
+      premiumWithGST: m.premiumWithGST,
+      status: m.status
+    })),
+    familyCount: familyRows.length,
+    totalPremium: rows.reduce((sum, m) => sum + m.premiumWithGST, 0),
+    premiumByGroup,
+    countByGroup
+  };
+}
+
 // Same "Self row anchors the group, family rows roll into a count" shape as
 // buildCoveredEmployeesList, but over the Deletions tab instead of Member
 // List - no premium here, Deletions doesn't carry one.
@@ -317,6 +362,7 @@ module.exports = {
   buildFamilyPremiumBreakdown,
   buildAnnualPremiumBreakdown,
   buildTotalInsuredLivesList,
+  buildEmployeeInsuranceProfile,
   buildExitsList,
   sortDeletionsSelfFirst,
   buildAdditionsList,
