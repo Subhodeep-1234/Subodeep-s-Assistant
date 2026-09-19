@@ -1674,15 +1674,25 @@ async function loadHealthInsuranceView(forceRefresh) {
     // was a big part of what was tripping the Sheets API's per-minute
     // quota. loadView's own loadedViews gate means this function - and so
     // this prefetch - only runs once per session unless forceRefresh.
-    staggeredPrefetch([
+    //
+    // Fired all at once (no staggering) - unlike the Dashboard's own
+    // staggeredPrefetch list (11 genuinely distinct sheet-backed reads),
+    // every one of these 8 only ever needs insuranceData/employeeData/
+    // policyInfo, each already de-duplicated to a single in-flight Sheets
+    // read at the service layer (see insuranceService.js's own inFlight
+    // promise). Staggering them just delayed the client from even asking
+    // for whichever section the user opened first, without saving any
+    // real Sheets quota.
+    [
       '/api/insurance/covered-employees',
       '/api/insurance/exits',
+      '/api/insurance/additions',
       '/api/insurance/family-members',
       '/api/insurance/total-insured-lives',
       '/api/insurance/policy-info',
       '/api/insurance/family-premium-breakdown',
       '/api/insurance/annual-premium-breakdown'
-    ], 2, 500);
+    ].forEach(prefetchJson);
 
     // clickable deliberately omitted (not set to false) - these cards are
     // meant to look like the vibrant, fully-opaque mockup, not the app's
