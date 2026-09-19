@@ -3151,7 +3151,7 @@ async function openHiEmpProfile(employeeId) {
   }
 }
 
-function hiEmpProfileMemberRow(name, metaExtra, status, sumInsured, premium) {
+function hiEmpProfileMemberRow(name, metaExtra, status, premium) {
   return (
     '<li style="cursor:default;">' +
       '<span class="wf-emp-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + PERSON_ICON + '</svg></span>' +
@@ -3161,7 +3161,7 @@ function hiEmpProfileMemberRow(name, metaExtra, status, sumInsured, premium) {
           '<span class="wf-status-chip ' + statusChipClass(String(status || '').toUpperCase()) + '">' + escapeHtml(status || '—') + '</span>' +
         '</span>' +
         (metaExtra ? '<span class="wf-emp-meta">' + metaExtra + '</span>' : '') +
-        '<span class="hi-ce-sub">Coverage ₹' + Number(sumInsured || 0).toLocaleString('en-IN') + ' &nbsp;|&nbsp; Premium ₹' + Math.round(premium || 0).toLocaleString('en-IN') + '</span>' +
+        '<span class="hi-ce-sub">Premium ₹' + Math.round(premium || 0).toLocaleString('en-IN') + '</span>' +
       '</span>' +
     '</li>'
   );
@@ -3180,10 +3180,8 @@ function renderHiEmpProfile(data) {
           '<span class="name">' + escapeHtml(data.name) + '</span>' +
           '<span class="wf-status-chip ' + statusChipClass(String(data.status || '').toUpperCase()) + '">' + escapeHtml(data.status || '—') + '</span>' +
         '</div>' +
-        '<div class="wf-emp-profile-sub">' + escapeHtml(data.employeeId) +
-          (data.department ? ' · ' + escapeHtml(titleCase(data.department)) : '') +
-          (data.designation ? ' · ' + escapeHtml(titleCase(data.designation)) : '') +
-        '</div>' +
+        '<div class="wf-emp-profile-sub">' + escapeHtml(data.employeeId) + '</div>' +
+        (data.designation ? '<div class="wf-emp-profile-sub">' + escapeHtml(titleCase(data.designation)) + '</div>' : '') +
       '</div>' +
     '</div>' +
 
@@ -3207,7 +3205,7 @@ function renderHiEmpProfile(data) {
       '</div>' +
     '</div>' +
 
-    '<div class="wf-subtabs" id="hiEpTabs">' +
+    '<div class="wf-subtabs hi-ep-tabs" id="hiEpTabs">' +
       '<button class="wf-subtab" data-ep-tab="family" aria-pressed="true" type="button">Family Members</button>' +
       '<button class="wf-subtab" data-ep-tab="premium" aria-pressed="false" type="button">Premium Breakdown</button>' +
     '</div>' +
@@ -3215,13 +3213,12 @@ function renderHiEmpProfile(data) {
     '<div id="hiEpTabFamily">' +
       '<div class="hi-ep-section-title">Covered Members</div>' +
       '<ul class="wf-emp-list">' +
-        hiEmpProfileMemberRow(data.name + ' (Self)', null, data.status, data.sumInsured, data.selfPremium) +
+        hiEmpProfileMemberRow(data.name + ' (Self)', data.selfAge ? 'Age ' + escapeHtml(data.selfAge) : null, data.status, data.selfPremium) +
         data.family
           .map((m) => hiEmpProfileMemberRow(
             m.name,
             escapeHtml(m.relationship) + (m.age ? ' · Age ' + escapeHtml(m.age) : ''),
             m.status,
-            m.sumInsured,
             m.premiumWithGST
           ))
           .join('') +

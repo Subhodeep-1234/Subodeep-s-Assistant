@@ -202,6 +202,7 @@ function buildEmployeeInsuranceProfile(members, employeeId) {
     self: selfRow
       ? {
           name: selfRow.name,
+          age: selfRow.age,
           sumInsured: selfRow.sumInsured,
           premiumWithGST: selfRow.premiumWithGST,
           status: selfRow.status,

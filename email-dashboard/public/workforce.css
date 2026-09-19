@@ -2582,6 +2582,11 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
    couple of form fields. */
 .hi-ep-card { width: min(480px, 100%); }
 .hi-ep-section-title { font-size: 0.82rem; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+/* Family Members / Premium Breakdown split the popup's width evenly instead
+   of clustering to the left like every other .wf-subtabs usage (those sit
+   above a full-width panel with room to spare either side). */
+.hi-ep-tabs { justify-content: space-between; }
+.hi-ep-tabs .wf-subtab { flex: 1; text-align: center; }
 
 .wf-mail-field { position: relative; margin-bottom: 14px; }
 .wf-mail-field:last-child { margin-bottom: 0; }
