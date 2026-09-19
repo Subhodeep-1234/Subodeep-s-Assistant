@@ -2722,6 +2722,8 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 .wf-ip-link-anchor:focus-visible { text-decoration-color: var(--accent); }
 .wf-ip-link-anchor:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .wf-ip-link-copy .wf-icon-btn { flex-shrink: 0; }
+.wf-whatsapp-btn { color: #25d366; border-color: #25d36655; }
+.wf-whatsapp-btn:hover { color: #1da851; border-color: #1da851; }
 
 .wf-ip-detail-grid {
   display: grid;

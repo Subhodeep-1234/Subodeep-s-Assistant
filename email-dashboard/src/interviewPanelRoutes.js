@@ -1,8 +1,14 @@
 const express = require('express');
 const interviewPanelService = require('./interviewPanelService');
 const { buildInterviewAssessmentPdf } = require('./interviewAssessmentPdf');
+const { sendWhatsAppMessage } = require('./whatsappService');
 
 const router = express.Router();
+
+const WHATSAPP_FORM_LABELS = {
+  candidate: 'Candidate Interview Application',
+  interviewer: 'Interviewer Evaluation Form'
+};
 
 // Base URL for the two shareable links - PUBLIC_BASE_URL isn't set anywhere
 // else in this app yet (every other feature is same-origin), but this is
@@ -63,6 +69,23 @@ router.get('/:id/pdf', async (req, res) => {
       'attachment; filename="Interview_Assessment_' + (record.name || record.id).replace(/\s+/g, '_') + '.pdf"'
     );
     res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/send-whatsapp', async (req, res) => {
+  try {
+    const phone = req.body && typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
+    const link = req.body && typeof req.body.link === 'string' ? req.body.link.trim() : '';
+    const formType = req.body && req.body.formType === 'interviewer' ? 'interviewer' : 'candidate';
+    if (!phone) return res.status(400).json({ error: 'Enter a WhatsApp number.' });
+    if (!link) return res.status(400).json({ error: 'Missing form link.' });
+    const label = WHATSAPP_FORM_LABELS[formType];
+    const message = 'Hi, please complete your ' + label + ' using the link below:\n\n' + link + '\n\n- Alcove Realty HR Team';
+    const result = await sendWhatsAppMessage(phone, message);
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

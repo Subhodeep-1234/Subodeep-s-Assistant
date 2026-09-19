@@ -5534,6 +5534,63 @@ document.addEventListener('click', async (e) => {
   setTimeout(() => { btn.innerHTML = original; }, 1200);
 });
 
+// ---------- Send via WhatsApp (Interview Panel's Candidate/Interviewer links only) ----------
+
+const ipWhatsappOverlay = document.getElementById('ipWhatsappOverlay');
+const ipWhatsappPhoneInput = document.getElementById('ipWhatsappPhoneInput');
+const ipWhatsappError = document.getElementById('ipWhatsappError');
+const ipWhatsappSendBtn = document.getElementById('ipWhatsappSendBtn');
+let ipWhatsappPendingLink = null;
+let ipWhatsappPendingType = 'candidate';
+
+function openIpWhatsappOverlay(linkEl, formType) {
+  ipWhatsappPendingLink = linkEl.textContent.trim();
+  ipWhatsappPendingType = formType;
+  ipWhatsappPhoneInput.value = '';
+  ipWhatsappError.hidden = true;
+  ipWhatsappOverlay.hidden = false;
+  ipWhatsappPhoneInput.focus();
+}
+function closeIpWhatsappOverlay() { ipWhatsappOverlay.hidden = true; }
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-whatsapp-target]');
+  if (!btn) return;
+  const linkEl = document.getElementById(btn.dataset.whatsappTarget);
+  if (!linkEl) return;
+  openIpWhatsappOverlay(linkEl, btn.dataset.whatsappType || 'candidate');
+});
+
+document.getElementById('ipWhatsappCloseBtn').addEventListener('click', closeIpWhatsappOverlay);
+document.getElementById('ipWhatsappBackBtn').addEventListener('click', closeIpWhatsappOverlay);
+ipWhatsappOverlay.addEventListener('click', (e) => { if (e.target === ipWhatsappOverlay) closeIpWhatsappOverlay(); });
+
+ipWhatsappSendBtn.addEventListener('click', async () => {
+  const phone = ipWhatsappPhoneInput.value.trim();
+  ipWhatsappError.hidden = true;
+  if (!phone) {
+    ipWhatsappError.textContent = "Please enter the candidate's WhatsApp number.";
+    ipWhatsappError.hidden = false;
+    return;
+  }
+  ipWhatsappSendBtn.disabled = true;
+  try {
+    const res = await fetch('/api/interview-panel/send-whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, link: ipWhatsappPendingLink, formType: ipWhatsappPendingType })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not send the WhatsApp message.');
+    closeIpWhatsappOverlay();
+  } catch (err) {
+    ipWhatsappError.textContent = err.message;
+    ipWhatsappError.hidden = false;
+  } finally {
+    ipWhatsappSendBtn.disabled = false;
+  }
+});
+
 const IP_DETAIL_FIELDS = [
   ['Personal Details', [
     ['name', 'Name'], ['contactNo', 'Contact No'], ['email', 'Email'],
