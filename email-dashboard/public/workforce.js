@@ -3233,10 +3233,10 @@ function renderHiEmpProfile(data) {
         '<span class="wf-field-label">E-Card</span>' +
         (data.eCard
           ? '<span class="hi-ep-ecard-actions">' +
-              '<a class="wf-icon-btn" href="' + escapeHtml(data.eCard.downloadUrl) + '" target="_blank" rel="noopener" aria-label="Download E-Card" title="Download E-Card">' + icon('download', 15) + '</a>' +
-              '<button class="wf-icon-btn" type="button" data-ecard-share="' + escapeHtml(data.eCard.fileUrl) + '" data-ecard-filename="' + escapeHtml(data.eCard.name) + '" aria-label="Share E-Card" title="Share E-Card">' +
+              '<button class="hi-doc-share" type="button" data-ecard-share="' + escapeHtml(data.eCard.fileUrl) + '" data-ecard-filename="' + escapeHtml(data.eCard.name) + '" aria-label="Share E-Card" title="Share E-Card">' +
                 '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
               '</button>' +
+              '<a class="hi-doc-download" href="' + escapeHtml(data.eCard.downloadUrl) + '" target="_blank" rel="noopener" aria-label="Download E-Card" title="Download E-Card">' + icon('download', 17) + '</a>' +
             '</span>'
           : '<span class="wf-field-value na">Not available</span>') +
       '</div>' +
