@@ -78,4 +78,14 @@ async function getPolicyDriveData({ forceRefresh } = {}) {
   return result.data;
 }
 
-module.exports = { getPolicyDriveData };
+// Streams a file's actual bytes (not just its metadata/links) - used to let
+// the E-Card Share button hand the browser the real PDF for the Web Share
+// API's files option, since Drive's own download URL can't be fetch()'d
+// cross-origin from the browser for this.
+async function getFileStream(fileId) {
+  const drive = getDriveClient();
+  const res = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'stream' });
+  return res.data;
+}
+
+module.exports = { getPolicyDriveData, getFileStream };

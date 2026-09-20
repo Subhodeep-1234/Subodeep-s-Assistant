@@ -273,13 +273,47 @@ router.get('/employee/:employeeId', async (req, res) => {
       sumInsured: profile.self.sumInsured,
       selfAge: profile.self.age,
       selfPremium: profile.self.premiumWithGST,
-      eCard: eCardFile ? { name: eCardFile.name, viewUrl: eCardFile.viewUrl, downloadUrl: eCardFile.downloadUrl } : null,
+      eCard: eCardFile
+        ? {
+            name: eCardFile.name,
+            viewUrl: eCardFile.viewUrl,
+            downloadUrl: eCardFile.downloadUrl,
+            // Same-origin proxy for the Share button (see the route right
+            // below) - Drive's own downloadUrl can't be fetch()'d
+            // cross-origin from the browser, which the Share button needs
+            // to hand the actual PDF bytes to navigator.share's files option.
+            fileUrl: '/api/insurance/employee/' + encodeURIComponent(employeeId) + '/ecard-file'
+          }
+        : null,
       family: profile.family,
       familyCount: profile.familyCount,
       totalPremium: profile.totalPremium,
       premiumByGroup: profile.premiumByGroup,
       countByGroup: profile.countByGroup
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Streams the actual E-Card PDF bytes, same-origin, for the profile
+// popup's Share button (see the eCard.fileUrl comment above). Not cached -
+// this only runs when someone actually taps Share, unlike the metadata
+// lookups above which are already covered by policyDocumentsService's own
+// 2-minute cache.
+router.get('/employee/:employeeId/ecard-file', async (req, res) => {
+  try {
+    const employeeId = req.params.employeeId;
+    const driveData = await policyDocumentsService.getPolicyDriveData({});
+    const eCardFile = driveData.employeeECards.find(
+      (f) => f.name.replace(/\.[^.]+$/, '').trim().toUpperCase() === employeeId.toUpperCase()
+    );
+    if (!eCardFile) return res.status(404).json({ error: 'No E-Card found for this employee.' });
+
+    const stream = await policyDocumentsService.getFileStream(eCardFile.id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + eCardFile.name + '"');
+    stream.pipe(res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

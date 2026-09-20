@@ -3223,13 +3223,14 @@ function renderHiEmpProfile(data) {
         (data.eCard
           ? '<span class="hi-ep-ecard-actions">' +
               '<a class="wf-icon-btn" href="' + escapeHtml(data.eCard.downloadUrl) + '" target="_blank" rel="noopener" aria-label="Download E-Card" title="Download E-Card">' + icon('download', 15) + '</a>' +
-              '<button class="wf-icon-btn" type="button" data-ecard-share="' + escapeHtml(data.eCard.viewUrl) + '" data-ecard-name="' + escapeHtml(data.name) + ' - E-Card" aria-label="Share E-Card" title="Share E-Card">' +
+              '<button class="wf-icon-btn" type="button" data-ecard-share="' + escapeHtml(data.eCard.fileUrl) + '" data-ecard-filename="' + escapeHtml(data.eCard.name) + '" aria-label="Share E-Card" title="Share E-Card">' +
                 '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
               '</button>' +
             '</span>'
           : '<span class="wf-field-value na">Not available</span>') +
       '</div>' +
     '</div>' +
+    '<p class="hi-ep-ecard-error" id="hiEpECardError" hidden></p>' +
 
     '<div class="wf-subtabs hi-ep-tabs" id="hiEpTabs">' +
       '<button class="wf-subtab" data-ep-tab="family" aria-pressed="true" type="button">Family Members</button>' +
@@ -3302,44 +3303,63 @@ hiEmpProfileBody.addEventListener('click', (e) => {
     return;
   }
 
-  // E-Card Share - the device's own native share sheet when available
-  // (works well on the phones this app is styled for), falling back to
-  // copying the Drive view link the same way the Interview Panel's own
-  // copy-link buttons do.
+  // E-Card Share - shares the actual PDF file (not a Drive link) via the
+  // device's own native share sheet, since that's what people expect
+  // "share" to mean for a document like this.
   const shareBtn = e.target.closest('[data-ecard-share]');
   if (shareBtn) {
-    const url = shareBtn.dataset.ecardShare;
-    const title = shareBtn.dataset.ecardName || 'E-Card';
-    shareECard(shareBtn, url, title);
+    const fileUrl = shareBtn.dataset.ecardShare;
+    const filename = shareBtn.dataset.ecardFilename || 'E-Card.pdf';
+    shareECard(shareBtn, fileUrl, filename);
   }
 });
 
-async function shareECard(btn, url, title) {
-  if (navigator.share) {
-    try {
-      await navigator.share({ title, url });
-      return;
-    } catch (err) {
-      if (err && err.name === 'AbortError') return; // user cancelled the native share sheet
-      // Any other failure (e.g. share not actually supported for a URL on
-      // this browser) falls through to the copy-link fallback below.
-    }
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = url;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  }
+async function shareECard(btn, fileUrl, filename) {
+  const errorEl = document.getElementById('hiEpECardError');
+  errorEl.hidden = true;
   const original = btn.innerHTML;
-  btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  setTimeout(() => { btn.innerHTML = original; }, 1200);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+
+  function showSuccess() {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 1200);
+  }
+
+  try {
+    const res = await fetch(fileUrl);
+    if (!res.ok) throw new Error('Could not fetch the E-Card file.');
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: 'application/pdf' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: filename });
+        showSuccess();
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') { btn.innerHTML = original; btn.disabled = false; return; } // user cancelled
+        // Any other native-share failure falls through to the download fallback below.
+      }
+    }
+
+    // No file-sharing support on this browser (most desktops) - hand over
+    // the actual PDF as a direct download instead of silently doing nothing.
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+    showSuccess();
+  } catch (err) {
+    btn.innerHTML = original;
+    btn.disabled = false;
+    errorEl.textContent = 'Could not share the E-Card - please try again.';
+    errorEl.hidden = false;
+  }
 }
 
 // Scoped to just these six list ids (not a global [data-employee-id]
