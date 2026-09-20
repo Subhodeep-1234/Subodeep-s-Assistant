@@ -178,13 +178,16 @@ function buildTotalInsuredLivesList(members) {
     .sort((a, b) => a.employeeId.localeCompare(b.employeeId) || (Number(isSelf(b)) - Number(isSelf(a))));
 }
 
-// Every Member List row (Self + family) for one employee - the Employee
-// Insurance Profile card. Returns null when that employee has no row at all
-// in Member List (e.g. a Pending Exit already dropped off it, or a New
-// Addition not yet on it) so the route can tell the difference from a real
-// employee with zero coverage.
+// Every ACTIVE Member List row (Self + family) for one employee - the
+// Employee Insurance Profile card. Same Active-only scoping every other
+// builder in this file uses - a family member removed from the policy
+// (status no longer Active) still has a row here but shouldn't count
+// towards this employee's coverage/premium totals. Returns null when that
+// employee has no ACTIVE row at all (e.g. a Pending Exit already dropped
+// off it, or a New Addition not yet on it) so the route can tell the
+// difference from a real employee with zero coverage.
 function buildEmployeeInsuranceProfile(members, employeeId) {
-  const rows = members.filter((m) => m.employeeId === employeeId);
+  const rows = members.filter((m) => m.employeeId === employeeId && m.status === 'Active');
   if (!rows.length) return null;
   const isSelf = (m) => String(m.relationship || '').toLowerCase() === 'self';
   const selfRow = rows.find(isSelf);
