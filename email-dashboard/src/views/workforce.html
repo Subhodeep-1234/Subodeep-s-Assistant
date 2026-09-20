@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=8" />
-  <link rel="stylesheet" href="workforce.css?v=119" />
+  <link rel="stylesheet" href="workforce.css?v=120" />
 </head>
 <body>
   <div class="wf-shell">
@@ -254,8 +254,14 @@
             <button class="wf-subtab" data-jtab="upcoming" aria-pressed="true">Upcoming</button>
             <button class="wf-subtab" data-jtab="recent" aria-pressed="false">Recent</button>
           </div>
-          <button class="wf-link-btn" id="exportJoiningsPdf" type="button">⬇ Export PDF</button>
+          <span style="display:flex; gap:10px; align-items:center;">
+            <button class="wf-icon-btn" id="shareJoiningsPdf" type="button" aria-label="Share Upcoming Joinings PDF" title="Share PDF">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            </button>
+            <button class="wf-link-btn" id="exportJoiningsPdf" type="button">⬇ Export PDF</button>
+          </span>
         </div>
+        <p class="wf-inline-error" id="joiningsShareError" hidden></p>
         <ul class="wf-join-list" id="joiningList"><li class="empty">Loading…</li></ul>
       </div>
     </section>
@@ -1509,6 +1515,6 @@
   </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=216"></script>
+  <script src="workforce.js?v=217"></script>
 </body>
 </html>

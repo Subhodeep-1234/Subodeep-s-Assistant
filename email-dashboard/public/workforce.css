@@ -2591,8 +2591,11 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
    Interview Panel link rows use for their own copy/WhatsApp buttons. */
 .hi-ep-ecard-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .hi-ep-ecard-actions .wf-icon-btn { width: 34px; height: 34px; }
-.hi-ep-ecard-error { margin: -6px 0 14px; font-size: 0.78rem; color: var(--important); font-weight: 600; }
-.hi-ep-ecard-error[hidden] { display: none; }
+/* Generic small inline error line - used under the E-Card Share button and
+   the Upcoming Joinings Share button (both file-share flows that can fail
+   to fetch). */
+.wf-inline-error { margin: -6px 0 14px; font-size: 0.78rem; color: var(--important); font-weight: 600; }
+.wf-inline-error[hidden] { display: none; }
 
 .wf-mail-field { position: relative; margin-bottom: 14px; }
 .wf-mail-field:last-child { margin-bottom: 0; }

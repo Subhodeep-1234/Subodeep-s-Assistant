@@ -12,6 +12,7 @@ const interviewPanelRoutes = require('./src/interviewPanelRoutes');
 const interviewPublicRoutes = require('./src/interviewPublicRoutes');
 const interviewPanelAccessRoutes = require('./src/interviewPanelAccessRoutes');
 const interviewPanelAccessService = require('./src/interviewPanelAccessService');
+const { buildTablePdfBuffer } = require('./src/pdfReport');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -263,6 +264,52 @@ app.get('/api/hr/upcoming-joinings', hrAuth.requireHrAuth, async (req, res) => {
   try {
     const data = await gmailService.getUpcomingJoinings();
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// A real PDF file for the Upcoming Joinings Share button - the on-screen
+// "Export PDF" button itself stays a plain window.print() (see workforce.js),
+// which has no actual file to hand to navigator.share. This renders the
+// identical title/columns/rows through the same pdfReport.js builder the
+// Mediclaim Exits/Additions email attachments already use, portrait like
+// every other on-screen "Export PDF" report (see buildTablePdfBuffer's own
+// landscape param comment).
+function daysUntilLabelForPdf(doj) {
+  const d = new Date(doj);
+  if (isNaN(d.getTime())) return '';
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const dojUtc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((dojUtc - todayUtc) / 86400000);
+  if (days < 0) return '';
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  return 'in ' + days + ' days';
+}
+app.get('/api/hr/upcoming-joinings/pdf', hrAuth.requireHrAuth, async (req, res) => {
+  try {
+    const data = await gmailService.getUpcomingJoinings();
+    const items = data.items || [];
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Upcoming Joinings Report',
+      subtitle: 'Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Name', 'Designation', 'Company', 'Date of Joining', 'Days Remaining'],
+      rows: items.length
+        ? items.map((it) => [
+            it.name,
+            it.designation || '—',
+            it.company || '—',
+            it.doj ? new Date(it.doj).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+            daysUntilLabelForPdf(it.doj) || '—'
+          ])
+        : [['No upcoming joinings found', '', '', '', '']],
+      landscape: false
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Upcoming_Joinings.pdf"');
+    res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

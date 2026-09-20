@@ -3230,7 +3230,7 @@ function renderHiEmpProfile(data) {
           : '<span class="wf-field-value na">Not available</span>') +
       '</div>' +
     '</div>' +
-    '<p class="hi-ep-ecard-error" id="hiEpECardError" hidden></p>' +
+    '<p class="wf-inline-error" id="hiEpECardError" hidden></p>' +
 
     '<div class="wf-subtabs hi-ep-tabs" id="hiEpTabs">' +
       '<button class="wf-subtab" data-ep-tab="family" aria-pressed="true" type="button">Family Members</button>' +
@@ -3310,12 +3310,17 @@ hiEmpProfileBody.addEventListener('click', (e) => {
   if (shareBtn) {
     const fileUrl = shareBtn.dataset.ecardShare;
     const filename = shareBtn.dataset.ecardFilename || 'E-Card.pdf';
-    shareECard(shareBtn, fileUrl, filename);
+    shareFile(shareBtn, fileUrl, filename, 'hiEpECardError', 'Could not share the E-Card - please try again.');
   }
 });
 
-async function shareECard(btn, fileUrl, filename) {
-  const errorEl = document.getElementById('hiEpECardError');
+// Generic "fetch a real PDF from our own server and hand it to the native
+// share sheet" flow - used by both the E-Card Share button above and the
+// Upcoming Joinings Share button. Falls back to a direct download on
+// browsers with no file-sharing support (most desktops), and shows an
+// inline error (in the given element) if the fetch itself fails.
+async function shareFile(btn, fileUrl, filename, errorElId, errorMessage) {
+  const errorEl = document.getElementById(errorElId);
   errorEl.hidden = true;
   const original = btn.innerHTML;
   btn.disabled = true;
@@ -3328,7 +3333,7 @@ async function shareECard(btn, fileUrl, filename) {
 
   try {
     const res = await fetch(fileUrl);
-    if (!res.ok) throw new Error('Could not fetch the E-Card file.');
+    if (!res.ok) throw new Error(errorMessage);
     const blob = await res.blob();
     const file = new File([blob], filename, { type: 'application/pdf' });
 
@@ -3357,7 +3362,7 @@ async function shareECard(btn, fileUrl, filename) {
   } catch (err) {
     btn.innerHTML = original;
     btn.disabled = false;
-    errorEl.textContent = 'Could not share the E-Card - please try again.';
+    errorEl.textContent = errorMessage;
     errorEl.hidden = false;
   }
 }
@@ -5024,6 +5029,8 @@ document.getElementById('joiningTabs').addEventListener('click', (e) => {
     b.setAttribute('aria-pressed', String(b === btn));
   });
   document.getElementById('exportJoiningsPdf').hidden = joiningActiveTab !== 'upcoming';
+  document.getElementById('shareJoiningsPdf').hidden = joiningActiveTab !== 'upcoming';
+  document.getElementById('joiningsShareError').hidden = true;
   renderJoiningTab(joiningActiveTab);
 });
 
@@ -5131,6 +5138,15 @@ document.getElementById('exportJoiningsPdf').addEventListener('click', async () 
         .join('')
     : '<tr><td colspan="5">No upcoming joinings found</td></tr>';
   window.print();
+});
+
+// Shares the same report as a real PDF file (not the print dialog Export
+// PDF opens) - fetches it from the server (see server.js's own
+// /api/hr/upcoming-joinings/pdf, which renders the identical title/columns/
+// rows through the same pdfReport.js builder the Mediclaim email
+// attachments already use) and hands it to shareFile's native-share flow.
+document.getElementById('shareJoiningsPdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/hr/upcoming-joinings/pdf', 'Upcoming_Joinings.pdf', 'joiningsShareError', 'Could not share the report - please try again.');
 });
 
 // ---------- Tenure tab ----------
