@@ -138,10 +138,11 @@
     e.preventDefault();
     errorBox.hidden = true;
 
-    if (!cvLinkInput.value) {
-      errorBox.textContent = uploadBox.classList.contains('uploading')
-        ? 'Please wait for the CV upload to finish before submitting.'
-        : 'Please upload your CV / Resume before submitting.';
+    // CV upload is optional - only actually blocks submission if a file
+    // was picked and is still mid-upload (submitting before it finishes
+    // would leave cvLink empty even though the candidate meant to attach one).
+    if (uploadBox.classList.contains('uploading')) {
+      errorBox.textContent = 'Please wait for the CV upload to finish before submitting.';
       errorBox.hidden = false;
       return;
     }
