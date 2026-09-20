@@ -21,7 +21,11 @@ function mapFile(f) {
     // "anyone with the link", these work directly in a browser with no
     // need for this app to proxy the file's bytes through its own server.
     viewUrl: 'https://drive.google.com/file/d/' + f.id + '/view',
-    downloadUrl: 'https://drive.google.com/uc?export=download&id=' + f.id
+    downloadUrl: 'https://drive.google.com/uc?export=download&id=' + f.id,
+    // Same-origin proxy for a Share button's native-share flow - Drive's
+    // own downloadUrl can't be fetch()'d cross-origin from the browser to
+    // get the actual file bytes (see insuranceRoutes.js's own route for this).
+    fileUrl: '/api/insurance/policy-documents/' + f.id + '/file'
   };
 }
 

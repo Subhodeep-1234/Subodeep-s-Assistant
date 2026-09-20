@@ -513,4 +513,23 @@ router.get('/policy-documents', async (req, res) => {
   }
 });
 
+// Streams a Policy Document's actual bytes, same-origin, for its own Share
+// button (see policyDocumentsService.js's mapFile fileUrl comment) - same
+// pattern as the Employee Insurance Profile's E-Card share route, just
+// keyed by file ID instead of Employee Code since these aren't per-employee.
+router.get('/policy-documents/:fileId/file', async (req, res) => {
+  try {
+    const data = await policyDocumentsService.getPolicyDriveData({});
+    const file = data.policyDocuments.find((f) => f.id === req.params.fileId);
+    if (!file) return res.status(404).json({ error: 'File not found.' });
+
+    const stream = await policyDocumentsService.getFileStream(file.id);
+    res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'inline; filename="' + file.name + '"');
+    stream.pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

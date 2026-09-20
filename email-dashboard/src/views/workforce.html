@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Workforce Intelligence</title>
   <link rel="stylesheet" href="styles.css?v=8" />
-  <link rel="stylesheet" href="workforce.css?v=120" />
+  <link rel="stylesheet" href="workforce.css?v=121" />
 </head>
 <body>
   <div class="wf-shell">
@@ -998,6 +998,7 @@
           <input type="search" id="policyDocsSearch" placeholder="Search documents..." autocomplete="off" style="width:100%; background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:10px 12px 10px 34px; font:inherit; font-size:.85rem; color:var(--ink);" />
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:11px; top:50%; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </div>
+        <p class="wf-inline-error" id="policyDocsShareError" hidden></p>
         <ul class="hi-doc-list" id="policyDocsList"><li class="empty">Loading…</li></ul>
       </div>
     </section>
@@ -1530,6 +1531,6 @@
   </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=221"></script>
+  <script src="workforce.js?v=222"></script>
 </body>
 </html>

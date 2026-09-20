@@ -1897,9 +1897,14 @@ function docListItemHtml(f) {
         '<span class="hi-doc-name">' + escapeHtml(f.name) + '</span>' +
         (meta ? '<span class="hi-doc-meta">' + escapeHtml(meta) + '</span>' : '') +
       '</span>' +
-      '<a class="hi-doc-download" href="' + escapeHtml(f.downloadUrl) + '" target="_blank" rel="noopener" title="Download ' + escapeHtml(f.name) + '">' +
-        icon('download', 17) +
-      '</a>' +
+      '<span class="hi-doc-actions">' +
+        '<button class="hi-doc-share" type="button" data-doc-share="' + escapeHtml(f.fileUrl) + '" data-doc-filename="' + escapeHtml(f.name) + '" aria-label="Share ' + escapeHtml(f.name) + '" title="Share">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
+        '</button>' +
+        '<a class="hi-doc-download" href="' + escapeHtml(f.downloadUrl) + '" target="_blank" rel="noopener" title="Download ' + escapeHtml(f.name) + '">' +
+          icon('download', 17) +
+        '</a>' +
+      '</span>' +
     '</li>'
   );
 }
@@ -1927,6 +1932,12 @@ document.getElementById('policyDocsSearch').addEventListener('input', (e) => {
   const needle = e.target.value.trim().toLowerCase();
   const filtered = needle ? lastPolicyDocuments.filter((f) => f.name.toLowerCase().includes(needle)) : lastPolicyDocuments;
   renderDocList('policyDocsList', filtered, needle ? 'No documents match your search.' : 'No policy documents uploaded yet.');
+});
+
+document.getElementById('policyDocsList').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-doc-share]');
+  if (!btn) return;
+  shareFile(btn, btn.dataset.docShare, btn.dataset.docFilename || 'Document', 'policyDocsShareError', 'Could not share the document - please try again.');
 });
 
 document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
@@ -3335,7 +3346,10 @@ async function shareFile(btn, fileUrl, filename, errorElId, errorMessage) {
     const res = await fetch(fileUrl);
     if (!res.ok) throw new Error(errorMessage);
     const blob = await res.blob();
-    const file = new File([blob], filename, { type: 'application/pdf' });
+    // The real Content-Type the server sent (not hardcoded) - every current
+    // caller is a PDF, but Policy Documents can in principle be any file
+    // type Drive holds, so this keeps the shared File object's type honest.
+    const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
