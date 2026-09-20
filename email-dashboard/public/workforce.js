@@ -3217,6 +3217,18 @@ function renderHiEmpProfile(data) {
         '<span class="wf-field-label">Validity</span>' +
         '<span class="wf-field-value">' + escapeHtml(validity) + '</span>' +
       '</div>' +
+      '<div class="wf-field-row">' +
+        '<span class="wf-field-icon">' + icon('fileText', 15) + '</span>' +
+        '<span class="wf-field-label">E-Card</span>' +
+        (data.eCard
+          ? '<span class="hi-ep-ecard-actions">' +
+              '<a class="wf-icon-btn" href="' + escapeHtml(data.eCard.downloadUrl) + '" target="_blank" rel="noopener" aria-label="Download E-Card" title="Download E-Card">' + icon('download', 15) + '</a>' +
+              '<button class="wf-icon-btn" type="button" data-ecard-share="' + escapeHtml(data.eCard.viewUrl) + '" data-ecard-name="' + escapeHtml(data.name) + ' - E-Card" aria-label="Share E-Card" title="Share E-Card">' +
+                '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
+              '</button>' +
+            '</span>'
+          : '<span class="wf-field-value na">Not available</span>') +
+      '</div>' +
     '</div>' +
 
     '<div class="wf-subtabs hi-ep-tabs" id="hiEpTabs">' +
@@ -3282,12 +3294,53 @@ function renderHiEpPremiumBreakdown(data) {
 
 hiEmpProfileBody.addEventListener('click', (e) => {
   const tabBtn = e.target.closest('[data-ep-tab]');
-  if (!tabBtn) return;
-  hiEmpProfileTab = tabBtn.dataset.epTab;
-  hiEmpProfileBody.querySelectorAll('[data-ep-tab]').forEach((b) => b.setAttribute('aria-pressed', String(b === tabBtn)));
-  document.getElementById('hiEpTabFamily').hidden = hiEmpProfileTab !== 'family';
-  document.getElementById('hiEpTabPremium').hidden = hiEmpProfileTab !== 'premium';
+  if (tabBtn) {
+    hiEmpProfileTab = tabBtn.dataset.epTab;
+    hiEmpProfileBody.querySelectorAll('[data-ep-tab]').forEach((b) => b.setAttribute('aria-pressed', String(b === tabBtn)));
+    document.getElementById('hiEpTabFamily').hidden = hiEmpProfileTab !== 'family';
+    document.getElementById('hiEpTabPremium').hidden = hiEmpProfileTab !== 'premium';
+    return;
+  }
+
+  // E-Card Share - the device's own native share sheet when available
+  // (works well on the phones this app is styled for), falling back to
+  // copying the Drive view link the same way the Interview Panel's own
+  // copy-link buttons do.
+  const shareBtn = e.target.closest('[data-ecard-share]');
+  if (shareBtn) {
+    const url = shareBtn.dataset.ecardShare;
+    const title = shareBtn.dataset.ecardName || 'E-Card';
+    shareECard(shareBtn, url, title);
+  }
 });
+
+async function shareECard(btn, url, title) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // user cancelled the native share sheet
+      // Any other failure (e.g. share not actually supported for a URL on
+      // this browser) falls through to the copy-link fallback below.
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  const original = btn.innerHTML;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  setTimeout(() => { btn.innerHTML = original; }, 1200);
+}
 
 // Scoped to just these six list ids (not a global [data-employee-id]
 // listener) so this never interferes with Employee Directory's own,

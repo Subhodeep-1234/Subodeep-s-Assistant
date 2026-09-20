@@ -2587,6 +2587,10 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
    above a full-width panel with room to spare either side). */
 .hi-ep-tabs { justify-content: space-between; }
 .hi-ep-tabs .wf-subtab { flex: 1; text-align: center; }
+/* E-Card row's Download/Share buttons - same .wf-icon-btn circles as the
+   Interview Panel link rows use for their own copy/WhatsApp buttons. */
+.hi-ep-ecard-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.hi-ep-ecard-actions .wf-icon-btn { width: 34px; height: 34px; }
 
 .wf-mail-field { position: relative; margin-bottom: 14px; }
 .wf-mail-field:last-child { margin-bottom: 0; }

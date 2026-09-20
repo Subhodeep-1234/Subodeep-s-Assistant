@@ -241,10 +241,11 @@ router.get('/total-insured-lives', async (req, res) => {
 router.get('/employee/:employeeId', async (req, res) => {
   try {
     const forceRefresh = wantsForceRefresh(req);
-    const [insuranceData, hrData, policyValues] = await Promise.all([
+    const [insuranceData, hrData, policyValues, driveData] = await Promise.all([
       insuranceService.getInsuranceData({ forceRefresh }),
       employeeService.getEmployeeData({ forceRefresh }),
-      policyInfoService.getPolicyInfo()
+      policyInfoService.getPolicyInfo(),
+      policyDocumentsService.getPolicyDriveData({ forceRefresh })
     ]);
     const employeeId = req.params.employeeId;
     const profile = analytics.buildEmployeeInsuranceProfile(insuranceData.members, employeeId);
@@ -252,6 +253,14 @@ router.get('/employee/:employeeId', async (req, res) => {
       return res.status(404).json({ error: 'This employee has no active record in the Member List.' });
     }
     const hr = hrData.employees.find((e) => e.employeeId === employeeId);
+
+    // E-Cards in the Drive folder are named exactly by Employee Code (e.g.
+    // "AR000165.pdf") - matched here by stripping the extension and
+    // comparing case-insensitively, since Drive's own name sort/casing
+    // isn't guaranteed consistent.
+    const eCardFile = driveData.employeeECards.find(
+      (f) => f.name.replace(/\.[^.]+$/, '').trim().toUpperCase() === employeeId.toUpperCase()
+    );
 
     res.json({
       employeeId,
@@ -264,6 +273,7 @@ router.get('/employee/:employeeId', async (req, res) => {
       sumInsured: profile.self.sumInsured,
       selfAge: profile.self.age,
       selfPremium: profile.self.premiumWithGST,
+      eCard: eCardFile ? { name: eCardFile.name, viewUrl: eCardFile.viewUrl, downloadUrl: eCardFile.downloadUrl } : null,
       family: profile.family,
       familyCount: profile.familyCount,
       totalPremium: profile.totalPremium,
