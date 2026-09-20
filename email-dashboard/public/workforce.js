@@ -6157,8 +6157,13 @@ async function openInterviewPanelDetail(id) {
     // done - clicking it early explains why instead of just disappearing.
     pdfBtn.hidden = false;
     if (isComplete) {
-      fullPanel.hidden = false;
-      bodyEl.innerHTML = ipDetailSectionHtml(record);
+      // Once Completed, the full field-by-field record no longer renders
+      // on screen - just the stepper (both steps showing Completed) and
+      // Download PDF, which is the actual reviewable document at this
+      // point. fullPanel was shown further up to hold the loading spinner
+      // while the fetch was in flight - hide it now that we know the real
+      // outcome, instead of leaving that spinner on screen forever.
+      fullPanel.hidden = true;
       pdfBtn.onclick = () => {
         pdfIncompleteMsg.hidden = true;
         window.open('/api/interview-panel/' + encodeURIComponent(id) + '/pdf', '_blank');
