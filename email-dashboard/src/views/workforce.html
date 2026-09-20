@@ -220,10 +220,14 @@
               <span>Send Mail</span>
             </button>
             <button class="wf-link-btn" id="exportDoerBreakupPdf" type="button" hidden>⬇ Export Dept. Breakup</button>
+            <button class="wf-icon-btn" id="sharePendingConfirmationsPdf" type="button" hidden aria-label="Share Pending Confirmations PDF" title="Share PDF">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            </button>
             <button class="wf-link-btn" id="exportPendingConfirmationsPdf" type="button" hidden>⬇ Pending Confirmations</button>
             <button class="wf-link-btn" id="exportEmployeesPdf" type="button">⬇ Export PDF</button>
           </span>
         </div>
+        <p class="wf-inline-error" id="pendingConfirmationsShareError" hidden></p>
 
         <ul class="wf-emp-list" id="employeeList"></ul>
       </div>
@@ -1515,6 +1519,6 @@
   </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=217"></script>
+  <script src="workforce.js?v=218"></script>
 </body>
 </html>

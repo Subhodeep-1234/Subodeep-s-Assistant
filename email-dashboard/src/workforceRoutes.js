@@ -641,6 +641,59 @@ router.get('/pending-confirmations', async (req, res) => {
   }
 });
 
+// A real PDF file for the Probation stat block's Share button (on the
+// Dashboard's own "Employment Type" panel) - the on-screen "Pending
+// Confirmations" button itself is a plain window.print() with no file to
+// hand to navigator.share. Same title/columns/rows/landscape layout as that
+// on-screen report (renderPendingConfirmationsReport in workforce.js),
+// through the same pdfReport.js builder the Mediclaim/Upcoming Joinings
+// PDFs already use. Signature column is left blank, same as on screen -
+// meant for a pen signature on the printed page, not a real value.
+router.get('/pending-confirmations/pdf', async (req, res) => {
+  try {
+    const { employees, departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData();
+    const items = analytics.pendingConfirmationsThisMonth(employees).map((e) => ({
+      employeeId: e.employeeId,
+      name: e.name,
+      designation: e.designation,
+      department: departmentNames.get(e.departmentKey) || e.department,
+      location: locationNames.get(e.locationKey) || e.location,
+      confirmationDate: e.doj ? analytics.probationCompletionDate(e.doj) : null,
+      reportingManager: reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager
+    })).sort((a, b) => {
+      const dateDiff = new Date(a.confirmationDate) - new Date(b.confirmationDate);
+      if (dateDiff !== 0) return dateDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const monthLabel = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Pending Confirmations Report',
+      subtitle: monthLabel + ' · ' + items.length + ' employee' + (items.length === 1 ? '' : 's') + ' · Generated ' +
+        new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Employee Code', 'Name', 'Designation', 'Department', 'Location', 'Confirmation Date', 'HOD Name', 'Signature'],
+      rows: items.length
+        ? items.map((it) => [
+            it.employeeId,
+            it.name,
+            it.designation || '—',
+            it.department || '—',
+            it.location || '—',
+            it.confirmationDate ? new Date(it.confirmationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+            it.reportingManager || '—',
+            ''
+          ])
+        : [['No confirmations due this month', '', '', '', '', '', '', '']],
+      landscape: true
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Pending_Confirmations.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/tenure', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();

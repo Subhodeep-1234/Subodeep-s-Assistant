@@ -787,6 +787,8 @@ function syncVariantButtons() {
   if (sendMailBtn) sendMailBtn.hidden = directoryReportVariant !== 'doerManagement';
   const confirmationsBtn = document.getElementById('exportPendingConfirmationsPdf');
   if (confirmationsBtn) confirmationsBtn.hidden = directoryReportVariant !== 'probation';
+  const shareConfirmationsBtn = document.getElementById('sharePendingConfirmationsPdf');
+  if (shareConfirmationsBtn) shareConfirmationsBtn.hidden = directoryReportVariant !== 'probation';
   const birthdayMailBtn = document.getElementById('sendBirthdayMail');
   if (birthdayMailBtn) birthdayMailBtn.hidden = directoryReportVariant !== 'birthdays';
 }
@@ -4896,6 +4898,15 @@ document.getElementById('exportPendingConfirmationsPdf').addEventListener('click
   } catch (err) {
     alert('Failed to generate Upcoming Confirmations report: ' + err.message);
   }
+});
+
+// Shares the same report as a real PDF file (not the print dialog Export
+// PDF/Pending Confirmations opens) - reached only from the Dashboard's own
+// "Probation" stat block (see applyFiltersAndShowDirectory's 'probation'
+// variant), fetched from the server's own /api/workforce/pending-
+// confirmations/pdf (same pdfReport.js builder as the other Share buttons).
+document.getElementById('sharePendingConfirmationsPdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/workforce/pending-confirmations/pdf', 'Pending_Confirmations.pdf', 'pendingConfirmationsShareError', 'Could not share the report - please try again.');
 });
 
 document.getElementById('filterToggleBtn').addEventListener('click', () => {
