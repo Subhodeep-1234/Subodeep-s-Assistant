@@ -14,7 +14,14 @@ const CREDENTIALS_PATH = path.join(__dirname, '..', 'credentials.json');
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify',
-  'https://www.googleapis.com/auth/gmail.send'
+  'https://www.googleapis.com/auth/gmail.send',
+  // Added for the Candidate Form's CV upload - the service account used
+  // everywhere else has zero storage quota and can never own a newly
+  // created file (confirmed via drive.about.get), so uploads go through
+  // this same admin OAuth identity instead (see cvUploadService.js). Full
+  // 'drive' rather than 'drive.file' since the upload targets a pre-existing
+  // folder specified only by ID, not one opened via a Drive picker flow.
+  'https://www.googleapis.com/auth/drive'
 ];
 
 function loadClientCredentials() {

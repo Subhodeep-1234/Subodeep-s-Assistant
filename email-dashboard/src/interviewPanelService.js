@@ -7,7 +7,7 @@ const { getSheetsClient } = require('./sheetsAuth');
 // pattern as INSURANCE_SHEET_ID/MOVEMENT_TRACKER_SHEET_ID.
 const SHEET_ID = process.env.INTERVIEW_PANEL_SHEET_ID || '1IMKovBhRqthjqAZSioYMKgYSkn2otnFAYhSbEHksrWU';
 const TAB = 'Interview Details';
-const LAST_COL = 'AU'; // 47 columns, A through AU
+const LAST_COL = 'AV'; // 48 columns, A through AV
 
 // 0-based column indexes, matching the header row written to the sheet.
 const COLS = {
@@ -57,7 +57,8 @@ const COLS = {
   itOfficialMailId: 43,
   itOfficialSim: 44,
   replacementForName: 45,
-  itNotApplicable: 46
+  itNotApplicable: 46,
+  cvLink: 47
 };
 
 const STATUS = {
@@ -74,7 +75,7 @@ const CANDIDATE_FIELDS = [
   'name', 'contactNo', 'email', 'qualification', 'experience', 'currentPosition',
   'positionAppliedFor', 'interviewDate', 'interviewPlace', 'interviewMode', 'referenceName',
   'presentLastCompany', 'designation', 'currentLastSalaryDrawn', 'expectedSalary', 'noticePeriod',
-  'workedOnAlcoveProjects', 'alcoveProjectsDetails'
+  'workedOnAlcoveProjects', 'alcoveProjectsDetails', 'cvLink'
 ];
 
 // Interviewer-filled fields - the hardcopy's evaluation grid, status, panel

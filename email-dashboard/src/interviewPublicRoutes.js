@@ -6,10 +6,26 @@
 // rather than relying on either of the app's two session-based auth
 // systems.
 const express = require('express');
+const multer = require('multer');
 const interviewPanelService = require('./interviewPanelService');
 const employeeService = require('./employeeService');
+const cvUploadService = require('./cvUploadService');
 
 const router = express.Router();
+
+// Memory storage (not disk) - Vercel's filesystem is read-only outside
+// /tmp, and the file only ever needs to pass through to Drive, never
+// touch disk here. 4MB, not the 5MB the design mockup shows - Vercel's
+// Serverless Functions enforce a hard, non-configurable 4.5MB request body
+// limit, so 5MB (plus multipart overhead) would occasionally fail before
+// this handler even runs.
+const CV_MAX_BYTES = 4 * 1024 * 1024;
+const ALLOWED_CV_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]);
+const cvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: CV_MAX_BYTES } });
 
 // Minimal, non-sensitive fields only (name/designation/department) - used by
 // the Interviewer Form's Interview Panel List search-select. Deliberately
@@ -51,6 +67,47 @@ router.post('/candidate/:token', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Uploads immediately when the candidate picks a file (before the final
+// Submit Application), returning the Drive link the client then carries
+// into that final JSON submission as a normal form field (cvLink) - same
+// two-step shape as everything else on this page being collected client-
+// side before one combined POST. Token is checked the same way the final
+// submit itself checks it (invalid or already-submitted both blocked)
+// rather than trusting the candidate is still mid-form.
+router.post('/candidate/:token/cv', (req, res) => {
+  cvUpload.single('cv')(req, res, async (err) => {
+    if (err) {
+      const message = err.code === 'LIMIT_FILE_SIZE'
+        ? 'That file is larger than 4MB - please upload a smaller file.'
+        : 'Could not process the uploaded file.';
+      return res.status(400).json({ ok: false, error: message });
+    }
+    try {
+      const record = await interviewPanelService.getByCandidateToken(req.params.token);
+      if (!record) return res.status(404).json({ ok: false, error: 'This link is invalid.' });
+      if (record.candidateTokenUsedAt) {
+        return res.status(400).json({ ok: false, error: 'This application has already been submitted.' });
+      }
+      if (!req.file) return res.status(400).json({ ok: false, error: 'No file was received.' });
+      if (!ALLOWED_CV_TYPES.has(req.file.mimetype)) {
+        return res.status(400).json({ ok: false, error: 'Please upload a PDF, DOC, or DOCX file.' });
+      }
+      const uploaded = await cvUploadService.uploadCv({
+        buffer: req.file.buffer,
+        filename: (record.name ? record.name + ' - ' : '') + req.file.originalname,
+        mimeType: req.file.mimetype
+      });
+      res.json({ ok: true, cvLink: uploaded.link, cvName: req.file.originalname });
+    } catch (uploadErr) {
+      // The real Drive error (e.g. a scope/permission problem on our end)
+      // is logged for us, not shown to the candidate - a public form isn't
+      // the place to surface internal Google API error text.
+      console.error('CV upload failed:', uploadErr.message);
+      res.status(500).json({ ok: false, error: 'Could not upload your CV right now. Please try again in a moment.' });
+    }
+  });
 });
 
 // Candidate info is shown read-only at the top of the Interviewer Form -

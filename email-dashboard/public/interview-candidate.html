@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Candidate Interview Application - Alcove Realty</title>
 <link rel="stylesheet" href="/styles.css?v=1" />
-<link rel="stylesheet" href="/interview-forms.css?v=4" />
+<link rel="stylesheet" href="/interview-forms.css?v=5" />
 </head>
 <body>
 <div class="iv-shell">
@@ -56,7 +56,7 @@
       <div class="iv-field"><label for="f_presentLastCompany">Present / Last Company</label><input type="text" id="f_presentLastCompany" name="presentLastCompany" /></div>
       <div class="iv-field"><label for="f_designation">Designation</label><input type="text" id="f_designation" name="designation" /></div>
       <div class="iv-field-row">
-        <div class="iv-field"><label for="f_currentLastSalaryDrawn">Current / Last Salary Drawn</label><input type="text" id="f_currentLastSalaryDrawn" name="currentLastSalaryDrawn" /></div>
+        <div class="iv-field"><label for="f_currentLastSalaryDrawn">Present / Last Salary drawn</label><input type="text" id="f_currentLastSalaryDrawn" name="currentLastSalaryDrawn" /></div>
         <div class="iv-field"><label for="f_expectedSalary">Expected Salary</label><input type="text" id="f_expectedSalary" name="expectedSalary" /></div>
       </div>
       <div class="iv-field"><label for="f_noticePeriod">Notice Period</label><input type="text" id="f_noticePeriod" name="noticePeriod" /></div>
@@ -73,6 +73,23 @@
       <div class="iv-field" id="f_alcoveProjectsDetailsWrap" hidden>
         <label for="f_alcoveProjectsDetails">If yes, please give details</label>
         <textarea id="f_alcoveProjectsDetails" name="alcoveProjectsDetails"></textarea>
+      </div>
+
+      <div class="iv-section-title">CV / Resume</div>
+      <div class="iv-field">
+        <label for="f_cv">Upload CV / Resume<span class="iv-required">*</span></label>
+        <label class="iv-upload-box" id="ivUploadBox" for="f_cv">
+          <input type="file" id="f_cv" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+          <div id="ivUploadContent">
+            <div class="iv-upload-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            </div>
+            <div class="iv-upload-title">Tap to upload or choose file</div>
+            <div class="iv-upload-hint">PDF, DOC, DOCX (Max 4MB)</div>
+          </div>
+        </label>
+        <p class="iv-upload-error" id="ivUploadError" hidden></p>
+        <input type="hidden" id="f_cvLink" name="cvLink" />
       </div>
 
       <button type="submit" class="iv-btn" id="ivSubmitBtn">Submit Application</button>
@@ -98,6 +115,6 @@
     <p id="ivStateErrorMsg">This link is invalid or has expired.</p>
   </div>
 </div>
-<script src="/interview-candidate.js?v=2"></script>
+<script src="/interview-candidate.js?v=3"></script>
 </body>
 </html>

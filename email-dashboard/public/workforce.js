@@ -6037,6 +6037,9 @@ const IP_DETAIL_FIELDS = [
   ['Alcove Projects', [
     ['workedOnAlcoveProjects', 'Worked on Alcove Projects Earlier'], ['alcoveProjectsDetails', 'Details']
   ]],
+  ['CV / Resume', [
+    ['cvLink', 'Uploaded File']
+  ]],
   ['Evaluation', [
     ['gradeIntelligence', 'Intelligence'], ['gradeAttitude', 'Attitude'], ['gradePersonality', 'Personality'],
     ['gradeConfidence', 'Confidence'], ['gradeCommunicationSkills', 'Communication Skills'],
@@ -6058,7 +6061,11 @@ function ipDetailSectionHtml(record) {
     html += '<h3 class="wf-letter-form-section-title">' + escapeHtml(title) + '</h3>';
     html += '<div class="wf-ip-detail-grid">' +
       filled.map(([key, label]) =>
-        '<div class="wf-ip-detail-item"><span>' + escapeHtml(label) + '</span><b>' + escapeHtml(record[key]) + '</b></div>'
+        '<div class="wf-ip-detail-item"><span>' + escapeHtml(label) + '</span>' +
+        (key === 'cvLink'
+          ? '<a href="' + escapeHtml(record[key]) + '" target="_blank" rel="noopener" class="wf-link-btn">View CV</a>'
+          : '<b>' + escapeHtml(record[key]) + '</b>') +
+        '</div>'
       ).join('') +
       '</div>';
   });

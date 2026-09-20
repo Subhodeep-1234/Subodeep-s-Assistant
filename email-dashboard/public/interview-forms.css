@@ -461,3 +461,58 @@ body {
 }
 .iv-it-divider::before,
 .iv-it-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ---------- CV / Resume upload (Candidate Form only) ---------- */
+
+.iv-upload-box {
+  display: block;
+  border: 1.5px dashed var(--accent);
+  border-radius: 14px;
+  background: var(--accent-bg);
+  padding: 26px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.iv-upload-box:hover { background: color-mix(in srgb, var(--accent-bg) 75%, var(--accent) 10%); }
+.iv-upload-box input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.iv-upload-box.uploading,
+.iv-upload-box.has-file { cursor: default; }
+.iv-upload-icon {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px var(--shadow);
+}
+.iv-upload-box.has-file .iv-upload-icon { color: var(--resolved); }
+.iv-upload-title { font-size: 0.86rem; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.iv-upload-hint { font-size: 0.72rem; color: var(--muted); }
+.iv-upload-filename { font-size: 0.84rem; font-weight: 700; color: var(--ink); word-break: break-word; margin-bottom: 6px; }
+.iv-upload-remove {
+  background: none;
+  border: none;
+  color: var(--important);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.iv-upload-error { margin-top: 8px; font-size: 0.78rem; color: var(--important); font-weight: 600; }
+.iv-upload-error[hidden] { display: none; }
+.iv-upload-spinner {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-bg);
+  border-top-color: var(--accent);
+  animation: iv-spin 0.7s linear infinite;
+}
