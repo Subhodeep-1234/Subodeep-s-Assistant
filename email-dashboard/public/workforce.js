@@ -1887,7 +1887,6 @@ function formatFileSize(bytes) {
 // small searchable list in this app (Employee Data's own search is the
 // exception, since that list can be large and is server-filtered).
 let lastPolicyDocuments = [];
-let lastEmployeeECards = [];
 
 function docListItemHtml(f) {
   const meta = [formatFileSize(f.size), f.modifiedTime ? formatDate(f.modifiedTime) : null].filter(Boolean).join(' · ');
@@ -1914,19 +1913,13 @@ function renderDocList(listElId, files, emptyMessage) {
 
 async function loadPolicyDocuments() {
   const docsListEl = document.getElementById('policyDocsList');
-  const eCardsListEl = document.getElementById('employeeECardsList');
   docsListEl.innerHTML = '<li class="empty">Loading…</li>';
-  eCardsListEl.innerHTML = '<li class="empty">Loading…</li>';
   try {
     const data = await fetchJson('/api/insurance/policy-documents');
     lastPolicyDocuments = data.policyDocuments || [];
-    lastEmployeeECards = data.employeeECards || [];
     renderDocList('policyDocsList', lastPolicyDocuments, 'No policy documents uploaded yet.');
-    renderDocList('employeeECardsList', lastEmployeeECards, 'No employee E-Cards uploaded yet.');
   } catch (err) {
-    const message = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
-    docsListEl.innerHTML = message;
-    eCardsListEl.innerHTML = message;
+    docsListEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
   }
 }
 
@@ -1934,12 +1927,6 @@ document.getElementById('policyDocsSearch').addEventListener('input', (e) => {
   const needle = e.target.value.trim().toLowerCase();
   const filtered = needle ? lastPolicyDocuments.filter((f) => f.name.toLowerCase().includes(needle)) : lastPolicyDocuments;
   renderDocList('policyDocsList', filtered, needle ? 'No documents match your search.' : 'No policy documents uploaded yet.');
-});
-
-document.getElementById('employeeECardsSearch').addEventListener('input', (e) => {
-  const needle = e.target.value.trim().toLowerCase();
-  const filtered = needle ? lastEmployeeECards.filter((f) => f.name.toLowerCase().includes(needle)) : lastEmployeeECards;
-  renderDocList('employeeECardsList', filtered, needle ? 'No E-Cards match your search.' : 'No employee E-Cards uploaded yet.');
 });
 
 document.getElementById('hiPolicyInfoGrid').addEventListener('click', (e) => {
