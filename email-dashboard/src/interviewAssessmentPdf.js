@@ -60,8 +60,25 @@ function buildInterviewAssessmentPdf(record) {
       .text('Interview Assessment Sheet', PAGE_MARGIN, y + 36, { width: contentWidth, align: 'center' });
     y += 58;
 
+    // A plain vector tick (two strokes) instead of an 'X' - drawn rather
+    // than typed, since the standard Helvetica font pdfkit uses here has no
+    // check-mark glyph in its encoding (a literal '✓' character would just
+    // render as a missing-glyph box).
+    function drawCheckmark(cx, cy, size) {
+      doc.save();
+      doc.lineWidth(1.3).strokeColor(COLOR_INK).lineCap('round').lineJoin('round');
+      doc.moveTo(cx - size * 0.5, cy)
+        .lineTo(cx - size * 0.12, cy + size * 0.38)
+        .lineTo(cx + size * 0.55, cy - size * 0.42)
+        .stroke();
+      doc.restore();
+    }
+
     // ---------- Generic bordered-grid helper ----------
     // rows: array of arrays of { text, bold, width (fraction of contentWidth), fill }
+    // cell.mark draws a checkmark centered in the whole cell instead of text
+    // (the grade grid / NO column); cell.markAfter draws one right after the
+    // cell's own text (the Interview Status row's inline "SELECTED ✓").
     function drawGridRow(cells, rowHeight) {
       let x = PAGE_MARGIN;
       doc.lineWidth(0.75).strokeColor(COLOR_BORDER);
@@ -69,11 +86,21 @@ function buildInterviewAssessmentPdf(record) {
         const w = cell.width * contentWidth;
         if (cell.fill) doc.rect(x, y, w, rowHeight).fill(cell.fill);
         doc.rect(x, y, w, rowHeight).stroke();
-        doc.fillColor(COLOR_INK).font(cell.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(cell.fontSize || 8);
-        doc.text(cell.text || '', x + 4, y + rowHeight / 2 - (cell.fontSize || 8) / 2 - 1, {
-          width: w - 8,
-          align: cell.align || 'left'
-        });
+        const font = cell.bold ? 'Helvetica-Bold' : 'Helvetica';
+        const fontSize = cell.fontSize || 8;
+        doc.fillColor(COLOR_INK).font(font).fontSize(fontSize);
+        if (cell.mark) {
+          drawCheckmark(x + w / 2, y + rowHeight / 2, 8);
+        } else {
+          doc.text(cell.text || '', x + 4, y + rowHeight / 2 - fontSize / 2 - 1, {
+            width: w - 8,
+            align: cell.align || 'left'
+          });
+          if (cell.markAfter) {
+            const textWidth = doc.widthOfString(cell.text || '');
+            drawCheckmark(x + 4 + textWidth + 10, y + rowHeight / 2, 8);
+          }
+        }
         x += w;
       });
       y += rowHeight;
@@ -123,7 +150,7 @@ function buildInterviewAssessmentPdf(record) {
       { text: 'IF YES', bold: true, width: 0.12, fill: COLOR_HEADER_BG },
       { text: workedYes ? (record.alcoveProjectsDetails || 'Yes') : '', width: 0.28 },
       { text: 'NO', bold: true, width: 0.08, fill: COLOR_HEADER_BG },
-      { text: workedYes ? '' : 'X', align: 'center', width: 0.12 }
+      { mark: !workedYes, width: 0.12 }
     ], 22);
     y += 6;
 
@@ -148,8 +175,7 @@ function buildInterviewAssessmentPdf(record) {
       drawGridRow(
         [{ text: comp.label, width: compLabelWidth }].concat(
           GRADE_COLUMNS.map((g) => ({
-            text: g.key === selected ? 'X' : '',
-            align: 'center',
+            mark: g.key === selected,
             width: gradeColWidth,
             fill: g.key === selected ? COLOR_MARK_BG : null
           }))
@@ -160,8 +186,7 @@ function buildInterviewAssessmentPdf(record) {
     drawGridRow(
       [{ text: 'OVERALL GRADE', bold: true, width: compLabelWidth, fill: COLOR_HEADER_BG }].concat(
         GRADE_COLUMNS.map((g) => ({
-          text: g.key === record.overallGrade ? 'X' : '',
-          align: 'center',
+          mark: g.key === record.overallGrade,
           width: gradeColWidth,
           fill: g.key === record.overallGrade ? COLOR_MARK_BG : COLOR_HEADER_BG
         }))
@@ -175,15 +200,20 @@ function buildInterviewAssessmentPdf(record) {
     drawGridRow(
       [{ text: 'INTERVIEW STATUS', bold: true, width: 0.22, fill: COLOR_HEADER_BG }].concat(
         INTERVIEW_STATUS_OPTIONS.map((opt) => ({
-          text: opt.toUpperCase() + (record.interviewStatus === opt ? ': X' : ':'),
+          text: opt.toUpperCase() + ':',
+          markAfter: record.interviewStatus === opt,
           width: 0.26
         }))
       ),
       20
     );
+    const isReplacement = record.newRejoinedReplacement === 'Replacement';
+    const newRejoinedReplacementText = isReplacement && record.replacementForName
+      ? record.newRejoinedReplacement + ' (of ' + record.replacementForName + ')'
+      : record.newRejoinedReplacement;
     drawGridRow([
       { text: 'NEW / REJOINED / REPLACEMENT', bold: true, width: 0.3, fill: COLOR_HEADER_BG },
-      { text: record.newRejoinedReplacement, width: 0.7 }
+      { text: newRejoinedReplacementText, width: 0.7 }
     ], 20);
 
     checkPageBreak(60);
