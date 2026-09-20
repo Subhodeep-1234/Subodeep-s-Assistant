@@ -1075,6 +1075,10 @@ document.getElementById('exportDoerManagementPdf').addEventListener('click', () 
   window.print();
 });
 
+document.getElementById('shareDoerBreakdownPdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/workforce/doer-breakdown/pdf', 'Doer_Headcount.pdf', 'doerBreakdownShareError', 'Could not share the report - please try again.');
+});
+
 // ---------- Organization Chart ----------
 
 // Cycled per designation card within a section (White Collar and Blue
@@ -5237,6 +5241,10 @@ async function loadTenureView() {
   }
 }
 
+document.getElementById('shareTenurePdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/workforce/tenure/pdf', 'Tenure_Report.pdf', 'tenureShareError', 'Could not share the report - please try again.');
+});
+
 // No separate legend here - the label/value/pct rows above already cover
 // that, so this donut is just the visual summary (matches the reference).
 function renderTenureDonut(buckets) {
@@ -5308,6 +5316,10 @@ async function loadAgeDistributionView() {
   }
 }
 
+document.getElementById('shareAgeDistributionPdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/workforce/age/pdf', 'Age_Distribution.pdf', 'ageDistributionShareError', 'Could not share the report - please try again.');
+});
+
 function renderAgeDonut(buckets) {
   const palette = distributionPalette();
 
@@ -5359,6 +5371,10 @@ async function loadGenderDistributionView() {
     rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
   }
 }
+
+document.getElementById('shareGenderDistributionPdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/workforce/gender/pdf', 'Gender_Distribution.pdf', 'genderDistributionShareError', 'Could not share the report - please try again.');
+});
 
 function renderGenderDonut(buckets) {
   const palette = distributionPalette();

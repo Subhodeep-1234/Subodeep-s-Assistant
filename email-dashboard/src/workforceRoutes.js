@@ -302,11 +302,11 @@ router.get('/department-breakdown/pdf', async (req, res) => {
     const pdfBuffer = await buildTablePdfBuffer({
       title: 'Department Wise Headcount Report',
       subtitle: 'Active Employees · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      columns: ['Department', 'Count', 'Percentage'],
+      columns: ['Departments', 'Count', 'Percentage'],
       rows: rows.length
         ? [
             ...rows.map((r) => [r.name, r.count, (Math.round((r.count / totalActive) * 1000) / 10) + '%']),
-            ['Total', totalActive, '100%']
+            { bold: true, cells: ['Total', totalActive, '100%'] }
           ]
         : [['No department data', '', '']],
       landscape: false
@@ -750,6 +750,115 @@ router.get('/gender', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();
     res.json(analytics.genderAnalytics(employees));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Shared by the Tenure/Age Distribution/Gender Distribution/Doer Management
+// Share buttons below - all four are the same shape (a label, an employee
+// count, a % of total) with a bold Total row, just different data sources
+// and column-1 labels (set per-route via each call's own `columns` array).
+function distributionPdfRows(buckets, total) {
+  return buckets.length
+    ? [
+        ...buckets.map((b) => [b.label, b.count, (Math.round((b.count / (total || 1)) * 1000) / 10) + '%']),
+        { bold: true, cells: ['Total', total, '100%'] }
+      ]
+    : [['No data', '', '']];
+}
+
+// Real PDF files for Tenure/Age/Gender's own Share buttons - none of these
+// three pages has ever had a print-based Export PDF of its own, so each is
+// a fresh report (same shape as Department Wise Headcount's), through the
+// same pdfReport.js builder as the other Share buttons.
+router.get('/tenure/pdf', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    const data = analytics.tenureAnalytics(employees);
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Tenure Report',
+      subtitle: 'Active Employees · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Tenure Range', 'Employees', '% of Total'],
+      rows: distributionPdfRows(data.buckets, data.eligibleCount),
+      landscape: false
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Tenure_Report.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/age/pdf', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    const data = analytics.ageAnalytics(employees);
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Age Distribution Report',
+      subtitle: 'Active Employees · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Age Range', 'Employees', '% of Total'],
+      rows: distributionPdfRows(data.buckets, data.eligibleCount),
+      landscape: false
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Age_Distribution.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/gender/pdf', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    const data = analytics.genderAnalytics(employees);
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Gender Distribution Report',
+      subtitle: 'Active Employees · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Gender', 'Employees', '% of Total'],
+      rows: distributionPdfRows(data.buckets, data.eligibleCount),
+      landscape: false
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Gender_Distribution.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Same fixed DOER_DISPLAY_ORDER sort as the on-screen list (see
+// public/workforce.js's own copy of this list) - kept in sync by hand since
+// this is the only other place that needs the exact same display order.
+const DOER_DISPLAY_ORDER = [
+  'amar nath shroff', 'ajay kumar shroff', 'archana shroff', 'yashaswi shroff',
+  'saurabh baid', 'aakriti shroff', 'r & d', 'association', 'common'
+];
+router.get('/doer-breakdown/pdf', async (req, res) => {
+  try {
+    const { employees, doerNames } = await employeeService.getEmployeeData();
+    const rows = analytics.doerBreakdown(employees, doerNames, (e) => e.status === 'ACTIVE').slice().sort((a, b) => {
+      const ai = DOER_DISPLAY_ORDER.indexOf(a.name.toLowerCase().trim());
+      const bi = DOER_DISPLAY_ORDER.indexOf(b.name.toLowerCase().trim());
+      if (ai === -1 && bi === -1) return b.count - a.count;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    const total = rows.reduce((sum, r) => sum + r.count, 0);
+
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Reporting DOER Wise Headcount Report',
+      subtitle: 'Active · ' + rows.length + ' DOER' + (rows.length === 1 ? '' : 's') + ' · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Reporting Doer', 'Employees', '% of Total'],
+      rows: distributionPdfRows(rows.map((r) => ({ label: r.name, count: r.count })), total),
+      landscape: false
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Doer_Headcount.pdf"');
+    res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

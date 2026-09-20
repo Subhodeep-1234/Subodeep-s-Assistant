@@ -40,13 +40,26 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows, landscape = true 
     const minRowHeight = 22;
     const minColWidth = 34;
 
+    // A plain array is a normal data row; { section: 'White' } is a
+    // full-width heading bar (see isSection below); { bold: true, cells:
+    // [...] } is a normal data row rendered in bold - a Total/Summary row
+    // that stays in the table's own columns instead of a section bar.
+    // rowCells() normalizes any row shape down to its plain cell array,
+    // for every place that needs to measure or render cell text without
+    // caring which shape produced it.
+    function rowCells(row) {
+      if (Array.isArray(row)) return row;
+      if (row && typeof row === 'object' && 'cells' in row) return row.cells;
+      return null;
+    }
+
     // Column widths follow each column's own content, the way a real HTML
     // table (table-layout: auto, what #printReport actually is) sizes
     // itself - "Designation"/"Department" naturally end up wider than
     // "Age"/"Gender" instead of every column getting an equal, often too-
     // narrow, share of the page (which broke long words like "DESIGNATION"
     // mid-way onto a second line - not how a real table would ever render).
-    const dataRows = rows.filter((r) => Array.isArray(r));
+    const dataRows = rows.map(rowCells).filter(Boolean);
     function widestToken(text, opts) {
       // The widest SINGLE word/token in a cell, not the whole string - used
       // as a hard floor a column's width can never be scaled below, so a
@@ -200,12 +213,11 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows, landscape = true 
     // the section row's own background overrides it.
     let dataRowIndex = 0;
     rows.forEach((row) => {
-      // A plain array is a normal data row (every existing caller's shape,
-      // unchanged); { section: 'White' } is a full-width heading bar, for
-      // reports that group rows the way the on-screen "Export PDF"/"Export
-      // DOER Breakup" reports do (see print-section-row in workforce.css).
       const isSection = row && !Array.isArray(row) && typeof row === 'object' && 'section' in row;
-      const thisRowHeight = isSection ? SECTION_ROW_HEIGHT : measuredRowHeight(row, 'Helvetica', 8);
+      const isBold = row && !Array.isArray(row) && typeof row === 'object' && 'cells' in row && row.bold;
+      const cells = rowCells(row);
+      const bodyFont = isBold ? 'Helvetica-Bold' : 'Helvetica';
+      const thisRowHeight = isSection ? SECTION_ROW_HEIGHT : measuredRowHeight(cells, bodyFont, 8);
       if (y + thisRowHeight > bottomLimit) {
         doc.addPage();
         y = PAGE_MARGIN;
@@ -227,8 +239,8 @@ function buildTablePdfBuffer({ title, subtitle, columns, rows, landscape = true 
         doc.rect(PAGE_MARGIN, y, pageWidth, thisRowHeight).fill(COLOR_ZEBRA);
       }
       drawGridLines(y, thisRowHeight);
-      doc.font('Helvetica').fontSize(8).fillColor('#000');
-      row.forEach((cell, i) => {
+      doc.font(bodyFont).fontSize(8).fillColor('#000');
+      cells.forEach((cell, i) => {
         doc.text(String(cell == null ? '' : cell), colX[i] + cellPaddingX, y + 6, {
           width: colWidths[i] - cellPaddingX * 2
         });
