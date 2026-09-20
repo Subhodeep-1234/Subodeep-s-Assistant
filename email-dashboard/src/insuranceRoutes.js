@@ -20,6 +20,99 @@ function wantsForceRefresh(req) {
   return req.query.refresh === '1' || req.query.refresh === 'true';
 }
 
+// Shared by both the individual routes below and /health-insurance-bundle,
+// so the two never drift apart - each just wires the same builder to
+// whatever data it already fetched.
+
+function buildCoveredEmployeesResponse(insuranceData, hrData) {
+  const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+  const items = analytics.buildCoveredEmployeesList(insuranceData.members).map((c) => {
+    const hr = hrByEmployeeId.get(c.employeeId);
+    return {
+      employeeId: c.employeeId,
+      name: c.name,
+      department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+      designation: hr ? hr.designation : '',
+      familyCount: c.familyCount,
+      totalPremium: c.totalPremium,
+      status: c.status
+    };
+  });
+  return { total: items.length, items };
+}
+
+function buildFamilyMembersResponse(insuranceData, hrData) {
+  const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+  const items = analytics.buildFamilyMembersList(insuranceData.members).map((m) => {
+    const hr = hrByEmployeeId.get(m.employeeId);
+    return {
+      employeeId: m.employeeId,
+      name: m.name,
+      relationship: m.relationship,
+      relatedEmployeeName: m.relatedEmployeeName,
+      department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+      premiumWithGST: m.premiumWithGST
+    };
+  });
+  return { total: items.length, items };
+}
+
+function buildTotalInsuredLivesResponse(insuranceData, hrData) {
+  const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+  const items = analytics.buildTotalInsuredLivesList(insuranceData.members).map((m) => {
+    const hr = hrByEmployeeId.get(m.employeeId);
+    return {
+      employeeId: m.employeeId,
+      name: m.name,
+      relationship: m.relationship,
+      department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+      premiumWithGST: m.premiumWithGST
+    };
+  });
+  return { total: items.length, items };
+}
+
+function buildExitsResponse(insuranceData, hrData) {
+  const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+  const items = analytics.buildExitsList(insuranceData.deletions).map((c) => {
+    const hr = hrByEmployeeId.get(c.employeeId);
+    return {
+      employeeId: c.employeeId,
+      name: c.name,
+      department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+      designation: hr ? hr.designation : '',
+      status: hr ? hr.status : '',
+      dateOfLeaving: c.dateOfLeaving,
+      familyCount: c.familyCount
+    };
+  });
+  const rawRows = analytics.sortDeletionsSelfFirst(insuranceData.deletions);
+  return { total: items.length, items, rawRows };
+}
+
+function buildAdditionsResponse(insuranceData, hrData) {
+  const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+  const items = analytics.buildAdditionsList(insuranceData.additions).map((c) => {
+    const hr = hrByEmployeeId.get(c.employeeId);
+    return {
+      employeeId: c.employeeId,
+      name: c.name,
+      department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+      designation: hr ? hr.designation : '',
+      status: hr ? hr.status : '',
+      doj: c.doj,
+      familyCount: c.familyCount
+    };
+  });
+  const rawRows = analytics.sortAdditionsSelfFirst(insuranceData.additions);
+  return { total: items.length, items, rawRows };
+}
+
+function buildPolicyInfoResponse(policyValues) {
+  const renewal = analytics.policyRenewalInfo(policyValues.policyStartDate, policyValues.policyEndDate);
+  return { fields: policyInfoService.FIELDS, values: policyValues, renewal };
+}
+
 router.get('/summary', async (req, res) => {
   try {
     const [data, policyValues] = await Promise.all([
@@ -29,6 +122,38 @@ router.get('/summary', async (req, res) => {
     const summary = analytics.buildHealthInsuranceSummary(data);
     const renewal = analytics.policyRenewalInfo(policyValues.policyStartDate, policyValues.policyEndDate);
     res.json({ ...summary, renewal });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Every Health Insurance drill-down list in one response - what
+// loadHealthInsuranceView's own prefetch calls instead of hitting all 8
+// individual routes below concurrently. On Vercel, 8 near-simultaneous
+// requests can each land on a different cold serverless instance - none of
+// which share the in-memory caches below - so a burst like that can fan out
+// into dozens of real Sheets reads and trip its per-minute quota. This is
+// exactly one request, one instance, one real read of each underlying
+// sheet, however many of the 8 sections the client actually needs.
+router.get('/health-insurance-bundle', async (req, res) => {
+  try {
+    const forceRefresh = wantsForceRefresh(req);
+    const [insuranceData, hrData, policyValues] = await Promise.all([
+      insuranceService.getInsuranceData({ forceRefresh }),
+      employeeService.getEmployeeData({ forceRefresh }),
+      policyInfoService.getPolicyInfo()
+    ]);
+
+    res.json({
+      coveredEmployees: buildCoveredEmployeesResponse(insuranceData, hrData),
+      familyMembers: buildFamilyMembersResponse(insuranceData, hrData),
+      totalInsuredLives: buildTotalInsuredLivesResponse(insuranceData, hrData),
+      exits: buildExitsResponse(insuranceData, hrData),
+      additions: buildAdditionsResponse(insuranceData, hrData),
+      policyInfo: buildPolicyInfoResponse(policyValues),
+      familyPremiumBreakdown: { groups: analytics.buildFamilyPremiumBreakdown(insuranceData.members) },
+      annualPremiumBreakdown: { groups: analytics.buildAnnualPremiumBreakdown(insuranceData.members) }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -44,22 +169,7 @@ router.get('/covered-employees', async (req, res) => {
       insuranceService.getInsuranceData({ forceRefresh }),
       employeeService.getEmployeeData({ forceRefresh })
     ]);
-    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
-
-    const items = analytics.buildCoveredEmployeesList(insuranceData.members).map((c) => {
-      const hr = hrByEmployeeId.get(c.employeeId);
-      return {
-        employeeId: c.employeeId,
-        name: c.name,
-        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
-        designation: hr ? hr.designation : '',
-        familyCount: c.familyCount,
-        totalPremium: c.totalPremium,
-        status: c.status
-      };
-    });
-
-    res.json({ total: items.length, items });
+    res.json(buildCoveredEmployeesResponse(insuranceData, hrData));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -75,21 +185,7 @@ router.get('/family-members', async (req, res) => {
       insuranceService.getInsuranceData({ forceRefresh }),
       employeeService.getEmployeeData({ forceRefresh })
     ]);
-    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
-
-    const items = analytics.buildFamilyMembersList(insuranceData.members).map((m) => {
-      const hr = hrByEmployeeId.get(m.employeeId);
-      return {
-        employeeId: m.employeeId,
-        name: m.name,
-        relationship: m.relationship,
-        relatedEmployeeName: m.relatedEmployeeName,
-        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
-        premiumWithGST: m.premiumWithGST
-      };
-    });
-
-    res.json({ total: items.length, items });
+    res.json(buildFamilyMembersResponse(insuranceData, hrData));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -130,20 +226,7 @@ router.get('/total-insured-lives', async (req, res) => {
       insuranceService.getInsuranceData({ forceRefresh }),
       employeeService.getEmployeeData({ forceRefresh })
     ]);
-    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
-
-    const items = analytics.buildTotalInsuredLivesList(insuranceData.members).map((m) => {
-      const hr = hrByEmployeeId.get(m.employeeId);
-      return {
-        employeeId: m.employeeId,
-        name: m.name,
-        relationship: m.relationship,
-        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
-        premiumWithGST: m.premiumWithGST
-      };
-    });
-
-    res.json({ total: items.length, items });
+    res.json(buildTotalInsuredLivesResponse(insuranceData, hrData));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -201,29 +284,7 @@ router.get('/exits', async (req, res) => {
       insuranceService.getInsuranceData({ forceRefresh }),
       employeeService.getEmployeeData({ forceRefresh })
     ]);
-    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
-
-    const items = analytics.buildExitsList(insuranceData.deletions).map((c) => {
-      const hr = hrByEmployeeId.get(c.employeeId);
-      return {
-        employeeId: c.employeeId,
-        name: c.name,
-        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
-        designation: hr ? hr.designation : '',
-        status: hr ? hr.status : '',
-        dateOfLeaving: c.dateOfLeaving,
-        familyCount: c.familyCount
-      };
-    });
-
-    // Raw Deletions rows (Sr No, Corporate Name, Employee ID, Name of
-    // Insured, Gender, Relationship, Date of Leaving, Reason) - separate
-    // from `items` above (which is grouped one-row-per-exited-employee for
-    // the on-screen list) since the PDF export wants every logged row, each
-    // employee's Self row immediately followed by their own family rows.
-    const rawRows = analytics.sortDeletionsSelfFirst(insuranceData.deletions);
-
-    res.json({ total: items.length, items, rawRows });
+    res.json(buildExitsResponse(insuranceData, hrData));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -302,29 +363,7 @@ router.get('/additions', async (req, res) => {
       insuranceService.getInsuranceData({ forceRefresh }),
       employeeService.getEmployeeData({ forceRefresh })
     ]);
-    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
-
-    const items = analytics.buildAdditionsList(insuranceData.additions).map((c) => {
-      const hr = hrByEmployeeId.get(c.employeeId);
-      return {
-        employeeId: c.employeeId,
-        name: c.name,
-        department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
-        designation: hr ? hr.designation : '',
-        status: hr ? hr.status : '',
-        doj: c.doj,
-        familyCount: c.familyCount
-      };
-    });
-
-    // Raw Additions rows (Sl. No., Corporate Name, Emp ID, Full Name,
-    // DOJ/DOM, DOB, Gender, Relationship, Sum Insured) - separate from
-    // `items` above (grouped one-row-per-employee for the on-screen list)
-    // since the PDF export wants every logged row, each employee's Self
-    // row immediately followed by their own family rows.
-    const rawRows = analytics.sortAdditionsSelfFirst(insuranceData.additions);
-
-    res.json({ total: items.length, items, rawRows });
+    res.json(buildAdditionsResponse(insuranceData, hrData));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -396,10 +435,7 @@ router.post('/additions/send-mail', async (req, res) => {
 router.get('/policy-info', async (req, res) => {
   try {
     const values = await policyInfoService.getPolicyInfo();
-    // Renewal is derived from this same Start/End Date pair - included here
-    // so the page's status banner reflects it without a second fetch.
-    const renewal = analytics.policyRenewalInfo(values.policyStartDate, values.policyEndDate);
-    res.json({ fields: policyInfoService.FIELDS, values, renewal });
+    res.json(buildPolicyInfoResponse(values));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

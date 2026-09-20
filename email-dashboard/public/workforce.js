@@ -1675,24 +1675,28 @@ async function loadHealthInsuranceView(forceRefresh) {
     // quota. loadView's own loadedViews gate means this function - and so
     // this prefetch - only runs once per session unless forceRefresh.
     //
-    // Fired all at once (no staggering) - unlike the Dashboard's own
-    // staggeredPrefetch list (11 genuinely distinct sheet-backed reads),
-    // every one of these 8 only ever needs insuranceData/employeeData/
-    // policyInfo, each already de-duplicated to a single in-flight Sheets
-    // read at the service layer (see insuranceService.js's own inFlight
-    // promise). Staggering them just delayed the client from even asking
-    // for whichever section the user opened first, without saving any
-    // real Sheets quota.
-    [
-      '/api/insurance/covered-employees',
-      '/api/insurance/exits',
-      '/api/insurance/additions',
-      '/api/insurance/family-members',
-      '/api/insurance/total-insured-lives',
-      '/api/insurance/policy-info',
-      '/api/insurance/family-premium-breakdown',
-      '/api/insurance/annual-premium-breakdown'
-    ].forEach(prefetchJson);
+    // One bundled request instead of 8 separate ones (see the server's own
+    // /health-insurance-bundle route) - firing all 8 concurrently was tried
+    // and made things worse: on Vercel, near-simultaneous requests can each
+    // land on a different cold serverless instance, none of which share the
+    // in-memory Sheets caches, so the burst fanned out into far more real
+    // Sheets reads and tripped the per-minute quota. One request means one
+    // instance, one real read of each sheet - the response is then sliced
+    // into the individual endpoint URLs below so each drill-down's own
+    // fetchJson call resolves from this instantly instead of hitting the
+    // network again.
+    fetchJson('/api/insurance/health-insurance-bundle' + (forceRefresh ? '?refresh=1' : ''))
+      .then((bundle) => {
+        jsonPrefetchCache.set('/api/insurance/covered-employees', Promise.resolve(bundle.coveredEmployees));
+        jsonPrefetchCache.set('/api/insurance/exits', Promise.resolve(bundle.exits));
+        jsonPrefetchCache.set('/api/insurance/additions', Promise.resolve(bundle.additions));
+        jsonPrefetchCache.set('/api/insurance/family-members', Promise.resolve(bundle.familyMembers));
+        jsonPrefetchCache.set('/api/insurance/total-insured-lives', Promise.resolve(bundle.totalInsuredLives));
+        jsonPrefetchCache.set('/api/insurance/policy-info', Promise.resolve(bundle.policyInfo));
+        jsonPrefetchCache.set('/api/insurance/family-premium-breakdown', Promise.resolve(bundle.familyPremiumBreakdown));
+        jsonPrefetchCache.set('/api/insurance/annual-premium-breakdown', Promise.resolve(bundle.annualPremiumBreakdown));
+      })
+      .catch(() => {});
 
     // clickable deliberately omitted (not set to false) - these cards are
     // meant to look like the vibrant, fully-opaque mockup, not the app's
@@ -4006,7 +4010,11 @@ const jsonPrefetchCache = new Map();
 // go stale within a session.
 const MULTI_READ_PREFETCH_URLS = new Set([
   '/api/workforce/overview',
-  '/api/workforce/breakdowns?status=ACTIVE'
+  '/api/workforce/breakdowns?status=ACTIVE',
+  // Pending Exits and Total Exits are two different pages reading this same
+  // URL (see loadHiTotalExitsView's own comment) - without this, whichever
+  // of the two opens second always misses the bundle cache and re-fetches.
+  '/api/insurance/exits'
 ]);
 
 function prefetchJson(url) {
