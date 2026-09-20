@@ -917,6 +917,13 @@ async function loadDepartmentFullView() {
   }
 }
 
+// Shares a real PDF (department name, count, percentage) fetched from the
+// server's own /api/workforce/department-breakdown/pdf, through the same
+// native-share flow as the other Share buttons.
+document.getElementById('shareDepartmentBreakdownPdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/workforce/department-breakdown/pdf', 'Department_Headcount.pdf', 'departmentBreakdownShareError', 'Could not share the report - please try again.');
+});
+
 // The dashboard's own Location Wise Headcount preview stays a donut+legend
 // (renderLocationDonut, below) - only the "View all" full list gets the
 // department-style bar list, per explicit request to leave the dashboard

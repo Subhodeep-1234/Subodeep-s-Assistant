@@ -285,6 +285,40 @@ router.get('/breakdowns', async (req, res) => {
   }
 });
 
+// A real PDF file for the Department Wise Headcount "View all" page's own
+// Share button - that page has never had a print-based Export PDF of its
+// own, so this is a fresh report rather than mirroring an existing
+// window.print() flow, through the same pdfReport.js builder as the other
+// Share buttons. Percentage is share of ACTIVE headcount overall (not the
+// sum of department counts specifically), matching how the on-screen bars'
+// own percentages are computed (see barListItem's shareTotal param).
+router.get('/department-breakdown/pdf', async (req, res) => {
+  try {
+    const { employees, departmentNames } = await employeeService.getEmployeeData();
+    const isActive = (e) => e.status === 'ACTIVE';
+    const rows = analytics.departmentBreakdown(employees, departmentNames, isActive);
+    const totalActive = employees.filter(isActive).length;
+
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Department Wise Headcount Report',
+      subtitle: 'Active Employees · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Department', 'Count', 'Percentage'],
+      rows: rows.length
+        ? [
+            ...rows.map((r) => [r.name, r.count, (Math.round((r.count / totalActive) * 1000) / 10) + '%']),
+            ['Total', totalActive, '100%']
+          ]
+        : [['No department data', '', '']],
+      landscape: false
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Department_Headcount.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/org-chart', async (req, res) => {
   try {
     if (!req.query.department) {
