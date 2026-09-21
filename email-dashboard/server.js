@@ -111,13 +111,22 @@ app.get('/mail', requireAuth, (req, res) => {
 // app itself (workforce-shell.html) - it just iframes the real app back in
 // at ?embedded=1, clamped to a phone-width column so workforce.css's own
 // mobile @media rules fire for real, without touching that CSS at all. A
-// real phone (the iframe's own width <= 430px, or ?embedded=1 already
-// resolved) gets the exact same file as before. A scoped Interview-Panel
-// teammate always gets the app directly, unwrapped, on any device - that
-// link's current look and feel is deliberately left untouched.
+// scoped Interview-Panel teammate always gets the app directly, unwrapped,
+// on any device - that link's current look and feel is deliberately left
+// untouched.
+//
+// A real phone gets the app directly too, not just a same-size iframe -
+// wrapping it still broke native pull-to-refresh, because that gesture is
+// recognized on the TOP-level document's own scroll, and the shell's outer
+// page is deliberately non-scrolling (see workforce-shell.html) with the
+// iframe's own inner scroll never bubbling out to it. Detecting a real
+// phone by its User-Agent and skipping the shell for it entirely avoids
+// that class of iframe-only quirk altogether, rather than chasing each one.
+const MOBILE_USER_AGENT = /Mobi|Android|iPhone|iPad|iPod/i;
 app.get('/workforce.html', hrAuth.requireInterviewPanelAccess, (req, res) => {
   const isScopedInterviewPanel = req.hrUser && req.hrUser.scope === 'interviewPanel';
-  if (req.query.embedded === '1' || isScopedInterviewPanel) {
+  const isMobileDevice = MOBILE_USER_AGENT.test(req.headers['user-agent'] || '');
+  if (req.query.embedded === '1' || isScopedInterviewPanel || isMobileDevice) {
     return sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce.html'));
   }
   sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce-shell.html'));
