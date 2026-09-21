@@ -139,16 +139,10 @@ app.get('/interview-panel-login', (req, res) => {
 // client-side-token pattern either page needs regardless of which token
 // they were sent.
 app.get('/interview/candidate/:token', (req, res) => {
-  if (req.query.embedded === '1') {
-    return sendNoStore(res, path.join(__dirname, 'public', 'interview-candidate.html'));
-  }
-  sendNoStore(res, path.join(__dirname, 'public', 'interview-form-shell.html'));
+  sendNoStore(res, path.join(__dirname, 'public', 'interview-candidate.html'));
 });
 app.get('/interview/interviewer/:token', (req, res) => {
-  if (req.query.embedded === '1') {
-    return sendNoStore(res, path.join(__dirname, 'public', 'interview-interviewer.html'));
-  }
-  sendNoStore(res, path.join(__dirname, 'public', 'interview-form-shell.html'));
+  sendNoStore(res, path.join(__dirname, 'public', 'interview-interviewer.html'));
 });
 
 app.post('/api/hr-auth/request-otp', async (req, res) => {
