@@ -13,30 +13,34 @@
   the desktop-only true mobile layout (its own @media rules firing against
   the iframe's own narrow viewport) without touching workforce.css itself. -->
   <style>
-    html, body { height: 100%; margin: 0; }
+    /* height:100% + overflow:hidden throughout (no min-height / padding /
+    dual-calc height math) - a fixed-height flex container with a single
+    100%-height child can't ever mismatch by a pixel and cause the outer
+    page itself to need a scrollbar, unlike the previous version. */
+    html, body { height: 100%; margin: 0; overflow: hidden; }
     body {
       display: flex;
       justify-content: center;
-      align-items: stretch;
-      min-height: 100vh;
-      min-height: 100dvh;
+      height: 100vh;
+      height: 100dvh;
+      /* styles.css's shared body rule adds padding-bottom:76px (bottom-nav
+      clearance on other pages) - with the global box-sizing:border-box
+      that same file sets, that silently ate 76px off this 100dvh, which
+      is what was shrinking the iframe and forcing an unwanted scrollbar. */
+      padding: 0;
       background:
         radial-gradient(560px 320px at 50% -80px, var(--accent-bg), transparent),
         var(--paper);
     }
     #wfFrame {
       width: min(430px, 100vw);
-      height: 100vh;
-      height: 100dvh;
+      height: 100%;
       border: 0;
       background: var(--paper);
     }
     @media (min-width: 431px) {
-      body { align-items: center; padding: 28px 0; box-sizing: border-box; }
       #wfFrame {
-        height: min(920px, calc(100vh - 56px));
-        height: min(920px, calc(100dvh - 56px));
-        border-radius: 30px;
+        border-radius: 24px;
         box-shadow: 0 26px 60px rgba(15, 23, 42, 0.24), 0 0 0 1px rgba(15, 23, 42, 0.06);
       }
     }
