@@ -550,8 +550,7 @@ function buildOrgChart(employees, departmentNames, targetDepartmentKey, selected
   // still counts them - they ARE part of the real headcount being shown.
   const excludeIds = new Set([hod && hod.employeeId, doer && doer.employeeId].filter(Boolean));
   const cardEmployees = excludeIds.size ? scopedEmployees.filter((e) => !excludeIds.has(e.employeeId)) : scopedEmployees;
-  const whiteCollar = cardEmployees.filter((e) => formatCollarForChart(e.groupD) === 'White');
-  const blueGroupD = cardEmployees.filter((e) => formatCollarForChart(e.groupD) !== 'White');
+  const { whiteCollar, blueCollar, groupD } = splitByCollar(cardEmployees);
 
   return {
     department: departmentName,
@@ -564,8 +563,27 @@ function buildOrgChart(employees, departmentNames, targetDepartmentKey, selected
     hodOptions: hodOptions.length > 1 ? hodOptions : [],
     selectedHodKey: selectedHodOption ? selectedHodKey : null,
     whiteCollarGroups: groupByDesignation(whiteCollar),
-    blueGroupDGroups: groupByDesignation(blueGroupD)
+    blueCollarGroups: groupByDesignation(blueCollar),
+    groupDGroups: groupByDesignation(groupD)
   };
+}
+
+// White Collar and Blue Collar are exact matches; Group-D is everything
+// else (its own exact match, plus any unexpected/unmapped collar value) -
+// same "never silently drop anyone" safety the old single White-vs-not-
+// White split already had, just with Blue broken out as its own section
+// too instead of folded into "Blue Collar & Group D".
+function splitByCollar(employeesList) {
+  const whiteCollar = [];
+  const blueCollar = [];
+  const groupD = [];
+  employeesList.forEach((e) => {
+    const collar = formatCollarForChart(e.groupD);
+    if (collar === 'White') whiteCollar.push(e);
+    else if (collar === 'Blue') blueCollar.push(e);
+    else groupD.push(e);
+  });
+  return { whiteCollar, blueCollar, groupD };
 }
 
 // Finds the company-wide Managing Director by designation match (not
@@ -638,9 +656,12 @@ function buildOrgChartPdfTree(employees, departmentNames, targetDepartmentKey) {
   });
 
   function collarGroups(emps) {
-    const white = emps.filter((e) => formatCollarForChart(e.groupD) === 'White');
-    const blue = emps.filter((e) => formatCollarForChart(e.groupD) !== 'White');
-    return { whiteCollarGroups: groupByDesignation(white), blueGroupDGroups: groupByDesignation(blue) };
+    const { whiteCollar, blueCollar, groupD } = splitByCollar(emps);
+    return {
+      whiteCollarGroups: groupByDesignation(whiteCollar),
+      blueCollarGroups: groupByDesignation(blueCollar),
+      groupDGroups: groupByDesignation(groupD)
+    };
   }
 
   // Same "don't double-list the leader among their own cards" rule the

@@ -1328,7 +1328,8 @@ function renderOrgChartHtml(data) {
         '<div class="org-chart-connector-down"></div>' +
         hodBox +
         orgChartSectionHtml('White Collar', data.whiteCollarGroups) +
-        orgChartSectionHtml('Blue Collar & Group D', data.blueGroupDGroups) +
+        orgChartSectionHtml('Blue Collar', data.blueCollarGroups) +
+        orgChartSectionHtml('Group D', data.groupDGroups) +
       '</div>' +
 
       '<div class="org-chart-footer">' +
@@ -1363,12 +1364,14 @@ function renderOrgChartHtml(data) {
 // renders pixel-identical to the PDF's original design.
 function orgChartPdfBranchContentHtml(branch, hodBoxClass) {
   hodBoxClass = hodBoxClass || 'org-chart-hod-box';
-  const directHasContent = branch.direct.whiteCollarGroups.length > 0 || branch.direct.blueGroupDGroups.length > 0;
+  const directHasContent = branch.direct.whiteCollarGroups.length > 0 || branch.direct.blueCollarGroups.length > 0 || branch.direct.groupDGroups.length > 0;
 
   if (branch.hods.length === 0) {
     // No HOD at all under this owner - any direct reports (tagged
     // straight to the owner's own name in HOD-1) sit right under them.
-    return orgChartSectionHtml('White Collar', branch.direct.whiteCollarGroups) + orgChartSectionHtml('Blue Collar & Group D', branch.direct.blueGroupDGroups);
+    return orgChartSectionHtml('White Collar', branch.direct.whiteCollarGroups) +
+      orgChartSectionHtml('Blue Collar', branch.direct.blueCollarGroups) +
+      orgChartSectionHtml('Group D', branch.direct.groupDGroups);
   }
 
   if (branch.hods.length === 1 && !directHasContent) {
@@ -1377,7 +1380,8 @@ function orgChartPdfBranchContentHtml(branch, hodBoxClass) {
       '<div class="org-chart-branch-connector"></div>' +
       orgChartLeaderBoxHtml('', h.hod, hodBoxClass) +
       orgChartSectionHtml('White Collar', h.whiteCollarGroups) +
-      orgChartSectionHtml('Blue Collar & Group D', h.blueGroupDGroups)
+      orgChartSectionHtml('Blue Collar', h.blueCollarGroups) +
+      orgChartSectionHtml('Group D', h.groupDGroups)
     );
   }
 
@@ -1397,14 +1401,16 @@ function orgChartPdfBranchContentHtml(branch, hodBoxClass) {
           '<div class="org-chart-pdf-hod-slot">' +
             orgChartLeaderBoxHtml('', h.hod, hodBoxClass) +
             orgChartSectionHtml('White Collar', h.whiteCollarGroups) +
-            orgChartSectionHtml('Blue Collar & Group D', h.blueGroupDGroups) +
+            orgChartSectionHtml('Blue Collar', h.blueCollarGroups) +
+            orgChartSectionHtml('Group D', h.groupDGroups) +
           '</div>'
         ))
         .join('') +
       (directHasContent
         ? '<div class="org-chart-pdf-hod-slot">' +
             orgChartSectionHtml('White Collar', branch.direct.whiteCollarGroups) +
-            orgChartSectionHtml('Blue Collar & Group D', branch.direct.blueGroupDGroups) +
+            orgChartSectionHtml('Blue Collar', branch.direct.blueCollarGroups) +
+            orgChartSectionHtml('Group D', branch.direct.groupDGroups) +
           '</div>'
         : '') +
     '</div>'
@@ -1427,7 +1433,7 @@ function renderOrgChartPdfTreeHtml(data) {
   const mdBox = orgChartLeaderBoxHtml('', mdForDisplay, 'org-chart-hod-box org-chart-director-box');
 
   const hasDirectors = data.directors.length > 0;
-  const mdOwnHasContent = data.mdBranch.hods.length > 0 || data.mdBranch.direct.whiteCollarGroups.length > 0 || data.mdBranch.direct.blueGroupDGroups.length > 0;
+  const mdOwnHasContent = data.mdBranch.hods.length > 0 || data.mdBranch.direct.whiteCollarGroups.length > 0 || data.mdBranch.direct.blueCollarGroups.length > 0 || data.mdBranch.direct.groupDGroups.length > 0;
 
   let secondRowLabel = 'HOD';
   let secondRowValue = '—';
