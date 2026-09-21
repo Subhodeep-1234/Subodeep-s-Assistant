@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workforce Intelligence</title>
+  <link rel="stylesheet" href="styles.css?v=8" />
+  <!-- Desktop-only "phone frame": the real app (unchanged) is loaded at its
+  own URL inside this iframe. On a real phone (viewport <= 430px) the frame
+  is exactly 100% width/height, so nothing here changes what a mobile
+  visitor already sees - the frame only clamps to a fixed mobile width and
+  grows a border/shadow once the viewport is wider than a phone. This gives
+  the desktop-only true mobile layout (its own @media rules firing against
+  the iframe's own narrow viewport) without touching workforce.css itself. -->
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background:
+        radial-gradient(560px 320px at 50% -80px, var(--accent-bg), transparent),
+        var(--paper);
+    }
+    #wfFrame {
+      width: min(430px, 100vw);
+      height: 100vh;
+      height: 100dvh;
+      border: 0;
+      background: var(--paper);
+    }
+    @media (min-width: 431px) {
+      body { align-items: center; padding: 28px 0; box-sizing: border-box; }
+      #wfFrame {
+        height: min(920px, calc(100vh - 56px));
+        height: min(920px, calc(100dvh - 56px));
+        border-radius: 30px;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.24), 0 0 0 1px rgba(15, 23, 42, 0.06);
+      }
+    }
+  </style>
+</head>
+<body>
+  <iframe id="wfFrame" src="/workforce.html?embedded=1" title="Workforce Intelligence" allow="clipboard-write; web-share"></iframe>
+</body>
+</html>

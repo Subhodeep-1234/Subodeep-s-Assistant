@@ -107,8 +107,20 @@ app.get('/mail', requireAuth, (req, res) => {
 // silently bypassing this route's auth check entirely (confirmed via a
 // missing X-Powered-By: Express header and a 200 with no session at all).
 // Living outside public/ forces every request through this handler.
+// On a real desktop, a full admin gets a small wrapper page instead of the
+// app itself (workforce-shell.html) - it just iframes the real app back in
+// at ?embedded=1, clamped to a phone-width column so workforce.css's own
+// mobile @media rules fire for real, without touching that CSS at all. A
+// real phone (the iframe's own width <= 430px, or ?embedded=1 already
+// resolved) gets the exact same file as before. A scoped Interview-Panel
+// teammate always gets the app directly, unwrapped, on any device - that
+// link's current look and feel is deliberately left untouched.
 app.get('/workforce.html', hrAuth.requireInterviewPanelAccess, (req, res) => {
-  sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce.html'));
+  const isScopedInterviewPanel = req.hrUser && req.hrUser.scope === 'interviewPanel';
+  if (req.query.embedded === '1' || isScopedInterviewPanel) {
+    return sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce.html'));
+  }
+  sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce-shell.html'));
 });
 
 app.get('/login', (req, res) => {

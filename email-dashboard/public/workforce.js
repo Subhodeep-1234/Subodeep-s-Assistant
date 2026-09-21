@@ -432,7 +432,11 @@ async function logout() {
   try {
     await fetch('api/hr-auth/logout', { method: 'POST' });
   } finally {
-    window.location.href = 'login';
+    // window.top, not window - on desktop this page runs inside the
+    // workforce-shell.html phone-frame iframe, and navigating just the
+    // iframe here would reload the login page (then the shell again) one
+    // level too deep instead of returning to a normal top-level /login.
+    window.top.location.href = 'login';
   }
 }
 document.getElementById('logoutBtn').addEventListener('click', logout);
