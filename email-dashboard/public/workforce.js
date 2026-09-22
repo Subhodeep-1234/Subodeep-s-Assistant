@@ -1640,6 +1640,34 @@ function positionOrgChartPdfFanBuses(root) {
   });
 }
 
+// The small tick+arrowhead connector every leaf box (a Director/HOD's own
+// leader box, or a designation card) draws pointing up into whatever it
+// hangs off of - CSS centers these with left:50%/transform:translateX(-50%),
+// which needs two SEPARATE fractional-pixel calculations (this box's own
+// 50% position, then the tick's own -50% transform). Under
+// scaleOrgChartPdfTreeToFit's fractional zoom on a busy department, each
+// one rounds slightly differently depending on that particular box's own
+// width, rendering as visibly inconsistent line thickness and jittery
+// left/right alignment from one sibling box to the next (the connecting
+// bus lines themselves had the same root cause - see
+// positionOrgChartPdfFanBuses above). A single explicit whole-pixel left
+// offset per box, via a CSS custom property (::before/::after have no DOM
+// node of their own to set inline styles on directly), removes both
+// sources of drift - same "measure post-zoom, divide the zoom back out"
+// idea as the bus lines, just applied to --tick-left/--arrow-left instead
+// of left/width.
+function positionOrgChartPdfTicks(root) {
+  const chart = root.querySelector('.org-chart');
+  const zoom = chart ? parseFloat(getComputedStyle(chart).zoom) || 1 : 1;
+  function setTick(el, tickWidth, arrowWidth) {
+    const center = el.getBoundingClientRect().width / 2;
+    el.style.setProperty('--tick-left', (Math.round(center - tickWidth / 2) / zoom) + 'px');
+    el.style.setProperty('--arrow-left', (Math.round(center - arrowWidth / 2) / zoom) + 'px');
+  }
+  root.querySelectorAll('.org-chart-pdf-director-col, .org-chart-pdf-hod-slot').forEach((el) => setTick(el, 2, 6));
+  root.querySelectorAll('.org-chart-card').forEach((el) => setTick(el, 2, 8));
+}
+
 // Landscape A4's own true content-box size in CSS px, matching
 // #orgChartPrintContent's fixed 297mm width and 8mm/10mm padding (see
 // that CSS rule's own comment for why it's a fixed size, not 100%) -
@@ -1710,13 +1738,15 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
 
   // The org-chart print CSS applies as soon as body.printing-org-chart is
   // set (not gated behind @media print - see that block's own comment on
-  // why), so the compact/positioned layout these two steps need to
+  // why), so the compact/positioned layout these three steps need to
   // measure is already in effect right here, no need to wait for
   // 'beforeprint' (which, tested directly, doesn't reliably fire after
   // print media has actually been applied). Scale first, then position
-  // the fan-out bus lines against the final (possibly shrunk) layout.
+  // the fan-out bus lines and every box's own tick+arrow against the
+  // final (possibly shrunk) layout.
   scaleOrgChartPdfTreeToFit(printEl);
   positionOrgChartPdfFanBuses(printEl);
+  positionOrgChartPdfTicks(printEl);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
     document.body.classList.remove('printing-org-chart');

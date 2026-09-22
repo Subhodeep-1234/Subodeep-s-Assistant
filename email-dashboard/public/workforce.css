@@ -2162,13 +2162,19 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
     content: none;
   }
   /* Each card's own tick line ends in a downward arrowhead pointing into
-     that designation's box, matching the reference chart's style. */
+     that designation's box, matching the reference chart's style. left
+     comes from a JS-computed --arrow-left (positionOrgChartPdfTicks), with
+     transform: none overriding the base rule's translateX(-50%) - see the
+     org-chart-pdf-director-col::before rule's own comment above for why
+     (a busy department's fractional zoom needs a single explicit
+     whole-pixel offset here, not two independently-rounded percentage/
+     transform calculations). */
   body.printing-org-chart .org-chart-card::after {
     content: '';
     position: absolute;
     top: -4px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: var(--arrow-left, calc(50% - 3px));
+    transform: none;
     width: 0;
     height: 0;
     border-left: 3px solid transparent;
@@ -2265,13 +2271,22 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      reasoning above) stops the tick where the arrowhead's wide edge
      starts, instead of running underneath its narrowing point and
      sticking out past its sides. */
+  /* left comes from a JS-computed --tick-left/--arrow-left custom property
+     (positionOrgChartPdfTicks), not the left:50%/transform:translateX(-50%)
+     this used to use - the whole tree can be running through
+     scaleOrgChartPdfTreeToFit's fractional zoom on a busy department, and
+     that combination needed two INDEPENDENT sub-pixel roundings (this
+     column's own 50% position, then this tick's own -50% transform) that
+     each rounded differently per sibling column, rendering as visibly
+     inconsistent line thickness and jittery alignment across them. A
+     single explicit whole-pixel offset removes both sources of drift.
+     Falls back to the old centering if JS hasn't run for some reason. */
   body.printing-org-chart .org-chart-pdf-hod-slot::before,
   body.printing-org-chart .org-chart-pdf-director-col::before {
     content: "";
     position: absolute;
     top: -9px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: var(--tick-left, calc(50% - 1px));
     width: 2px;
     height: 5px;
     background: #000;
@@ -2283,8 +2298,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
     content: "";
     position: absolute;
     top: -4px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: var(--arrow-left, calc(50% - 3px));
     width: 0;
     height: 0;
     border-left: 3px solid transparent;
@@ -2355,7 +2369,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      letting the tick run underneath that narrowing point made the
      tick's own width visibly stick out past the arrow's edges near the
      tip, reading as a smudged blob instead of a clean triangle. */
-  body.printing-org-chart .org-chart-card::before { top: -9px; height: 5px; }
+  body.printing-org-chart .org-chart-card::before { top: -9px; height: 5px; left: var(--tick-left, calc(50% - 1px)); transform: none; }
   body.printing-org-chart .org-chart-card-head { padding: 2px 6px; font-size: 0.5rem; gap: 3px; }
   body.printing-org-chart .org-chart-card-head-icon svg { width: 8px; height: 8px; }
   body.printing-org-chart .org-chart-card-body { padding: 3px 6px; gap: 2px; }
