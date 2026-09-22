@@ -4993,9 +4993,17 @@ document.getElementById('sharePendingConfirmationsPdf').addEventListener('click'
 // Uses directoryPdfPrefetch (started back in loadEmployees) instead of its
 // own fresh fetch - see shareFile's prefetchedBlobPromise for why.
 document.getElementById('shareEmployeesPdf').addEventListener('click', (e) => {
+  // Trailing dot(s) stripped after the whitespace swap - many department
+  // names end in "DEPT." (MEP DEPT., FACADE DEPT., ...), which otherwise
+  // lands right before the appended ".pdf" as a double dot ("MEP_DEPT..pdf")
+  // - a malformed-looking extension that Android's share validation seems
+  // to reject outright, silently falling back to a plain download instead
+  // of the native share sheet (a shorter, no-trailing-dot name like "FIRE"
+  // or "ADMINISTRATION (HO)" never hit this).
+  const slug = (s) => s.replace(/\s+/g, '_').replace(/\.+$/, '');
   const filenameParts = ['Employee_Data'];
-  if (activeFilters.department) filenameParts.push(activeFilters.department.replace(/\s+/g, '_'));
-  if (activeFilters.location) filenameParts.push(activeFilters.location.replace(/\s+/g, '_'));
+  if (activeFilters.department) filenameParts.push(slug(activeFilters.department));
+  if (activeFilters.location) filenameParts.push(slug(activeFilters.location));
   const params = new URLSearchParams();
   Object.entries(activeFilters).forEach(([k, v]) => { if (v) params.set(k, v); });
   shareFile(

@@ -356,9 +356,14 @@ router.get('/employees/pdf', async (req, res) => {
       landscape: false
     });
 
+    // Trailing dot(s) stripped after the whitespace swap - many department
+    // names end in "DEPT." (MEP DEPT., FACADE DEPT., ...), which otherwise
+    // lands right before the appended ".pdf" as a double dot. Matches the
+    // client's own filename slug (public/workforce.js, shareEmployeesPdf).
+    const slug = (s) => String(s).replace(/\s+/g, '_').replace(/\.+$/, '');
     const filenameParts = ['Employee_Data'];
-    if (req.query.department) filenameParts.push(String(req.query.department).replace(/\s+/g, '_'));
-    if (req.query.location) filenameParts.push(String(req.query.location).replace(/\s+/g, '_'));
+    if (req.query.department) filenameParts.push(slug(req.query.department));
+    if (req.query.location) filenameParts.push(slug(req.query.location));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="' + filenameParts.join('_') + '.pdf"');
     res.send(pdfBuffer);
