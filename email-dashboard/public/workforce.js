@@ -4245,22 +4245,43 @@ async function loadEmployees(forceRefresh) {
     if (v) params.set(k, v);
   });
   if (forceRefresh) params.set('refresh', '1');
-  // Kick the PDF off now, in the background, well before the user could
-  // possibly reach the Share button - see shareFile's prefetchedBlobPromise.
-  // Only for the 'default' report Share is even shown for (syncVariantButtons).
-  directoryPdfPrefetch = directoryReportVariant === 'default'
-    ? fetch('/api/workforce/employees/pdf?' + params.toString()).then((res) => {
-        if (!res.ok) throw new Error('Could not share the report - please try again.');
-        return res.blob();
-      })
-    : null;
+  directoryPdfPrefetch = null;
+  // The Share button stays disabled/spinning until the PDF it would share
+  // has actually finished preparing - see the prefetch kickoff below.
+  // navigator.share() only works within a short window of the click itself
+  // ("user activation"); a smaller department's (e.g. FIRE's) PDF settles
+  // fast enough that awaiting an already-resolved promise inside the click
+  // handler keeps that window intact, but a bigger one (MEP, Facade, ...)
+  // or a slow/cold server request can still be in flight when the user
+  // taps Share, and awaiting an UNRESOLVED promise from inside the click
+  // handler loses that window exactly like the original fetch-on-click bug
+  // did - the browser silently falls back to a plain download instead of
+  // the native share sheet. Disabling the button until the file is
+  // actually ready removes that race instead of hoping the user waits long
+  // enough on their own.
+  const shareEmployeesBtn = document.getElementById('shareEmployeesPdf');
+  if (shareEmployeesBtn) shareEmployeesBtn.disabled = true;
   try {
     const data = await fetchJson('/api/workforce/employees?' + params.toString());
     if (requestId !== currentRequestId) return;
     renderEmployees(data);
+    if (directoryReportVariant === 'default') {
+      directoryPdfPrefetch = fetch('/api/workforce/employees/pdf?' + params.toString()).then((res) => {
+        if (!res.ok) throw new Error('Could not share the report - please try again.');
+        return res.blob();
+      });
+      const unlockShareBtn = () => { if (requestId === currentRequestId && shareEmployeesBtn) shareEmployeesBtn.disabled = false; };
+      // A failed prefetch still unlocks the button - clicking it then falls
+      // back to shareFile's own fresh fetch (and its usual error banner if
+      // that fails too), same as before this prefetch existed.
+      directoryPdfPrefetch.then(unlockShareBtn, unlockShareBtn);
+    } else if (shareEmployeesBtn) {
+      shareEmployeesBtn.disabled = false;
+    }
   } catch (err) {
     if (requestId !== currentRequestId) return;
     employeeList.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+    if (shareEmployeesBtn) shareEmployeesBtn.disabled = false;
   }
 }
 
