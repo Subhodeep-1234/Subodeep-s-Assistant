@@ -1023,6 +1023,126 @@ router.get('/location-transfers', async (req, res) => {
   }
 });
 
+// Shared real-file PDF for all four Employee Movements detail pages
+// (Inter-Department Transfers, Promotions, Company Transfers, Location
+// Transfers - both their own Export PDF and Share buttons, public/
+// workforce.js) - same pdfReport.js builder as every other PDF in this
+// app, so it reads the same "professional" branded style. fromLabel/
+// toLabel echo the on-screen list's own route labels (MOVEMENT_TYPES)
+// so the PDF matches what's actually on screen. Every item already
+// carries plain from/to fields regardless of type (see movementTracker.js) -
+// only Promotions also gets a cross-referenced department column, since
+// that's the one place the on-screen list shows it too.
+async function buildMovementPdfBuffer({ title, noun, items, fromLabel, toLabel, includeDepartment }) {
+  const sorted = items.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  const columns = includeDepartment
+    ? ['Date', 'Employee Code', 'Name', 'Department', fromLabel, toLabel]
+    : ['Date', 'Employee Code', 'Name', fromLabel, toLabel];
+  const rows = sorted.map((it) => {
+    const row = [
+      it.date ? new Date(it.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+      it.employeeId || '—',
+      it.name || '—'
+    ];
+    if (includeDepartment) row.push(it.department || '—');
+    row.push(it.from || '—', it.to || '—');
+    return row;
+  });
+  return buildTablePdfBuffer({
+    title,
+    subtitle: sorted.length + ' ' + noun + (sorted.length === 1 ? '' : 's') + ' · Generated ' +
+      new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+    columns,
+    rows: rows.length ? rows : [['No records found', ...columns.slice(1).map(() => '')]],
+    landscape: false
+  });
+}
+
+router.get('/dept-transfers/pdf', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const data = await movementTracker.getTransfersInLastDays(days);
+    const pdfBuffer = await buildMovementPdfBuffer({
+      title: 'Inter-Department Transfers',
+      noun: 'transfer',
+      items: data.items,
+      fromLabel: 'From Department',
+      toLabel: 'To Department'
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Inter_Department_Transfers.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/promotions/pdf', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const [data, hrData] = await Promise.all([
+      movementTracker.getPromotionsInLastDays(days),
+      employeeService.getEmployeeData({})
+    ]);
+    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+    const items = data.items.map((it) => {
+      const hr = hrByEmployeeId.get(it.employeeId);
+      return { ...it, department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '' };
+    });
+    const pdfBuffer = await buildMovementPdfBuffer({
+      title: 'Promotions',
+      noun: 'promotion',
+      items,
+      fromLabel: 'From Designation',
+      toLabel: 'To Designation',
+      includeDepartment: true
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Promotions.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/company-transfers/pdf', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const data = await movementTracker.getCompanyTransfersInLastDays(days);
+    const pdfBuffer = await buildMovementPdfBuffer({
+      title: 'Company Transfers',
+      noun: 'transfer',
+      items: data.items,
+      fromLabel: 'From Company',
+      toLabel: 'To Company'
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Company_Transfers.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/location-transfers/pdf', async (req, res) => {
+  try {
+    const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
+    const data = await movementTracker.getLocationTransfersInLastDays(days);
+    const pdfBuffer = await buildMovementPdfBuffer({
+      title: 'Location Transfers',
+      noun: 'transfer',
+      items: data.items,
+      fromLabel: 'From Location',
+      toLabel: 'To Location'
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Location_Transfers.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Increment Letter PDF - a real, final-format document (see letterPdf.js
 // for why it reproduces the company's own Word template exactly rather
 // than a generic layout).

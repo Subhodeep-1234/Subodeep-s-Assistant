@@ -3619,6 +3619,17 @@ function openMovementDetail(type) {
   loadMovementDetail();
 }
 
+// The Movement Detail Share button's in-flight/settled PDF fetch - same
+// prefetch-then-disable-until-ready pattern as directoryPdfPrefetch
+// (loadEmployees) and for the same reason: navigator.share() only works
+// within a short window of the click, and awaiting a fresh fetch from
+// inside the click handler could lose that window on a slower request.
+let movementPdfPrefetch = null;
+
+function movementPdfFilename(meta) {
+  return meta.label.replace(/\s+/g, '_').replace(/\.+$/, '') + '.pdf';
+}
+
 async function loadMovementDetail() {
   const meta = MOVEMENT_TYPES[movementDetailType];
   document.getElementById('movementDetailTitle').textContent = meta.label;
@@ -3628,10 +3639,19 @@ async function loadMovementDetail() {
   document.getElementById('movementDetailHint').hidden = !meta.lettersEnabled;
   const listEl = document.getElementById('movementDetailList');
   listEl.innerHTML = '<li class="empty"><div class="loading"><div class="spinner"></div></div></li>';
+  movementPdfPrefetch = null;
+  const shareMovementBtn = document.getElementById('shareMovementDetailPdf');
+  if (shareMovementBtn) shareMovementBtn.disabled = true;
   try {
     const days = meta.daysCap || 365;
     const data = await fetchJson(meta.endpoint + '?days=' + days);
     const items = data.items.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    movementPdfPrefetch = fetch(meta.endpoint + '/pdf?days=' + days).then((res) => {
+      if (!res.ok) throw new Error('Could not share the report - please try again.');
+      return res.blob();
+    });
+    const unlockShareBtn = () => { if (shareMovementBtn) shareMovementBtn.disabled = false; };
+    movementPdfPrefetch.then(unlockShareBtn, unlockShareBtn);
     // Read back by index when a row is clicked (see movementDetailListEl's
     // click handler below) - simpler than round-tripping every field
     // through data-* attributes on the <li>.
@@ -3666,8 +3686,55 @@ async function loadMovementDetail() {
       : '<li class="empty">' + meta.emptyText + '</li>';
   } catch (err) {
     listEl.innerHTML = '<li class="error-banner">' + escapeHtml(err.message) + '</li>';
+    if (shareMovementBtn) shareMovementBtn.disabled = false;
   }
 }
+
+// Export PDF always forces a real download (unlike Share, which prefers the
+// native share sheet) - same real server PDF either way (see
+// buildMovementPdfBuffer, workforceRoutes.js), just handed to the browser
+// differently. No prefetch here since Export PDF isn't gated by
+// navigator.share()'s activation window the way Share is.
+document.getElementById('exportMovementDetailPdf').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const meta = MOVEMENT_TYPES[movementDetailType];
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+  try {
+    const res = await fetch(meta.endpoint + '/pdf?days=' + (meta.daysCap || 365));
+    if (!res.ok) throw new Error('Could not export the report - please try again.');
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = movementPdfFilename(meta);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    alert('Failed to export report: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+});
+
+// Shares the same real PDF as a native share (WhatsApp, Messages, etc.) -
+// see movementPdfPrefetch (loadMovementDetail) for why this passes an
+// already-started fetch instead of doing its own from inside the click.
+document.getElementById('shareMovementDetailPdf').addEventListener('click', (e) => {
+  const meta = MOVEMENT_TYPES[movementDetailType];
+  shareFile(
+    e.currentTarget,
+    meta.endpoint + '/pdf?days=' + (meta.daysCap || 365),
+    movementPdfFilename(meta),
+    'movementDetailShareError',
+    'Could not share the report - please try again.',
+    movementPdfPrefetch
+  );
+});
 
 // Promotions only (see the "clickable" class added in loadMovementDetail) -
 // clicking a name goes straight to the Promotion & Increment form. Letter
