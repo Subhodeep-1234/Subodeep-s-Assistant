@@ -1576,7 +1576,24 @@ function renderOrgChartPdfTreeHtml(data) {
 // building the HTML (still in screen layout at that point) - so this
 // runs from the 'beforeprint' event instead, which fires after that
 // switch.
+//
+// A busy department also gets zoomed down to fit one page
+// (scaleOrgChartPdfTreeToFit, run right before this) - getBoundingClientRect()
+// on anything inside that zoomed .org-chart already reports POST-zoom
+// (final on-screen) pixel values, but every bus element being positioned
+// here is ITSELF inside that same zoomed ancestor. Writing those already-
+// zoomed measurements straight back as its own left/width made the
+// browser apply the zoom a SECOND time when painting the bus, shrinking
+// it to roughly zoom^2 of the span it was actually measured at - visibly,
+// the connecting line stopped partway across a wide row instead of
+// reaching the last column(s)/card(s), on any department busy enough to
+// actually need the zoom (an unzoomed department, zoom === 1, never
+// showed this - dividing by 1 is a no-op). Dividing by the same zoom
+// factor before assigning cancels that second application out.
 function positionOrgChartPdfFanBuses(root) {
+  const chart = root.querySelector('.org-chart');
+  const zoom = chart ? parseFloat(getComputedStyle(chart).zoom) || 1 : 1;
+
   root.querySelectorAll('.org-chart-pdf-hods-row, .org-chart-pdf-directors-row').forEach((row) => {
     const bus = row.querySelector(':scope > .org-chart-pdf-hods-bus');
     if (!bus) return;
@@ -1596,8 +1613,8 @@ function positionOrgChartPdfFanBuses(root) {
     const lastRect = cols[cols.length - 1].getBoundingClientRect();
     const left = firstRect.left + firstRect.width / 2 - rowRect.left;
     const right = lastRect.left + lastRect.width / 2 - rowRect.left;
-    bus.style.left = left + 'px';
-    bus.style.width = Math.max(0, right - left) + 'px';
+    bus.style.left = (left / zoom) + 'px';
+    bus.style.width = (Math.max(0, right - left) / zoom) + 'px';
   });
 
   // Same idea, one level deeper - the designation cards row under each
@@ -1618,8 +1635,8 @@ function positionOrgChartPdfFanBuses(root) {
     const lastRect = cards[cards.length - 1].getBoundingClientRect();
     const left = firstRect.left + firstRect.width / 2 - rowRect.left;
     const right = lastRect.left + lastRect.width / 2 - rowRect.left;
-    bus.style.left = left + 'px';
-    bus.style.width = Math.max(0, right - left) + 'px';
+    bus.style.left = (left / zoom) + 'px';
+    bus.style.width = (Math.max(0, right - left) / zoom) + 'px';
   });
 }
 
