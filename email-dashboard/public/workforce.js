@@ -5607,7 +5607,7 @@ async function loadCollarDistributionView() {
     document.getElementById('collarDonutTotal').textContent = data.eligibleCount.toLocaleString();
     rowsEl.innerHTML =
       '<div class="wf-dist-row wf-dist-header">' +
-        '<span class="wf-dist-label-col">Collar</span>' +
+        '<span class="wf-dist-label-col">Category</span>' +
         '<span class="wf-dist-num-col">Employees</span>' +
         '<span class="wf-dist-num-col">% of Total</span>' +
       '</div>' +
@@ -5630,7 +5630,7 @@ async function loadCollarDistributionView() {
 }
 
 document.getElementById('shareCollarDistributionPdf').addEventListener('click', (e) => {
-  shareFile(e.currentTarget, '/api/workforce/collar/pdf', 'Collar_Distribution.pdf', 'collarDistributionShareError', 'Could not share the report - please try again.');
+  shareFile(e.currentTarget, '/api/workforce/collar/pdf', 'Category_Distribution.pdf', 'collarDistributionShareError', 'Could not share the report - please try again.');
 });
 
 function renderCollarDonut(buckets) {

@@ -946,14 +946,14 @@ router.get('/collar/pdf', async (req, res) => {
     const { employees } = await employeeService.getEmployeeData();
     const data = analytics.collarAnalytics(employees);
     const pdfBuffer = await buildTablePdfBuffer({
-      title: 'Collar Distribution Report',
+      title: 'Category Distribution Report',
       subtitle: 'Active Employees · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      columns: ['Collar', 'Employees', '% of Total'],
+      columns: ['Category', 'Employees', '% of Total'],
       rows: distributionPdfRows(data.buckets, data.eligibleCount),
       landscape: false
     });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="Collar_Distribution.pdf"');
+    res.setHeader('Content-Disposition', 'inline; filename="Category_Distribution.pdf"');
     res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
