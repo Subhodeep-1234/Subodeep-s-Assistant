@@ -2,7 +2,7 @@ const express = require('express');
 const employeeService = require('./employeeService');
 const analytics = require('./workforceAnalytics');
 const movementTracker = require('./movementTracker');
-const { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf } = require('./letterPdf');
+const { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf, buildConfirmationLetterPdf } = require('./letterPdf');
 const insuranceService = require('./insuranceService');
 const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
@@ -1251,6 +1251,36 @@ router.post('/letters/promotion-increment', async (req, res) => {
     res.setHeader(
       'Content-Disposition',
       'inline; filename="Promotion_Increment_Letter_' + employeeName.replace(/[^a-z0-9]+/gi, '_') + '.pdf"'
+    );
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Confirmation Letter PDF - a real, final-format document (see letterPdf.js
+// for why it reproduces the company's own Confirmation Letter template
+// exactly rather than a generic layout).
+router.post('/letters/confirmation', async (req, res) => {
+  try {
+    const { title, employeeName, employeeId, companyName, refNo, position, doj, confirmationDate } = req.body || {};
+    if (!employeeName || !companyName || !refNo || !position || !doj || !confirmationDate) {
+      return res.status(400).json({ error: 'Missing required letter fields' });
+    }
+    const buffer = await buildConfirmationLetterPdf({
+      title: title || 'Mr.',
+      employeeName,
+      employeeId: employeeId || '',
+      companyName,
+      refNo,
+      position,
+      doj,
+      confirmationDate
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'inline; filename="Confirmation_Letter_' + employeeName.replace(/[^a-z0-9]+/gi, '_') + '.pdf"'
     );
     res.send(buffer);
   } catch (err) {

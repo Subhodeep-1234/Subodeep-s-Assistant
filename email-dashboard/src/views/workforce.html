@@ -465,15 +465,31 @@
           </div>
         </div>
 
-        <h3 class="wf-letter-form-section-title">Compensation</h3>
-        <div class="wf-letter-form-row">
+        <!-- Confirmation Letter only - Position/Date of Joining, prefilled
+             from the picked employee's own record but still editable, same
+             "HR can correct it here" philosophy as Designation above. -->
+        <div id="letterFormConfirmationSection">
+          <h3 class="wf-letter-form-section-title">Position</h3>
           <div class="wf-letter-form-field">
-            <label for="letterFormCurrentGross">Current Monthly Gross</label>
-            <input type="number" id="letterFormCurrentGross" placeholder="₹ 0" min="0" inputmode="numeric" />
+            <input type="text" id="letterFormPosition" placeholder="e.g. Assistant Manager - Sales" />
           </div>
+          <h3 class="wf-letter-form-section-title">Date of Joining</h3>
           <div class="wf-letter-form-field">
-            <label for="letterFormRevisedGross">Revised Monthly Gross</label>
-            <input type="number" id="letterFormRevisedGross" placeholder="₹ 0" min="0" inputmode="numeric" />
+            <input type="date" id="letterFormDoj" />
+          </div>
+        </div>
+
+        <div id="letterFormCompensationSection">
+          <h3 class="wf-letter-form-section-title">Compensation</h3>
+          <div class="wf-letter-form-row">
+            <div class="wf-letter-form-field">
+              <label for="letterFormCurrentGross">Current Monthly Gross</label>
+              <input type="number" id="letterFormCurrentGross" placeholder="₹ 0" min="0" inputmode="numeric" />
+            </div>
+            <div class="wf-letter-form-field">
+              <label for="letterFormRevisedGross">Revised Monthly Gross</label>
+              <input type="number" id="letterFormRevisedGross" placeholder="₹ 0" min="0" inputmode="numeric" />
+            </div>
           </div>
         </div>
 
@@ -501,15 +517,20 @@
           </div>
         </div>
 
-        <h3 class="wf-letter-form-section-title">Effective Date</h3>
+        <!-- Title text swaps to "Confirmation Date" for Confirmation Letter
+             (openLetterForm()) - same field/id either way, since both types
+             only ever need this one "the date it takes effect" date. -->
+        <h3 class="wf-letter-form-section-title" id="letterFormEffectiveDateTitle">Effective Date</h3>
         <div class="wf-letter-form-field">
           <input type="date" id="letterFormEffectiveDate" />
         </div>
 
-        <h3 class="wf-letter-form-section-title">Eligible for next Increment</h3>
-        <div class="wf-letter-form-field">
-          <label for="letterFormIncrementYear">Year</label>
-          <select id="letterFormIncrementYear"></select>
+        <div id="letterFormIncrementYearSection">
+          <h3 class="wf-letter-form-section-title">Eligible for next Increment</h3>
+          <div class="wf-letter-form-field">
+            <label for="letterFormIncrementYear">Year</label>
+            <select id="letterFormIncrementYear"></select>
+          </div>
         </div>
 
         <div class="error-banner" id="letterFormError" hidden></div>
@@ -1569,6 +1590,6 @@
   </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=235"></script>
+  <script src="workforce.js?v=236"></script>
 </body>
 </html>

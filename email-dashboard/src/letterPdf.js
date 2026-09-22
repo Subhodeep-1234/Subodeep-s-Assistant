@@ -326,4 +326,110 @@ function buildPromotionIncrementLetterPdf(fields) {
   });
 }
 
-module.exports = { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf };
+// Confirmation Letter PDF - reproduces the company's own Confirmation
+// Letter template exactly. Same header layout as the Increment Letter
+// (Ref. No. and Date sharing one line, same top margin), but its own body:
+// a "Position:" recipient line instead of "Department:", a plain centered
+// "CONFIRMATION LETTER" title (not a "SUB: -" line), a single reference-
+// to-the-Appointment-Letter paragraph instead of the increment/promotion
+// wording, and a shorter one-sentence closing before "Wish you a
+// rewarding career with us." (the template has no "We are confident..."
+// paragraph the other two letters both open their closing with).
+function buildConfirmationLetterPdf(fields) {
+  const { title, employeeName, employeeId, companyName, refNo, position, doj, confirmationDate } = fields;
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT }
+    });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    const bodyWidth = doc.page.width - MARGIN_LEFT - MARGIN_RIGHT;
+    const dojStr = ddmmyyyy(doj);
+    const confirmationDateStr = ddmmyyyy(confirmationDate);
+
+    // Logo - same size/position as the Increment Letter's own header.
+    doc.image(LOGO_PATH, 28, 21.25, { width: 110.25, height: 56.9 });
+
+    doc.y = MARGIN_TOP;
+
+    // Ref. No. / Date - one shared line, same layout as the Increment
+    // Letter (unlike Promotion & Increment's separate lines).
+    const refLineY = doc.y;
+    doc.font(BODY_FONT).fontSize(BODY_SIZE).fillColor('#000')
+      .text('Ref. No: AR/HR/Conf./' + refNo, MARGIN_LEFT, refLineY);
+    const dateLabel = 'Date: ';
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE);
+    const dateLabelWidth = doc.widthOfString(dateLabel);
+    doc.font(BODY_FONT).fontSize(BODY_SIZE);
+    const dateValueWidth = doc.widthOfString(confirmationDateStr);
+    const dateStartX = MARGIN_LEFT + bodyWidth - dateLabelWidth - dateValueWidth;
+    doc.font(BODY_FONT_BOLD).text(dateLabel, dateStartX, refLineY, { continued: true, lineBreak: false });
+    doc.font(BODY_FONT).text(confirmationDateStr, { lineBreak: false });
+    // The positioned call above leaves doc.x wherever that line ended (near
+    // the right margin) - every subsequent plain .text() call has no
+    // explicit x, so without this reset they'd all inherit that leftover x
+    // and word-wrap into a near-zero-width column.
+    doc.x = MARGIN_LEFT;
+    doc.y = refLineY + doc.currentLineHeight() + 2;
+    doc.moveDown(2);
+
+    // Recipient block - "Position:", not "Department:" (this template has
+    // no department line at all).
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE);
+    doc.text(title + ' ' + employeeName);
+    doc.text('Emp ID: ' + employeeId);
+    doc.text('Position: ' + position);
+    doc.moveDown(1.5);
+
+    // Title - centered, bold, underlined; a direct title, not a "SUB: -" line.
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE).text('CONFIRMATION LETTER', { align: 'center', underline: true });
+    doc.moveDown(3.5);
+
+    // Salutation.
+    doc.font(BODY_FONT_BOLD).fontSize(BODY_SIZE).text('Dear ' + title + ' ' + employeeName + ',');
+    doc.moveDown(1.2);
+
+    writeMixed(doc, [
+      { text: 'In reference to your Appointment Letter date ' },
+      { text: dojStr, bold: true },
+      {
+        text:
+          ', the Management is pleased to inform you that you have successfully completed the probation ' +
+          'period and your services are being confirmed as '
+      },
+      { text: position, bold: true },
+      { text: ' with effect from ' },
+      { text: confirmationDateStr, bold: true },
+      { text: '. All the terms and conditions remain same as mentioned in the aforesaid Appointment Letter.' }
+    ]);
+    doc.moveDown(1.2);
+
+    // Shorter closing than Increment/Promotion's drawClosing - this
+    // template has no "We are confident..." paragraph, just these two
+    // sentences before the signature block.
+    doc.font(BODY_FONT).fontSize(BODY_SIZE)
+      .text('We hope that you will continue to put in your efforts with greater zeal and enthusiasm during the ensuing year too.');
+    doc.moveDown(1.2);
+
+    doc.text('Wish you a rewarding career with us.');
+    doc.moveDown(2.5);
+
+    writeMixed(doc, [{ text: 'For ' }, { text: companyName, bold: true }]);
+    // Wider gap - room for an actual pen signature between the company
+    // name and "(Authorized Signatory)".
+    doc.moveDown(6);
+
+    doc.font(BODY_FONT_ITALIC).fontSize(BODY_SIZE).text('(Authorized Signatory)');
+
+    drawFooter(doc, companyName, bodyWidth, false);
+
+    doc.end();
+  });
+}
+
+module.exports = { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf, buildConfirmationLetterPdf };

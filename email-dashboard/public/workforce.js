@@ -3824,6 +3824,16 @@ const LETTER_TYPE_META = {
     icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/><path d="M9 6.5v5M6.5 9h5"/></svg>',
     showDesignation: false,
     refPrefix: 'AR/HR/Inc./'
+  },
+  confirmation: {
+    title: 'Confirmation Letter',
+    sub: 'Probation completion confirmation',
+    tone: 'move-purple',
+    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    showDesignation: false,
+    showConfirmation: true,
+    refPrefix: 'AR/HR/Conf./',
+    effectiveDateLabel: 'Confirmation Date'
   }
 };
 let activeLetterType = 'promotion_increment';
@@ -3839,6 +3849,13 @@ function openLetterForm(type) {
   document.getElementById('letterFormHeaderSub').textContent = meta.sub;
   document.getElementById('letterFormRefNoPrefix').textContent = meta.refPrefix;
   document.getElementById('letterFormDesignationSection').hidden = !meta.showDesignation;
+  document.getElementById('letterFormConfirmationSection').hidden = !meta.showConfirmation;
+  // Compensation/Notice/Increment Year don't apply to Confirmation Letter -
+  // no salary or designation change involved, just a probation sign-off.
+  document.getElementById('letterFormCompensationSection').hidden = Boolean(meta.showConfirmation);
+  document.getElementById('letterFormNoticeSection').hidden = Boolean(meta.showConfirmation);
+  document.getElementById('letterFormIncrementYearSection').hidden = Boolean(meta.showConfirmation);
+  document.getElementById('letterFormEffectiveDateTitle').textContent = meta.effectiveDateLabel || 'Effective Date';
 
   // Editable (not read-only) since Letter Generator's general employee
   // picker has no "from/to" promotion record to source these from - only
@@ -3848,6 +3865,14 @@ function openLetterForm(type) {
     toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation);
   document.getElementById('letterFormToDesignation').value =
     toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation);
+  // Same "prefilled from the real record, still editable" idea - Position
+  // defaults to the employee's own current designation, Date of Joining to
+  // their real DOJ (the "Appointment Letter date" the letter body refers
+  // back to), both correctable here before generating.
+  document.getElementById('letterFormPosition').value =
+    toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation);
+  document.getElementById('letterFormDoj').value =
+    (letterEmployeeContext && letterEmployeeContext.doj) ? letterEmployeeContext.doj.slice(0, 10) : '';
 
   // Compensation/Notice Period/Increment Year have no real data source
   // anywhere in the sheets - fresh, blank manual-entry fields every time
@@ -3922,6 +3947,8 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   // Generator's general employee picker instead of a Promotions-row click).
   const fromDesignation = document.getElementById('letterFormFromDesignation').value.trim();
   const toDesignation = document.getElementById('letterFormToDesignation').value.trim();
+  const position = document.getElementById('letterFormPosition').value.trim();
+  const doj = document.getElementById('letterFormDoj').value;
   const currentGross = document.getElementById('letterFormCurrentGross').value.trim();
   const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
   const currentNotice = document.getElementById('letterFormCurrentNotice').value;
@@ -3929,7 +3956,13 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
   const incrementYear = document.getElementById('letterFormIncrementYear').value;
   const errorEl = document.getElementById('letterFormError');
-  if (!refNo || !companyName || !currentGross || !revisedGross || !effectiveDate ||
+  if (meta.showConfirmation) {
+    if (!refNo || !companyName || !effectiveDate || !position || !doj) {
+      errorEl.textContent = 'Please fill in Position, Date of Joining, Ref. No., Company Name, and Confirmation Date before generating the letter.';
+      errorEl.hidden = false;
+      return;
+    }
+  } else if (!refNo || !companyName || !currentGross || !revisedGross || !effectiveDate ||
       (meta.showDesignation && (!fromDesignation || !toDesignation))) {
     errorEl.textContent = meta.showDesignation
       ? 'Please fill in Current Designation, Promoted To, Ref. No., Company Name, Compensation, and Effective Date before generating the letter.'
@@ -3943,7 +3976,12 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   const employeeId = (letterEmployeeContext && letterEmployeeContext.employeeId) || '';
   const department = toProperCase(letterEmployeeContext && letterEmployeeContext.department);
 
-  lastLetterPayload = meta.showDesignation
+  lastLetterPayload = meta.showConfirmation
+    ? {
+        title, employeeName, employeeId, companyName, refNo,
+        position, doj, confirmationDate: effectiveDate
+      }
+    : meta.showDesignation
     ? {
         title, employeeName, employeeId, department, companyName, refNo,
         fromDesignation, toDesignation,
@@ -3965,13 +4003,15 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
 });
 
 function letterPdfEndpoint() {
-  return activeLetterType === 'promotion_increment'
-    ? '/api/workforce/letters/promotion-increment'
-    : '/api/workforce/letters/increment';
+  if (activeLetterType === 'promotion_increment') return '/api/workforce/letters/promotion-increment';
+  if (activeLetterType === 'confirmation') return '/api/workforce/letters/confirmation';
+  return '/api/workforce/letters/increment';
 }
 
 function letterPdfFilenamePrefix() {
-  return activeLetterType === 'promotion_increment' ? 'Promotion_Increment_Letter_' : 'Increment_Letter_';
+  if (activeLetterType === 'promotion_increment') return 'Promotion_Increment_Letter_';
+  if (activeLetterType === 'confirmation') return 'Confirmation_Letter_';
+  return 'Increment_Letter_';
 }
 
 async function fetchLetterPdfBlob() {
@@ -4081,11 +4121,12 @@ document.addEventListener('click', (e) => {
 });
 
 // Maps Letter Generator's dropdown text to the internal keys
-// openLetterForm()/LETTER_TYPE_META already use - only these two have a
+// openLetterForm()/LETTER_TYPE_META already use - only these three have a
 // real form + PDF behind them so far.
 const LETTER_GEN_TYPE_KEYS = {
   'Increment Letter': 'increment_only',
-  'Promotion & Increment': 'promotion_increment'
+  'Promotion & Increment': 'promotion_increment',
+  'Confirmation Letter': 'confirmation'
 };
 
 document.getElementById('letterGenProceedBtn').addEventListener('click', () => {
@@ -4124,7 +4165,8 @@ document.getElementById('letterGenProceedBtn').addEventListener('click', () => {
     employeeId,
     department: (employee && employee.department) || '',
     fromDesignation: (employee && employee.designation) || '',
-    toDesignation: internalType === 'increment_only' ? ((employee && employee.designation) || '') : ''
+    toDesignation: internalType === 'increment_only' ? ((employee && employee.designation) || '') : '',
+    doj: (employee && employee.doj) || ''
   };
   openLetterForm(internalType);
 });
