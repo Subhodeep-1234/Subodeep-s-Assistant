@@ -858,6 +858,15 @@ router.get('/gender', async (req, res) => {
   }
 });
 
+router.get('/collar', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    res.json(analytics.collarAnalytics(employees));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Shared by the Tenure/Age Distribution/Gender Distribution/Doer Management
 // Share buttons below - all four are the same shape (a label, an employee
 // count, a % of total) with a bold Total row, just different data sources
@@ -926,6 +935,25 @@ router.get('/gender/pdf', async (req, res) => {
     });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="Gender_Distribution.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/collar/pdf', async (req, res) => {
+  try {
+    const { employees } = await employeeService.getEmployeeData();
+    const data = analytics.collarAnalytics(employees);
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Collar Distribution Report',
+      subtitle: 'Active Employees · Generated ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Collar', 'Employees', '% of Total'],
+      rows: distributionPdfRows(data.buckets, data.eligibleCount),
+      landscape: false
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Collar_Distribution.pdf"');
     res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });

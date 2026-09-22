@@ -331,6 +331,30 @@ function genderAnalytics(employees) {
   };
 }
 
+// Same fixed White/Blue/Group-D split as the Organization Chart (see
+// splitByCollar below) - every Active employee lands in exactly one of the
+// three (Group-D is a catch-all, never a gap), so unlike age/gender there's
+// no "missing" count to report.
+function collarAnalytics(employees) {
+  // Scoped to Active staff only, matching Tenure/Age/Gender's convention.
+  const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
+  const { whiteCollar, blueCollar, groupD } = splitByCollar(activeEmployees);
+  // filterValue is the raw formatCollar() value the Employee Directory's
+  // own ?collar= filter (workforceRoutes.js matchesFilters) actually
+  // compares against - distinct from label, which is the nicer "White
+  // Collar"/"Blue Collar" display text this page and its PDF show.
+  const buckets = [
+    { key: 'white', label: 'White Collar', filterValue: 'White', count: whiteCollar.length },
+    { key: 'blue', label: 'Blue Collar', filterValue: 'Blue', count: blueCollar.length },
+    { key: 'groupd', label: 'Group-D', filterValue: 'Group-D', count: groupD.length }
+  ];
+  return {
+    eligibleCount: activeEmployees.length,
+    activeCount: activeEmployees.length,
+    buckets
+  };
+}
+
 function dataQualityReport(employees) {
   const total = employees.length;
   const missing = {
@@ -719,6 +743,7 @@ module.exports = {
   tenureAnalytics,
   ageAnalytics,
   genderAnalytics,
+  collarAnalytics,
   dataQualityReport,
   isProbation,
   calcAge,

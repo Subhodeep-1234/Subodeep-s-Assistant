@@ -4,7 +4,7 @@ const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
 const menuBtn = document.getElementById('menuBtn');
 const VIEWS = [
   'overview', 'directory', 'joining', 'exit', 'attrition', 'tenure', 'movement', 'insights', 'quality',
-  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiAdditions', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'profile', 'letterForm', 'letterSuccess', 'letterGenerator', 'interviewPanel'
+  'departmentFull', 'locationFull', 'movementDetail', 'doerManagement', 'orgChart', 'healthInsurance', 'coveredEmployees', 'hiAdditions', 'hiExits', 'hiTotalExits', 'hiFamilyMembers', 'hiTotalLives', 'hiPolicyInfo', 'hiFamilyPremium', 'hiAnnualPremium', 'ageDistribution', 'genderDistribution', 'collarDistribution', 'profile', 'letterForm', 'letterSuccess', 'letterGenerator', 'interviewPanel'
 ];
 const viewEls = Object.fromEntries(VIEWS.map((v) => [v, document.getElementById(v + 'View')]));
 
@@ -516,6 +516,7 @@ function loadView(view, forceRefresh) {
   if (view === 'healthInsurance') return loadHealthInsuranceView(forceRefresh);
   if (view === 'ageDistribution') return loadAgeDistributionView();
   if (view === 'genderDistribution') return loadGenderDistributionView();
+  if (view === 'collarDistribution') return loadCollarDistributionView();
   if (view === 'profile') return loadProfile();
   if (view === 'movement') return loadMovementView();
   if (view === 'letterGenerator') return loadLetterGeneratorView();
@@ -754,6 +755,20 @@ genderRowsEl.addEventListener('click', (e) => {
 genderRowsEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   const row = e.target.closest('[data-gender]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
+const collarRowsEl = document.getElementById('collarRows');
+collarRowsEl.addEventListener('click', (e) => {
+  const row = e.target.closest('[data-collar]');
+  if (!row) return;
+  applyFiltersAndShowDirectory({ status: 'ACTIVE', collar: row.dataset.collar });
+});
+collarRowsEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-collar]');
   if (!row) return;
   e.preventDefault();
   row.click();
@@ -5573,6 +5588,56 @@ function renderGenderDonut(buckets) {
   destroyChart('genderDonut');
   const ctx = document.getElementById('genderDonut');
   charts.genderDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: buckets.map((b) => b.label),
+      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: buckets.map((_, i) => palette[i % palette.length]), borderWidth: 2, borderColor: chartColors().surface }]
+    },
+    options: { cutout: '62%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+  });
+}
+
+async function loadCollarDistributionView() {
+  const rowsEl = document.getElementById('collarRows');
+  rowsEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetchJson('/api/workforce/collar');
+    const palette = distributionPalette();
+    const total = data.buckets.reduce((sum, b) => sum + b.count, 0) || 1;
+    document.getElementById('collarDonutTotal').textContent = data.eligibleCount.toLocaleString();
+    rowsEl.innerHTML =
+      '<div class="wf-dist-row wf-dist-header">' +
+        '<span class="wf-dist-label-col">Collar</span>' +
+        '<span class="wf-dist-num-col">Employees</span>' +
+        '<span class="wf-dist-num-col">% of Total</span>' +
+      '</div>' +
+      data.buckets.map((b, i) => (
+        '<div class="wf-dist-row clickable" tabindex="0" role="button" data-collar="' + escapeHtml(b.filterValue) + '">' +
+          '<span class="wf-dist-label-col"><span class="wf-dist-dot" style="background:' + palette[i % palette.length] + '"></span>' + escapeHtml(b.label) + '</span>' +
+          '<span class="wf-dist-num-col">' + b.count + '</span>' +
+          '<span class="wf-dist-num-col">' + (Math.round((b.count / total) * 1000) / 10) + '%</span>' +
+        '</div>'
+      )).join('') +
+      '<div class="wf-dist-row wf-dist-total-row">' +
+        '<span class="wf-dist-label-col"><span class="wf-dist-total-icon">' + icon('total', 14) + '</span>Total</span>' +
+        '<span class="wf-dist-num-col">' + data.eligibleCount + '</span>' +
+        '<span class="wf-dist-num-col">100%</span>' +
+      '</div>';
+    renderCollarDonut(data.buckets);
+  } catch (err) {
+    rowsEl.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+document.getElementById('shareCollarDistributionPdf').addEventListener('click', (e) => {
+  shareFile(e.currentTarget, '/api/workforce/collar/pdf', 'Collar_Distribution.pdf', 'collarDistributionShareError', 'Could not share the report - please try again.');
+});
+
+function renderCollarDonut(buckets) {
+  const palette = distributionPalette();
+  destroyChart('collarDonut');
+  const ctx = document.getElementById('collarDonut');
+  charts.collarDonut = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: buckets.map((b) => b.label),
