@@ -1464,6 +1464,24 @@ function orgChartPdfDirectorColumnHtml(directorPerson, branch) {
   );
 }
 
+// Same column shape as orgChartPdfDirectorColumnHtml, but with no leader
+// box of its own - for the Managing Director's own direct branch
+// specifically, when it sits alongside real Director columns (see
+// renderOrgChartPdfTreeHtml's mdOwnHasContent case). That branch's real
+// owner is the MD, already shown once in the MD box at the very top of
+// the tree - giving this column its own second box repeating the MD's own
+// name/designation was a redundant duplicate, not a real second person,
+// so it's left out entirely; the fan-out bus-line positioning already
+// supports a header-less column (the same "direct-report slot fanned in
+// next to real HOD slots" pattern one level down, under a Director).
+function orgChartPdfPlainColumnHtml(branch) {
+  return (
+    '<div class="org-chart-pdf-director-col">' +
+      orgChartPdfBranchContentHtml(branch, 'org-chart-hod-box org-chart-pdf-sub-hod-box') +
+    '</div>'
+  );
+}
+
 function renderOrgChartPdfTreeHtml(data) {
   const deptDisplay = titleCase(data.department);
   const generatedOn = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1492,11 +1510,13 @@ function renderOrgChartPdfTreeHtml(data) {
 
   let belowMd;
   if (hasDirectors) {
-    // The MD's own direct branch (anyone reporting straight to the MD,
-    // if any) becomes just another column alongside the real Directors,
-    // labelled with the MD's own name again so it reads the same way as
-    // every other column instead of a lone unlabeled exception.
-    const columns = (mdOwnHasContent ? [orgChartPdfDirectorColumnHtml(mdForDisplay, data.mdBranch)] : []).concat(
+    // The MD's own direct branch (anyone reporting straight to the MD, if
+    // any) becomes just another column alongside the real Directors, but
+    // with no leader box of its own - the MD is already shown once, right
+    // above, so repeating their own name/designation a second time here
+    // (an earlier version of this did) was a redundant duplicate box, not
+    // a real second person.
+    const columns = (mdOwnHasContent ? [orgChartPdfPlainColumnHtml(data.mdBranch)] : []).concat(
       data.directors.map((d) => orgChartPdfDirectorColumnHtml({ ...d.director, name: titleCase(d.director.name) }, { direct: d.direct, hods: d.hods }))
     );
     belowMd =
