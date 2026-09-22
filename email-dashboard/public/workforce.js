@@ -3347,7 +3347,18 @@ hiEmpProfileBody.addEventListener('click', (e) => {
 // Upcoming Joinings Share button. Falls back to a direct download on
 // browsers with no file-sharing support (most desktops), and shows an
 // inline error (in the given element) if the fetch itself fails.
-async function shareFile(btn, fileUrl, filename, errorElId, errorMessage) {
+//
+// prefetchedBlobPromise (optional): navigator.share() only works within a
+// short window of "user activation" after the click - awaiting a fresh
+// fetch() from inside the click handler can outlast that window for a
+// slower report (e.g. Employee Data's PDF, which resorts/regroups however
+// many employees match the current filters), and the browser then silently
+// rejects the share, falling through to a plain download every time. A
+// caller that already started the same fetch earlier (see shareEmployeesPdf
+// prefetching from loadEmployees) passes that in-flight/settled promise
+// instead, so by the time the user actually taps Share the file is usually
+// already in hand and navigator.share() fires immediately.
+async function shareFile(btn, fileUrl, filename, errorElId, errorMessage, prefetchedBlobPromise) {
   const errorEl = document.getElementById(errorElId);
   errorEl.hidden = true;
   const original = btn.innerHTML;
@@ -3360,9 +3371,10 @@ async function shareFile(btn, fileUrl, filename, errorElId, errorMessage) {
   }
 
   try {
-    const res = await fetch(fileUrl);
-    if (!res.ok) throw new Error(errorMessage);
-    const blob = await res.blob();
+    const blob = prefetchedBlobPromise ? await prefetchedBlobPromise : await fetch(fileUrl).then((res) => {
+      if (!res.ok) throw new Error(errorMessage);
+      return res.blob();
+    });
     // The real Content-Type the server sent (not hardcoded) - every current
     // caller is a PDF, but Policy Documents can in principle be any file
     // type Drive holds, so this keeps the shared File object's type honest.
@@ -4211,6 +4223,11 @@ clearFiltersBtn.addEventListener('click', () => {
 });
 
 let lastEmployeeList = [];
+// The Employee Data Share button's in-flight/settled PDF fetch - see
+// shareFile's prefetchedBlobPromise param. Reset every time this runs so a
+// stale PDF from a previous department/filter never gets shared - the
+// button's own click handler always reads whatever this currently is.
+let directoryPdfPrefetch = null;
 
 async function loadEmployees(forceRefresh) {
   const requestId = ++currentRequestId;
@@ -4228,6 +4245,15 @@ async function loadEmployees(forceRefresh) {
     if (v) params.set(k, v);
   });
   if (forceRefresh) params.set('refresh', '1');
+  // Kick the PDF off now, in the background, well before the user could
+  // possibly reach the Share button - see shareFile's prefetchedBlobPromise.
+  // Only for the 'default' report Share is even shown for (syncVariantButtons).
+  directoryPdfPrefetch = directoryReportVariant === 'default'
+    ? fetch('/api/workforce/employees/pdf?' + params.toString()).then((res) => {
+        if (!res.ok) throw new Error('Could not share the report - please try again.');
+        return res.blob();
+      })
+    : null;
   try {
     const data = await fetchJson('/api/workforce/employees?' + params.toString());
     if (requestId !== currentRequestId) return;
@@ -4943,18 +4969,21 @@ document.getElementById('sharePendingConfirmationsPdf').addEventListener('click'
 // Wise Headcount" -> clicking a department -> this list. Reflects whatever
 // filters are currently applied (activeFilters), same as the on-screen
 // list itself; only shown for the 'default' report (see syncVariantButtons).
+// Uses directoryPdfPrefetch (started back in loadEmployees) instead of its
+// own fresh fetch - see shareFile's prefetchedBlobPromise for why.
 document.getElementById('shareEmployeesPdf').addEventListener('click', (e) => {
-  const params = new URLSearchParams();
-  Object.entries(activeFilters).forEach(([k, v]) => { if (v) params.set(k, v); });
   const filenameParts = ['Employee_Data'];
   if (activeFilters.department) filenameParts.push(activeFilters.department.replace(/\s+/g, '_'));
   if (activeFilters.location) filenameParts.push(activeFilters.location.replace(/\s+/g, '_'));
+  const params = new URLSearchParams();
+  Object.entries(activeFilters).forEach(([k, v]) => { if (v) params.set(k, v); });
   shareFile(
     e.currentTarget,
     '/api/workforce/employees/pdf?' + params.toString(),
     filenameParts.join('_') + '.pdf',
     'employeesShareError',
-    'Could not share the report - please try again.'
+    'Could not share the report - please try again.',
+    directoryPdfPrefetch
   );
 });
 
