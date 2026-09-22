@@ -1329,7 +1329,20 @@ function renderOrgChartHtml(data) {
   // box right below it.
   const doerForDisplay = data.doer ? { ...data.doer, name: titleCase(data.doer.name) } : null;
   const directorBox = orgChartLeaderBoxHtml('', doerForDisplay, 'org-chart-hod-box org-chart-director-box');
-  const hodBox = orgChartLeaderBoxHtml('', data.hod, 'org-chart-hod-box');
+  // Some departments tag the same real person as both the Director
+  // (Reporting DOER) and the HOD - showing that one name in two stacked
+  // boxes is redundant, so the on-screen view (only - the PDF tree keeps
+  // its own separate Director/HOD columns exactly as before) skips the
+  // HOD box entirely in that case and connects the collar sections
+  // straight to the Director box instead. Compared by employeeId (not
+  // name) since that's the one field guaranteed to actually identify the
+  // same person, and only when BOTH resolved to a real person - two
+  // "Not identified" boxes isn't this same redundancy, so that case is
+  // left showing both, same as before.
+  const sameLeader = Boolean(data.doer && data.hod && data.doer.employeeId && data.hod.employeeId && data.doer.employeeId === data.hod.employeeId);
+  const hodBranchHtml = sameLeader
+    ? ''
+    : '<div class="org-chart-connector-down"></div>' + orgChartLeaderBoxHtml('', data.hod, 'org-chart-hod-box');
 
   return (
     '<div class="org-chart">' +
@@ -1351,8 +1364,7 @@ function renderOrgChartHtml(data) {
 
       '<div class="org-chart-tree">' +
         directorBox +
-        '<div class="org-chart-connector-down"></div>' +
-        hodBox +
+        hodBranchHtml +
         orgChartSectionHtml('White Collar', data.whiteCollarGroups) +
         orgChartSectionHtml('Blue Collar', data.blueCollarGroups) +
         orgChartSectionHtml('Group D', data.groupDGroups) +
