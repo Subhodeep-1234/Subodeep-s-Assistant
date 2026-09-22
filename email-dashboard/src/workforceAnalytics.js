@@ -550,9 +550,14 @@ function buildOrgChart(employees, departmentNames, targetDepartmentKey, selected
   const selectedHodOption = selectedHodKey ? hodOptions.find((o) => o.key === selectedHodKey) : null;
 
   // With a specific HOD selected, everything below (headcount, HOD box,
-  // White/Blue Collar cards) narrows to just that HOD's own tagged staff
-  // instead of the whole department - Doer stays department-wide either
-  // way, that oversight level doesn't change per-HOD.
+  // Doer box, White/Blue Collar cards) narrows to just that HOD's own
+  // tagged staff instead of the whole department - a department can
+  // genuinely have each of its HODs reporting to a DIFFERENT Reporting
+  // DOER (confirmed against real data: Legal's two HODs sit under two
+  // different Doers), so Doer has to be recomputed per-HOD too, not held
+  // department-wide like an earlier version of this function did (that
+  // showed the same, department-wide-majority Doer for every HOD picked,
+  // never actually changing when the selection did).
   const scopedEmployees = selectedHodOption
     ? deptEmployees.filter((e) => e.reportingManagerKey === selectedHodKey)
     : deptEmployees;
@@ -560,13 +565,14 @@ function buildOrgChart(employees, departmentNames, targetDepartmentKey, selected
   // HOD = the selected option's own person info if one was picked,
   // otherwise the same majority-vote default as before (whichever HOD-1
   // name is most common among the whole department). Doer = same
-  // majority-vote technique against Reporting DOER - shown as the
-  // Director-level box above the HOD, since that's the same real
-  // oversight hierarchy Doer Management already uses.
+  // majority-vote technique against Reporting DOER, but scoped the same
+  // way HOD/headcount/cards already are - shown as the Director-level box
+  // above the HOD, since that's the same real oversight hierarchy Doer
+  // Management already uses.
   const hod = selectedHodOption
     ? resolvePersonByName(selectedHodOption.name, employees)
     : findMostCommonPerson(deptEmployees, employees, 'reportingManager');
-  const doer = findMostCommonPerson(deptEmployees, employees, 'reportingDoer');
+  const doer = findMostCommonPerson(scopedEmployees, employees, 'reportingDoer');
 
   // Both already get their own boxes up top - if either is also counted
   // among the employees shown below, drop them from the card lists so
