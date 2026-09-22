@@ -465,20 +465,6 @@
           </div>
         </div>
 
-        <!-- Confirmation Letter only - Position/Date of Joining, prefilled
-             from the picked employee's own record but still editable, same
-             "HR can correct it here" philosophy as Designation above. -->
-        <div id="letterFormConfirmationSection">
-          <h3 class="wf-letter-form-section-title">Position</h3>
-          <div class="wf-letter-form-field">
-            <input type="text" id="letterFormPosition" placeholder="e.g. Assistant Manager - Sales" />
-          </div>
-          <h3 class="wf-letter-form-section-title">Date of Joining</h3>
-          <div class="wf-letter-form-field">
-            <input type="date" id="letterFormDoj" />
-          </div>
-        </div>
-
         <div id="letterFormCompensationSection">
           <h3 class="wf-letter-form-section-title">Compensation</h3>
           <div class="wf-letter-form-row">
@@ -517,12 +503,14 @@
           </div>
         </div>
 
-        <!-- Title text swaps to "Confirmation Date" for Confirmation Letter
-             (openLetterForm()) - same field/id either way, since both types
-             only ever need this one "the date it takes effect" date. -->
-        <h3 class="wf-letter-form-section-title" id="letterFormEffectiveDateTitle">Effective Date</h3>
-        <div class="wf-letter-form-field">
-          <input type="date" id="letterFormEffectiveDate" />
+        <!-- Hidden entirely for Confirmation Letter (openLetterForm()) -
+             Position/DOJ/Confirmation Date are all pulled from the picked
+             employee's own record automatically, no manual entry at all. -->
+        <div id="letterFormEffectiveDateSection">
+          <h3 class="wf-letter-form-section-title">Effective Date</h3>
+          <div class="wf-letter-form-field">
+            <input type="date" id="letterFormEffectiveDate" />
+          </div>
         </div>
 
         <div id="letterFormIncrementYearSection">
@@ -585,7 +573,7 @@
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </span>
             <span class="wf-letter-type-body">
-              <span class="wf-letter-type-sub">Effective Date</span>
+              <span class="wf-letter-type-sub" id="letterSuccessDateLabel">Effective Date</span>
               <span class="wf-letter-type-title" id="letterSuccessDate">—</span>
             </span>
           </div>
@@ -1590,6 +1578,6 @@
   </div>
 
   <script src="vendor/chart.js/chart.umd.js"></script>
-  <script src="workforce.js?v=236"></script>
+  <script src="workforce.js?v=237"></script>
 </body>
 </html>

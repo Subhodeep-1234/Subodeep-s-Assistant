@@ -3849,13 +3849,15 @@ function openLetterForm(type) {
   document.getElementById('letterFormHeaderSub').textContent = meta.sub;
   document.getElementById('letterFormRefNoPrefix').textContent = meta.refPrefix;
   document.getElementById('letterFormDesignationSection').hidden = !meta.showDesignation;
-  document.getElementById('letterFormConfirmationSection').hidden = !meta.showConfirmation;
-  // Compensation/Notice/Increment Year don't apply to Confirmation Letter -
-  // no salary or designation change involved, just a probation sign-off.
+  // Compensation/Notice/Increment Year/Effective Date don't apply to
+  // Confirmation Letter - no salary or designation change involved, and
+  // Position/Date of Joining/Confirmation Date are all pulled straight from
+  // the picked employee's own record (see letterGeneratePdfBtn below),
+  // never typed in here at all.
   document.getElementById('letterFormCompensationSection').hidden = Boolean(meta.showConfirmation);
   document.getElementById('letterFormNoticeSection').hidden = Boolean(meta.showConfirmation);
   document.getElementById('letterFormIncrementYearSection').hidden = Boolean(meta.showConfirmation);
-  document.getElementById('letterFormEffectiveDateTitle').textContent = meta.effectiveDateLabel || 'Effective Date';
+  document.getElementById('letterFormEffectiveDateSection').hidden = Boolean(meta.showConfirmation);
 
   // Editable (not read-only) since Letter Generator's general employee
   // picker has no "from/to" promotion record to source these from - only
@@ -3865,14 +3867,6 @@ function openLetterForm(type) {
     toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation);
   document.getElementById('letterFormToDesignation').value =
     toProperCase(letterEmployeeContext && letterEmployeeContext.toDesignation);
-  // Same "prefilled from the real record, still editable" idea - Position
-  // defaults to the employee's own current designation, Date of Joining to
-  // their real DOJ (the "Appointment Letter date" the letter body refers
-  // back to), both correctable here before generating.
-  document.getElementById('letterFormPosition').value =
-    toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation);
-  document.getElementById('letterFormDoj').value =
-    (letterEmployeeContext && letterEmployeeContext.doj) ? letterEmployeeContext.doj.slice(0, 10) : '';
 
   // Compensation/Notice Period/Increment Year have no real data source
   // anywhere in the sheets - fresh, blank manual-entry fields every time
@@ -3932,6 +3926,17 @@ function formatLongDate(iso) {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
+// Same DOJ + 6 months rule as probationCompletionDate (workforceAnalytics.js,
+// the Pending Confirmations report) - Confirmation Letter has no manual date
+// entry at all, so this is the only source for "Confirmation Date".
+function probationCompletionDateStr(dojIso) {
+  if (!dojIso) return '';
+  const d = new Date(dojIso);
+  if (isNaN(d.getTime())) return '';
+  const completion = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 6, d.getUTCDate()));
+  return completion.toISOString().slice(0, 10);
+}
+
 // Both letter types now have a real generated PDF (see letterPdf.js) -
 // which endpoint/payload shape to use is decided by activeLetterType.
 let lastLetterPayload = null;
@@ -3947,8 +3952,6 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   // Generator's general employee picker instead of a Promotions-row click).
   const fromDesignation = document.getElementById('letterFormFromDesignation').value.trim();
   const toDesignation = document.getElementById('letterFormToDesignation').value.trim();
-  const position = document.getElementById('letterFormPosition').value.trim();
-  const doj = document.getElementById('letterFormDoj').value;
   const currentGross = document.getElementById('letterFormCurrentGross').value.trim();
   const revisedGross = document.getElementById('letterFormRevisedGross').value.trim();
   const currentNotice = document.getElementById('letterFormCurrentNotice').value;
@@ -3956,9 +3959,18 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   const effectiveDate = document.getElementById('letterFormEffectiveDate').value;
   const incrementYear = document.getElementById('letterFormIncrementYear').value;
   const errorEl = document.getElementById('letterFormError');
+
+  // Confirmation Letter: Position, Date of Joining and Confirmation Date
+  // are never typed in - they come straight from the picked employee's own
+  // record (letterEmployeeContext, set when the employee was selected).
+  const position = toProperCase(letterEmployeeContext && letterEmployeeContext.fromDesignation);
+  const doj = (letterEmployeeContext && letterEmployeeContext.doj) ? letterEmployeeContext.doj.slice(0, 10) : '';
+  const confirmationDate = probationCompletionDateStr(doj);
+
   if (meta.showConfirmation) {
-    if (!refNo || !companyName || !effectiveDate || !position || !doj) {
-      errorEl.textContent = 'Please fill in Position, Date of Joining, Ref. No., Company Name, and Confirmation Date before generating the letter.';
+    if (!refNo || !companyName || !doj) {
+      errorEl.textContent = 'Please fill in Ref. No. and Company Name before generating the letter' +
+        (doj ? '.' : ' - this employee has no Date of Joining on file, so a Confirmation Date can\'t be worked out.');
       errorEl.hidden = false;
       return;
     }
@@ -3979,7 +3991,7 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   lastLetterPayload = meta.showConfirmation
     ? {
         title, employeeName, employeeId, companyName, refNo,
-        position, doj, confirmationDate: effectiveDate
+        position, doj, confirmationDate
       }
     : meta.showDesignation
     ? {
@@ -3996,7 +4008,8 @@ document.getElementById('letterGeneratePdfBtn').addEventListener('click', () => 
   document.getElementById('letterSuccessSub').textContent = meta.title + ' has been generated successfully.';
   document.getElementById('letterSuccessEmployee').textContent = employeeName || '—';
   document.getElementById('letterSuccessType').textContent = meta.title;
-  document.getElementById('letterSuccessDate').textContent = formatLongDate(effectiveDate);
+  document.getElementById('letterSuccessDateLabel').textContent = meta.showConfirmation ? 'Confirmation Date' : 'Effective Date';
+  document.getElementById('letterSuccessDate').textContent = formatLongDate(meta.showConfirmation ? confirmationDate : effectiveDate);
   document.getElementById('letterPdfNote').hidden = true;
 
   setView('letterSuccess');
