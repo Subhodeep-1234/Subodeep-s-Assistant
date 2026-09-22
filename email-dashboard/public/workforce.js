@@ -3546,11 +3546,13 @@ const MOVEMENT_TYPES = {
   department: {
     kpiKey: 'transfers', label: 'Inter-Department Transfers', tone: 'move-blue', icon: 'transfer',
     endpoint: '/api/workforce/dept-transfers', fromKey: 'fromDept', toKey: 'toDept',
+    fromLabel: 'From Department', toLabel: 'To Department',
     noun: 'transfer', clickTitle: 'View who transferred', emptyText: 'No inter-department transfers in the last 12 months'
   },
   designation: {
     kpiKey: 'promotions', label: 'Promotions', tone: 'move-green', icon: 'star',
     endpoint: '/api/workforce/promotions', fromKey: 'fromDesignation', toKey: 'toDesignation',
+    fromLabel: 'From Designation', toLabel: 'To Designation',
     noun: 'promotion', clickTitle: 'View who was promoted', emptyText: 'No promotions recorded yet',
     // Every other movement type stays windowed to the last 12 months - this
     // one deliberately isn't, since HR needs the complete promotions list
@@ -3558,16 +3560,21 @@ const MOVEMENT_TYPES = {
     // server route's own max (see workforceRoutes.js), effectively "all of
     // it" given the tracker log only started recording a few days ago.
     daysCap: 3650,
-    lettersEnabled: true
+    lettersEnabled: true,
+    // Only Promotions' own JSON endpoint cross-references a Department
+    // column (workforceRoutes.js) - Export PDF/Share mirror that.
+    includeDepartment: true
   },
   company: {
     kpiKey: 'exit', label: 'Company Transfers', tone: 'move-red', icon: 'transfer',
     endpoint: '/api/workforce/company-transfers', fromKey: 'fromCompany', toKey: 'toCompany',
+    fromLabel: 'From Company', toLabel: 'To Company',
     noun: 'transfer', clickTitle: 'View who transferred companies', emptyText: 'No company transfers in the last 12 months'
   },
   location: {
     kpiKey: 'locationTransfers', label: 'Location Transfers', tone: 'move-purple', icon: 'location',
     endpoint: '/api/workforce/location-transfers', fromKey: 'fromLocation', toKey: 'toLocation',
+    fromLabel: 'From Location', toLabel: 'To Location',
     noun: 'transfer', clickTitle: 'View who relocated', emptyText: 'No location transfers in the last 12 months'
   }
 };
@@ -3630,6 +3637,11 @@ function movementPdfFilename(meta) {
   return meta.label.replace(/\s+/g, '_').replace(/\.+$/, '') + '.pdf';
 }
 
+// The rows currently on-screen for whichever movement type is open - unlike
+// currentPromotionItems (Promotions-only, used for Generate Letter),
+// this is always populated, for Export PDF's print template below.
+let currentMovementItems = [];
+
 async function loadMovementDetail() {
   const meta = MOVEMENT_TYPES[movementDetailType];
   document.getElementById('movementDetailTitle').textContent = meta.label;
@@ -3656,6 +3668,7 @@ async function loadMovementDetail() {
     // click handler below) - simpler than round-tripping every field
     // through data-* attributes on the <li>.
     currentPromotionItems = meta.lettersEnabled ? items : [];
+    currentMovementItems = items;
     document.getElementById('movementDetailCount').textContent = meta.lettersEnabled
       // Promotions isn't windowed to 12 months (see daysCap above), so the
       // count shouldn't claim it is either.
@@ -3690,35 +3703,38 @@ async function loadMovementDetail() {
   }
 }
 
-// Export PDF always forces a real download (unlike Share, which prefers the
-// native share sheet) - same real server PDF either way (see
-// buildMovementPdfBuffer, workforceRoutes.js), just handed to the browser
-// differently. No prefetch here since Export PDF isn't gated by
-// navigator.share()'s activation window the way Share is.
-document.getElementById('exportMovementDetailPdf').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
+// Export PDF opens the browser's own print dialog (Save as PDF), same as
+// every other Export PDF button in this app (exportEmployeesPdf, Tenure,
+// Age Distribution, ...) - populates the one shared #printReport template
+// (see its comment in workforce.html) with the rows already on screen
+// (currentMovementItems) instead of fetching anything fresh. Share, right
+// below, is the separate real-server-PDF flow for the native share sheet.
+document.getElementById('exportMovementDetailPdf').addEventListener('click', () => {
   const meta = MOVEMENT_TYPES[movementDetailType];
-  const original = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner spinner-sm"></span>';
-  try {
-    const res = await fetch(meta.endpoint + '/pdf?days=' + (meta.daysCap || 365));
-    if (!res.ok) throw new Error('Could not export the report - please try again.');
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = movementPdfFilename(meta);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-  } catch (err) {
-    alert('Failed to export report: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = original;
-  }
+  const items = currentMovementItems;
+  const columnCount = meta.includeDepartment ? 6 : 5;
+  document.getElementById('printReportTitle').textContent = meta.label;
+  document.getElementById('printReportSubtitle').textContent =
+    document.getElementById('movementDetailCount').textContent + ' · ';
+  document.getElementById('printReportDate').textContent =
+    new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  document.getElementById('printReportHead').innerHTML =
+    '<th>Date</th><th>Employee Code</th><th>Name</th>' +
+    (meta.includeDepartment ? '<th>Department</th>' : '') +
+    '<th>' + escapeHtml(meta.fromLabel) + '</th><th>' + escapeHtml(meta.toLabel) + '</th>';
+  document.getElementById('printReportBody').innerHTML = items.length
+    ? items.map((it) => (
+        '<tr>' +
+          '<td>' + formatDate(it.date) + '</td>' +
+          '<td>' + escapeHtml(it.employeeId) + '</td>' +
+          '<td>' + escapeHtml(it.name) + '</td>' +
+          (meta.includeDepartment ? '<td>' + escapeHtml(it.department || '—') + '</td>' : '') +
+          '<td>' + escapeHtml(it.from || '—') + '</td>' +
+          '<td>' + escapeHtml(it.to || '—') + '</td>' +
+        '</tr>'
+      )).join('')
+    : '<tr><td colspan="' + columnCount + '">' + escapeHtml(meta.emptyText) + '</td></tr>';
+  window.print();
 });
 
 // Shares the same real PDF as a native share (WhatsApp, Messages, etc.) -
