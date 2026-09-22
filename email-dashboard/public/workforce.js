@@ -3569,13 +3569,15 @@ const MOVEMENT_TYPES = {
     kpiKey: 'exit', label: 'Company Transfers', tone: 'move-red', icon: 'transfer',
     endpoint: '/api/workforce/company-transfers', fromKey: 'fromCompany', toKey: 'toCompany',
     fromLabel: 'From Company', toLabel: 'To Company',
-    noun: 'transfer', clickTitle: 'View who transferred companies', emptyText: 'No company transfers in the last 12 months'
+    noun: 'transfer', clickTitle: 'View who transferred companies', emptyText: 'No company transfers in the last 12 months',
+    includeDepartment: true, includeDesignation: true
   },
   location: {
     kpiKey: 'locationTransfers', label: 'Location Transfers', tone: 'move-purple', icon: 'location',
     endpoint: '/api/workforce/location-transfers', fromKey: 'fromLocation', toKey: 'toLocation',
     fromLabel: 'From Location', toLabel: 'To Location',
-    noun: 'transfer', clickTitle: 'View who relocated', emptyText: 'No location transfers in the last 12 months'
+    noun: 'transfer', clickTitle: 'View who relocated', emptyText: 'No location transfers in the last 12 months',
+    includeDepartment: true, includeDesignation: true
   }
 };
 
@@ -3709,28 +3711,39 @@ async function loadMovementDetail() {
 // (see its comment in workforce.html) with the rows already on screen
 // (currentMovementItems) instead of fetching anything fresh. Share, right
 // below, is the separate real-server-PDF flow for the native share sheet.
+function formatMonthYear(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}
+
 document.getElementById('exportMovementDetailPdf').addEventListener('click', () => {
   const meta = MOVEMENT_TYPES[movementDetailType];
   const items = currentMovementItems;
-  const columnCount = meta.includeDepartment ? 6 : 5;
+  // Employee Code, Name, [Designation], [Department], From, To, Date -
+  // Date last (and month/year only, not the exact day), matching the real
+  // server PDF (buildMovementPdfBuffer, workforceRoutes.js) exactly.
+  const columnCount = 5 + (meta.includeDesignation ? 1 : 0) + (meta.includeDepartment ? 1 : 0);
   document.getElementById('printReportTitle').textContent = meta.label;
   document.getElementById('printReportSubtitle').textContent =
     document.getElementById('movementDetailCount').textContent + ' · ';
   document.getElementById('printReportDate').textContent =
     new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   document.getElementById('printReportHead').innerHTML =
-    '<th>Date</th><th>Employee Code</th><th>Name</th>' +
+    '<th>Employee Code</th><th>Name</th>' +
+    (meta.includeDesignation ? '<th>Designation</th>' : '') +
     (meta.includeDepartment ? '<th>Department</th>' : '') +
-    '<th>' + escapeHtml(meta.fromLabel) + '</th><th>' + escapeHtml(meta.toLabel) + '</th>';
+    '<th>' + escapeHtml(meta.fromLabel) + '</th><th>' + escapeHtml(meta.toLabel) + '</th><th>Date</th>';
   document.getElementById('printReportBody').innerHTML = items.length
     ? items.map((it) => (
         '<tr>' +
-          '<td>' + formatDate(it.date) + '</td>' +
           '<td>' + escapeHtml(it.employeeId) + '</td>' +
           '<td>' + escapeHtml(it.name) + '</td>' +
+          (meta.includeDesignation ? '<td>' + escapeHtml(it.designation || '—') + '</td>' : '') +
           (meta.includeDepartment ? '<td>' + escapeHtml(it.department || '—') + '</td>' : '') +
           '<td>' + escapeHtml(it.from || '—') + '</td>' +
           '<td>' + escapeHtml(it.to || '—') + '</td>' +
+          '<td>' + formatMonthYear(it.date) + '</td>' +
         '</tr>'
       )).join('')
     : '<tr><td colspan="' + columnCount + '">' + escapeHtml(meta.emptyText) + '</td></tr>';

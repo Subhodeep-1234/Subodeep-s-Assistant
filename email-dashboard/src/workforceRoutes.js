@@ -981,22 +981,29 @@ router.get('/dept-transfers', async (req, res) => {
   }
 });
 
-// Department is cross-referenced from the HR Master sheet by Employee ID,
-// the same way covered-employees/family-members do it - Generate Letter
-// needs it (for the letter's own recipient block) and the tracker log
-// itself has no department column.
+// Department/Designation are cross-referenced from the HR Master sheet by
+// Employee ID, the same way covered-employees/family-members do it - the
+// tracker log itself only ever has the from/to values for whichever one
+// field it's watching, never the employee's other current details.
+async function withDepartmentAndDesignation(items) {
+  const hrData = await employeeService.getEmployeeData({});
+  const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
+  return items.map((it) => {
+    const hr = hrByEmployeeId.get(it.employeeId);
+    return {
+      ...it,
+      department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '',
+      designation: hr ? hr.designation : ''
+    };
+  });
+}
+
+// Generate Letter needs Department for the letter's own recipient block.
 router.get('/promotions', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
-    const [data, hrData] = await Promise.all([
-      movementTracker.getPromotionsInLastDays(days),
-      employeeService.getEmployeeData({})
-    ]);
-    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
-    const items = data.items.map((it) => {
-      const hr = hrByEmployeeId.get(it.employeeId);
-      return { ...it, department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '' };
-    });
+    const data = await movementTracker.getPromotionsInLastDays(days);
+    const items = await withDepartmentAndDesignation(data.items);
     res.json({ total: data.total, items });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1007,7 +1014,8 @@ router.get('/company-transfers', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
     const data = await movementTracker.getCompanyTransfersInLastDays(days);
-    res.json(data);
+    const items = await withDepartmentAndDesignation(data.items);
+    res.json({ total: data.total, items });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1017,7 +1025,8 @@ router.get('/location-transfers', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
     const data = await movementTracker.getLocationTransfersInLastDays(days);
-    res.json(data);
+    const items = await withDepartmentAndDesignation(data.items);
+    res.json({ total: data.total, items });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1028,24 +1037,24 @@ router.get('/location-transfers', async (req, res) => {
 // Transfers - both their own Export PDF and Share buttons, public/
 // workforce.js) - same pdfReport.js builder as every other PDF in this
 // app, so it reads the same "professional" branded style. fromLabel/
-// toLabel echo the on-screen list's own route labels (MOVEMENT_TYPES)
-// so the PDF matches what's actually on screen. Every item already
-// carries plain from/to fields regardless of type (see movementTracker.js) -
-// only Promotions also gets a cross-referenced department column, since
-// that's the one place the on-screen list shows it too.
-async function buildMovementPdfBuffer({ title, noun, items, fromLabel, toLabel, includeDepartment }) {
+// toLabel echo the on-screen list's own route labels (MOVEMENT_TYPES) so
+// the PDF matches what's actually on screen. Date is always the LAST
+// column, shown as month + year only (not the exact day).
+async function buildMovementPdfBuffer({ title, noun, items, fromLabel, toLabel, includeDepartment, includeDesignation }) {
   const sorted = items.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-  const columns = includeDepartment
-    ? ['Date', 'Employee Code', 'Name', 'Department', fromLabel, toLabel]
-    : ['Date', 'Employee Code', 'Name', fromLabel, toLabel];
+  const columns = ['Employee Code', 'Name'];
+  if (includeDesignation) columns.push('Designation');
+  if (includeDepartment) columns.push('Department');
+  columns.push(fromLabel, toLabel, 'Date');
   const rows = sorted.map((it) => {
-    const row = [
-      it.date ? new Date(it.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
-      it.employeeId || '—',
-      it.name || '—'
-    ];
+    const row = [it.employeeId || '—', it.name || '—'];
+    if (includeDesignation) row.push(it.designation || '—');
     if (includeDepartment) row.push(it.department || '—');
-    row.push(it.from || '—', it.to || '—');
+    row.push(
+      it.from || '—',
+      it.to || '—',
+      it.date ? new Date(it.date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '—'
+    );
     return row;
   });
   return buildTablePdfBuffer({
@@ -1080,15 +1089,8 @@ router.get('/dept-transfers/pdf', async (req, res) => {
 router.get('/promotions/pdf', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
-    const [data, hrData] = await Promise.all([
-      movementTracker.getPromotionsInLastDays(days),
-      employeeService.getEmployeeData({})
-    ]);
-    const hrByEmployeeId = new Map(hrData.employees.map((e) => [e.employeeId, e]));
-    const items = data.items.map((it) => {
-      const hr = hrByEmployeeId.get(it.employeeId);
-      return { ...it, department: hr ? (hrData.departmentNames.get(hr.departmentKey) || hr.department) : '' };
-    });
+    const data = await movementTracker.getPromotionsInLastDays(days);
+    const items = await withDepartmentAndDesignation(data.items);
     const pdfBuffer = await buildMovementPdfBuffer({
       title: 'Promotions',
       noun: 'promotion',
@@ -1109,12 +1111,15 @@ router.get('/company-transfers/pdf', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
     const data = await movementTracker.getCompanyTransfersInLastDays(days);
+    const items = await withDepartmentAndDesignation(data.items);
     const pdfBuffer = await buildMovementPdfBuffer({
       title: 'Company Transfers',
       noun: 'transfer',
-      items: data.items,
+      items,
       fromLabel: 'From Company',
-      toLabel: 'To Company'
+      toLabel: 'To Company',
+      includeDepartment: true,
+      includeDesignation: true
     });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="Company_Transfers.pdf"');
@@ -1128,12 +1133,15 @@ router.get('/location-transfers/pdf', async (req, res) => {
   try {
     const days = Math.min(3650, Math.max(1, Number(req.query.days) || 365));
     const data = await movementTracker.getLocationTransfersInLastDays(days);
+    const items = await withDepartmentAndDesignation(data.items);
     const pdfBuffer = await buildMovementPdfBuffer({
       title: 'Location Transfers',
       noun: 'transfer',
-      items: data.items,
+      items,
       fromLabel: 'From Location',
-      toLabel: 'To Location'
+      toLabel: 'To Location',
+      includeDepartment: true,
+      includeDesignation: true
     });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="Location_Transfers.pdf"');
