@@ -795,6 +795,13 @@ function syncVariantButtons() {
   if (shareConfirmationsBtn) shareConfirmationsBtn.hidden = directoryReportVariant !== 'probation';
   const birthdayMailBtn = document.getElementById('sendBirthdayMail');
   if (birthdayMailBtn) birthdayMailBtn.hidden = directoryReportVariant !== 'birthdays';
+  // The server-side /employees/pdf route only mirrors exportEmployeesPdf's
+  // 'default' report (Collar/Department/designation-rank grouping) - the
+  // Age Distribution/Birthday/Workforce Movement variants sort differently
+  // or swap columns and stay print-only for now, so Share stays hidden for
+  // those rather than risk sharing a PDF that doesn't match what's on screen.
+  const shareEmployeesBtn = document.getElementById('shareEmployeesPdf');
+  if (shareEmployeesBtn) shareEmployeesBtn.hidden = directoryReportVariant !== 'default';
 }
 
 function applyFiltersAndShowDirectory(filters, reportVariant) {
@@ -4929,6 +4936,26 @@ document.getElementById('exportPendingConfirmationsPdf').addEventListener('click
 // confirmations/pdf (same pdfReport.js builder as the other Share buttons).
 document.getElementById('sharePendingConfirmationsPdf').addEventListener('click', (e) => {
   shareFile(e.currentTarget, '/api/workforce/pending-confirmations/pdf', 'Pending_Confirmations.pdf', 'pendingConfirmationsShareError', 'Could not share the report - please try again.');
+});
+
+// Shares the same 'default' Employee Data report as a real PDF file (not
+// the print dialog Export PDF opens) - e.g. the Dashboard's "Department
+// Wise Headcount" -> clicking a department -> this list. Reflects whatever
+// filters are currently applied (activeFilters), same as the on-screen
+// list itself; only shown for the 'default' report (see syncVariantButtons).
+document.getElementById('shareEmployeesPdf').addEventListener('click', (e) => {
+  const params = new URLSearchParams();
+  Object.entries(activeFilters).forEach(([k, v]) => { if (v) params.set(k, v); });
+  const filenameParts = ['Employee_Data'];
+  if (activeFilters.department) filenameParts.push(activeFilters.department.replace(/\s+/g, '_'));
+  if (activeFilters.location) filenameParts.push(activeFilters.location.replace(/\s+/g, '_'));
+  shareFile(
+    e.currentTarget,
+    '/api/workforce/employees/pdf?' + params.toString(),
+    filenameParts.join('_') + '.pdf',
+    'employeesShareError',
+    'Could not share the report - please try again.'
+  );
 });
 
 document.getElementById('filterToggleBtn').addEventListener('click', () => {

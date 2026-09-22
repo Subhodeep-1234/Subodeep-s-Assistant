@@ -269,6 +269,104 @@ router.get('/employees', async (req, res) => {
   }
 });
 
+// A real PDF file for the Employee Data list's own Share button (e.g. the
+// Dashboard's "Department Wise Headcount" -> clicking a department ->
+// Employee Data). Only the 'default' on-screen report (public/workforce.js,
+// directoryReportVariant) is mirrored here - the Age Distribution/Birthday/
+// Workforce Movement variants swap columns or sort order and stay print-
+// only for now, so their Share button is hidden client-side. Same filters
+// as /employees (matchesFilters), same Collar/Department/designation-rank
+// sort and subtitle text as exportEmployeesPdf's own default branch, built
+// server-side instead of from window.print()'s HTML so it can exist as a
+// real file to share.
+router.get('/employees/pdf', async (req, res) => {
+  try {
+    const { employees, departmentNames } = await employeeService.getEmployeeData({
+      forceRefresh: wantsForceRefresh(req)
+    });
+    const filtered = employees.filter((e) => matchesFilters(e, req.query, employeeService.normalizeKey));
+
+    const sorted = filtered.slice().sort((a, b) => {
+      const collarA = employeeReportCollarRank(formatCollar(a.groupD));
+      const collarB = employeeReportCollarRank(formatCollar(b.groupD));
+      if (collarA !== collarB) return collarA - collarB;
+      const deptA = departmentNames.get(a.departmentKey) || a.department || '';
+      const deptB = departmentNames.get(b.departmentKey) || b.department || '';
+      const deptDiff = deptA.localeCompare(deptB);
+      if (deptDiff !== 0) return deptDiff;
+      const rankDiff = employeeReportDesignationRank(a.designation) - employeeReportDesignationRank(b.designation);
+      if (rankDiff !== 0) return rankDiff;
+      const desigDiff = (a.designation || '').localeCompare(b.designation || '');
+      if (desigDiff !== 0) return desigDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const rows = [];
+    let lastCollarHeading = null;
+    sorted.forEach((e) => {
+      const collarHeading = formatCollar(e.groupD) || 'Unspecified Collar';
+      if (collarHeading !== lastCollarHeading) {
+        rows.push({ section: collarHeading });
+        lastCollarHeading = collarHeading;
+      }
+      rows.push([
+        e.employeeId,
+        e.name,
+        e.designation || '—',
+        departmentNames.get(e.departmentKey) || e.department || '—',
+        formatCollar(e.groupD) || '—',
+        formatAgeYearsMonths(e.dob),
+        e.gender || '—',
+        e.location || '—',
+        e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+      ]);
+    });
+
+    // Same filterParts idea as exportEmployeesPdf's own subtitle (public/
+    // workforce.js) - status/department/HOD/employmentType/location, only
+    // the ones actually present in this request's filters.
+    const filterParts = [];
+    if (req.query.status) filterParts.push(String(req.query.status).toUpperCase() === 'ACTIVE' ? 'Active' : String(req.query.status).toUpperCase());
+    if (req.query.department) {
+      filterParts.push(String(req.query.department));
+      const managerCounts = {};
+      sorted.forEach((e) => {
+        if (e.reportingManager) managerCounts[e.reportingManager] = (managerCounts[e.reportingManager] || 0) + 1;
+      });
+      let hodName = null;
+      let hodCount = 0;
+      Object.entries(managerCounts).forEach(([name, count]) => {
+        if (count > hodCount) { hodName = name; hodCount = count; }
+      });
+      if (hodName) filterParts.push('HOD: ' + hodName);
+    }
+    if (req.query.employmentType) filterParts.push(String(req.query.employmentType));
+    if (req.query.location) filterParts.push(String(req.query.location));
+
+    const now = new Date();
+    const pdfBuffer = await buildTablePdfBuffer({
+      title: 'Employee Data Report',
+      subtitle:
+        (filterParts.length ? filterParts.join(' · ') + ' · ' : '') +
+        sorted.length + ' employee' + (sorted.length === 1 ? '' : 's') + ' · Generated ' +
+        now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      columns: ['Employee Code', 'Name', 'Designation', 'Department', 'Collar', 'Age', 'Gender', 'Location', 'DOJ'],
+      rows,
+      // Matches exportEmployeesPdf ("Export PDF"), which prints portrait.
+      landscape: false
+    });
+
+    const filenameParts = ['Employee_Data'];
+    if (req.query.department) filenameParts.push(String(req.query.department).replace(/\s+/g, '_'));
+    if (req.query.location) filenameParts.push(String(req.query.location).replace(/\s+/g, '_'));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + filenameParts.join('_') + '.pdf"');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/breakdowns', async (req, res) => {
   try {
     const { employees, departmentNames, locationNames, doerNames } = await employeeService.getEmployeeData();
