@@ -1256,17 +1256,6 @@ function orgChartCardHtml(group, index, palette) {
   const color = palette[index % palette.length];
   return (
     '<div class="org-chart-card" style="--card-color:' + color.bg + '; --card-tint:' + color.tint + '">' +
-      // Real elements, not the on-screen view's ::before/::after tick+arrow -
-      // hidden everywhere except the PDF tree (print CSS), where they're
-      // positioned by direct inline style from positionOrgChartPdfFanBuses
-      // instead. See that function's own comment: a busy department's
-      // fractional zoom needs one real measured pixel value written
-      // straight onto a real element, which a CSS custom property driving
-      // a pseudo-element's left didn't reliably survive Chrome's actual
-      // print/PDF rendering pass (screen-only testing missed this - the
-      // on-screen preview looked right, the real downloaded PDF didn't).
-      '<span class="org-chart-card-tick"></span>' +
-      '<span class="org-chart-card-arrow"></span>' +
       '<div class="org-chart-card-head">' +
         '<span class="org-chart-card-head-icon">' + icon(designationIconFor(group.designation), 13) + '</span>' +
         escapeHtml(titleCase(group.designation)) + ' (' + group.count + ')' +
@@ -1649,22 +1638,6 @@ function positionOrgChartPdfFanBuses(root) {
     const right = lastRect.left + lastRect.width / 2 - rowRect.left;
     bus.style.left = (left / zoom) + 'px';
     bus.style.width = (Math.max(0, right - left) / zoom) + 'px';
-  });
-
-  // Each designation card's own tick+arrowhead pointing up into it
-  // (org-chart-card-tick/-arrow, real elements - see orgChartCardHtml's own
-  // comment for why, vs. the on-screen view's plain ::before/::after).
-  // Same zoom-division reasoning as the bus lines above, written directly
-  // onto a real element's own inline style instead of a CSS custom
-  // property - a --left-driven pseudo-element position did not reliably
-  // survive Chrome's actual print/PDF rendering pass the way this does.
-  root.querySelectorAll('.org-chart-card').forEach((card) => {
-    const tick = card.querySelector(':scope > .org-chart-card-tick');
-    const arrow = card.querySelector(':scope > .org-chart-card-arrow');
-    if (!tick || !arrow) return;
-    const center = card.getBoundingClientRect().width / 2;
-    tick.style.left = (Math.round(center - 1) / zoom) + 'px';
-    arrow.style.left = (Math.round(center - 3) / zoom) + 'px';
   });
 }
 
