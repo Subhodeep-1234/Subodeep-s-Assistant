@@ -995,6 +995,34 @@ router.get('/doer-breakdown/pdf', async (req, res) => {
   }
 });
 
+// All four Employee Movements KPI counts in one response - what
+// renderMovementBreakdown's own prefetch calls instead of hitting all four
+// individual routes below concurrently. On Vercel, four near-simultaneous
+// requests can each land on a different cold serverless instance - none of
+// which share movementTracker's in-memory caches (or its ensureTabsOnce
+// tab-existence cache) - so a burst like that pays the full cold-start
+// Sheets API cost (including ensureTabs' own 3 round-trips per field) up
+// to four times over instead of once, which is what made the KPI cards sit
+// on their loading state for noticeably longer than they should. This is
+// exactly one request, one instance, one real read of each of the four
+// change logs. Same days as renderMovementBreakdown's own per-type
+// defaults (MOVEMENT_TYPES, public/workforce.js) - Promotions stays
+// unwindowed (the complete log, not just the last year) since Generate
+// Letter needs the full history, not just a recent slice.
+router.get('/movement-bundle', async (req, res) => {
+  try {
+    const [department, designation, company, location] = await Promise.all([
+      movementTracker.getTransfersInLastDays(365),
+      movementTracker.getPromotionsInLastDays(3650),
+      movementTracker.getCompanyTransfersInLastDays(365),
+      movementTracker.getLocationTransfersInLastDays(365)
+    ]);
+    res.json({ department, designation, company, location });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Real change counts from movementTracker's own daily-snapshot logs (a
 // separate spreadsheet, isolated from Employee_Master) - each starts at 0
 // from whenever its tracker first ran, since no backdated history exists

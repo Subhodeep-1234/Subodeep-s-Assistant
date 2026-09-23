@@ -630,10 +630,11 @@ async function loadOverview(forceRefresh) {
     '/api/workforce/age',
     '/api/workforce/gender',
     '/api/workforce/joining-trend?months=36',
-    '/api/workforce/dept-transfers?days=365',
-    '/api/workforce/promotions?days=365',
-    '/api/workforce/company-transfers?days=365',
-    '/api/workforce/location-transfers?days=365'
+    // One bundled request instead of the four individual movement
+    // endpoints this used to list separately - see /movement-bundle's own
+    // comment (workforceRoutes.js) for why firing several of these at once
+    // was itself part of the problem it's warming ahead of.
+    '/api/workforce/movement-bundle'
   ]);
   try {
     const [overview, activeBreakdowns, trend] = await Promise.all([
@@ -3650,27 +3651,41 @@ async function renderMovementBreakdown() {
     .map(([type, m]) => kpiCard({ key: m.kpiKey, label: m.label, value: null, tone: m.tone, icon: m.icon, clickable: false, data: { movementType: type } }))
     .join('');
 
-  await Promise.all(Object.entries(MOVEMENT_TYPES).map(async ([type, m]) => {
-    try {
-      const days = m.daysCap || 365;
-      const data = await fetchJson(m.endpoint + '?days=' + days);
-      // loadMovementDetail fetches this exact same URL when its card is
-      // clicked - hand it the response already in hand instead of a second
-      // round trip for the same tracker data.
-      jsonPrefetchCache.set(m.endpoint + '?days=' + days, Promise.resolve(data));
-      const card = document.querySelector('#movementBreakdownGrid [data-kpi="' + m.kpiKey + '"]');
-      if (card) {
-        card.outerHTML = kpiCard({
-          key: m.kpiKey, label: m.label, value: data.total, tone: m.tone, icon: m.icon,
-          clickable: data.total > 0,
-          title: data.total > 0 ? m.clickTitle : '',
-          data: { movementType: type }
-        });
-      }
-    } catch (err) {
-      // Leave that one N/A tile in place - a tracker fetch hiccup for one column shouldn't affect the other three.
+  // One bundled request instead of four concurrent ones (each used to hit
+  // its own endpoint) - on Vercel, four near-simultaneous requests can each
+  // land on a different cold serverless instance, none of which share
+  // movementTracker's in-memory caches, so a burst like that was paying up
+  // to four separate cold-start Sheets API costs instead of one - this is
+  // what made the cards sit on their loading state for noticeably longer
+  // than they should (see /movement-bundle's own comment,
+  // workforceRoutes.js). Same fix shape as the Health Insurance bundle.
+  let bundle;
+  try {
+    bundle = await fetchJson('/api/workforce/movement-bundle');
+  } catch (err) {
+    // Leave every tile at its N/A placeholder - same as before, a tracker
+    // fetch hiccup here shouldn't crash the rest of the Dashboard/Movement view.
+    return;
+  }
+
+  Object.entries(MOVEMENT_TYPES).forEach(([type, m]) => {
+    const data = bundle[type];
+    if (!data) return;
+    const days = m.daysCap || 365;
+    // loadMovementDetail fetches this exact same URL when its card is
+    // clicked - hand it the response already in hand instead of a second
+    // round trip for the same tracker data.
+    jsonPrefetchCache.set(m.endpoint + '?days=' + days, Promise.resolve(data));
+    const card = document.querySelector('#movementBreakdownGrid [data-kpi="' + m.kpiKey + '"]');
+    if (card) {
+      card.outerHTML = kpiCard({
+        key: m.kpiKey, label: m.label, value: data.total, tone: m.tone, icon: m.icon,
+        clickable: data.total > 0,
+        title: data.total > 0 ? m.clickTitle : '',
+        data: { movementType: type }
+      });
     }
-  }));
+  });
 }
 
 document.getElementById('movementBreakdownGrid').addEventListener('click', (e) => {
