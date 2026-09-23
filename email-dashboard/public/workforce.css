@@ -2161,14 +2161,42 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-pill-connector::after {
     content: none;
   }
-  /* Each card's own tick line ends in a downward arrowhead pointing into
-     that designation's box, matching the reference chart's style. */
+  /* Replaced by the real .org-chart-card-tick/-arrow elements below (see
+     orgChartCardHtml's own comment for why a real element instead of
+     these) - hidden here rather than deleted, so the on-screen card list
+     (never printed, unaffected by any of this) keeps using them exactly
+     as before. */
+  body.printing-org-chart .org-chart-card::before,
   body.printing-org-chart .org-chart-card::after {
-    content: '';
+    content: none;
+  }
+  /* Each card's own tick line ends in a downward arrowhead pointing into
+     that designation's box, matching the reference chart's style. left is
+     set by positionOrgChartPdfFanBuses (public/workforce.js), as a direct
+     inline pixel value - not a CSS left:50%/transform:translateX(-50%) or
+     custom-property-driven pseudo-element, both of which a busy
+     department's fractional zoom (scaleOrgChartPdfTreeToFit) rendered
+     inconsistently once actually sent to a real PDF via window.print()
+     (screen-only testing didn't catch it - see that function's own
+     comment for the full story). display: none outside print - the
+     no-print default keeps these invisible/inert everywhere else, JS only
+     ever touches them from inside the PDF export flow. */
+  body.printing-org-chart .org-chart-card-tick,
+  body.printing-org-chart .org-chart-card-arrow {
+    display: block;
+  }
+  body.printing-org-chart .org-chart-card-tick {
+    position: absolute;
+    top: -9px;
+    width: 2px;
+    height: 5px;
+    background: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.printing-org-chart .org-chart-card-arrow {
     position: absolute;
     top: -4px;
-    left: 50%;
-    transform: translateX(-50%);
     width: 0;
     height: 0;
     border-left: 3px solid transparent;
@@ -2346,16 +2374,6 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      12px card) so the head's corners still nest inside the card's,
      rather than the on-screen sizing showing through at print scale. */
   body.printing-org-chart .org-chart-card-head { border-top-left-radius: 4px; border-top-right-radius: 4px; }
-  /* top: -9px extends 1px higher than the bus line's own row (matching
-     the exact -8px row padding would leave a hairline gap at the top
-     join - same reasoning as the bus line's own 51px inset above).
-     height: 5px (not the full 9px down to the card) stops the tick
-     exactly where the arrowhead's own wide edge begins (border-top: 4px
-     below) - the arrowhead narrows to a point as it nears the card, so
-     letting the tick run underneath that narrowing point made the
-     tick's own width visibly stick out past the arrow's edges near the
-     tip, reading as a smudged blob instead of a clean triangle. */
-  body.printing-org-chart .org-chart-card::before { top: -9px; height: 5px; }
   body.printing-org-chart .org-chart-card-head { padding: 2px 6px; font-size: 0.5rem; gap: 3px; }
   body.printing-org-chart .org-chart-card-head-icon svg { width: 8px; height: 8px; }
   body.printing-org-chart .org-chart-card-body { padding: 3px 6px; gap: 2px; }
