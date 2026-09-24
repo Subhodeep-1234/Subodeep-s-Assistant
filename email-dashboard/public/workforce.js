@@ -1712,6 +1712,15 @@ function normalizeOrgChartCardConnectorSizes(root, scale) {
   // ::before/::after) exactly - only how they're reached changes.
   const TICK_WIDTH = 2, TICK_HEIGHT = 5, TICK_TOP = 9;
   const ARROW_SIDE = 3, ARROW_BORDER = 4, ARROW_TOP = 4;
+  // Deliberate small cosmetic nudge, not a math correction - measuring
+  // every element in the chain above a card (branch-connector, pill,
+  // pill-connector, row, card) independently all agreed to within a
+  // hundredth of a pixel of the same true center, so there's no
+  // computed offset left to fix here. Kept anyway on explicit, repeated
+  // feedback that the arrow still reads as sitting right of the tick/
+  // line above it on the actual downloaded PDF - trusting what's
+  // visible there over a measurement that says it's already centered.
+  const ARROW_VISUAL_NUDGE = 1;
 
   root.querySelectorAll('.org-chart-card').forEach((card) => {
     const tick = card.querySelector(':scope > .org-chart-card-tick');
@@ -1744,7 +1753,7 @@ function normalizeOrgChartCardConnectorSizes(root, scale) {
     // reproducing that same net result without a transform means
     // subtracting arrowSide up front instead.)
     const arrowSide = ARROW_SIDE / scale;
-    arrow.style.left = (width / 2 - arrowSide) + 'px';
+    arrow.style.left = (width / 2 - arrowSide - ARROW_VISUAL_NUDGE / scale) + 'px';
     arrow.style.top = (-ARROW_TOP / scale) + 'px';
     arrow.style.borderLeftWidth = arrowSide + 'px';
     arrow.style.borderRightWidth = arrowSide + 'px';
