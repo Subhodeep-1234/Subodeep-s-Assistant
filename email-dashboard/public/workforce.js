@@ -1674,7 +1674,19 @@ function normalizeOrgChartCardConnectorSizes(root) {
   // Physical on-page pixel sizes this must render as, matching the print
   // CSS's own authored values (body.printing-org-chart .org-chart-card
   // ::before/::after) exactly - only how they're reached changes.
-  const TICK_WIDTH = 2, TICK_HEIGHT = 5, TICK_TOP = 9;
+  // TICK_TOP extends 2px further up than the arrow's own reach down
+  // from the tick (TICK_TOP - TICK_HEIGHT still equals ARROW_TOP, so
+  // the tick still meets the arrow at exactly the same point as before)
+  // - the row's own bus line sits at a fixed distance above the card
+  // that's computed independently of this (row padding-top, uncompensated
+  // CSS, not read from here), and although the two were already
+  // mathematically overlapping by about a pixel, a report of a hairline
+  // gap at 100% zoom in a real PDF viewer (not reproducible in this
+  // codebase's own render/inspect tooling, suggesting a rendering-
+  // engine-specific antialiasing difference rather than a wrong
+  // position) is safest addressed by widening that overlap margin
+  // further, not by chasing an exact pixel this tooling can't see.
+  const TICK_WIDTH = 2, TICK_HEIGHT = 7, TICK_TOP = 11;
   const ARROW_SIDE = 3, ARROW_BORDER = 4, ARROW_TOP = 4;
 
   root.querySelectorAll('.org-chart-card').forEach((card) => {
