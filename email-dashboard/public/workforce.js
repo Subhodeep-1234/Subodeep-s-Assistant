@@ -1,3 +1,29 @@
+// Desktop wraps this real app in a phone-frame iframe (see
+// workforce-shell.html) clamped to 430px wide for the mobile-app look - a
+// real phone visiting this file directly (no wrapper) sees window.frameElement
+// as null and this block does nothing, exactly matching how the shell itself
+// only ever applies on desktop. Every window.print() call in this file (org
+// chart, letters, movement reports, ...) otherwise inherits that same
+// 430px-constrained box as its own print viewport, which the org chart's
+// pixel-precision connector lines are sensitive to - widening the iframe for
+// the duration of the print (on the browser's own beforeprint/afterprint,
+// which every print() call fires regardless of which button triggered it,
+// so this covers all of them from one place instead of duplicating it at
+// each call site) removes that mismatch between the iframe's own on-screen
+// box and #orgChartPrintContent's true 297mm width before Chrome's print
+// pipeline ever sees it, rather than trying to keep compensating for it
+// after the fact in each export's own positioning math.
+if (window.frameElement) {
+  const frameEl = window.frameElement;
+  const originalFrameWidth = frameEl.style.width;
+  window.addEventListener('beforeprint', () => {
+    frameEl.style.width = '1300px';
+  });
+  window.addEventListener('afterprint', () => {
+    frameEl.style.width = originalFrameWidth;
+  });
+}
+
 const kpiGrid = document.getElementById('kpiGrid');
 const wfDrawer = document.getElementById('wfDrawer');
 const wfDrawerBackdrop = document.getElementById('wfDrawerBackdrop');
