@@ -1570,7 +1570,15 @@ function renderOrgChartPdfTreeHtml(data) {
     belowMd = (data.mdBranch.hods.length ? '' : '<div class="org-chart-connector-down"></div>') + orgChartPdfBranchContentHtml(data.mdBranch);
   }
 
+  // orgChartScaleWrap exists purely so scaleOrgChartPdfTreeToFit can give
+  // it an explicit post-scale size - .org-chart itself always keeps its
+  // own natural, full (pre-scale) layout size so its children lay out
+  // exactly as if nothing were shrunk at all; only this wrapper's box
+  // (which nothing else measures or positions against) needs to reflect
+  // the smaller visual footprint, so the surrounding print page reserves
+  // only that much space instead of the full unscaled height.
   return (
+    '<div id="orgChartScaleWrap">' +
     '<div class="org-chart">' +
       '<div class="org-chart-top-row">' +
         '<div class="org-chart-banner">' +
@@ -1598,6 +1606,7 @@ function renderOrgChartPdfTreeHtml(data) {
         '<span class="org-chart-footer-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></span>' +
         '<span>Alcove Realty | Excellence in Every Department</span>' +
       '</div>' +
+    '</div>' +
     '</div>'
   );
 }
@@ -1616,23 +1625,23 @@ function renderOrgChartPdfTreeHtml(data) {
 // runs from the 'beforeprint' event instead, which fires after that
 // switch.
 //
-// A busy department also gets zoomed down to fit one page
-// (scaleOrgChartPdfTreeToFit, run right before this) - getBoundingClientRect()
-// on anything inside that zoomed .org-chart already reports POST-zoom
-// (final on-screen) pixel values, but every bus element being positioned
-// here is ITSELF inside that same zoomed ancestor. Writing those already-
-// zoomed measurements straight back as its own left/width made the
-// browser apply the zoom a SECOND time when painting the bus, shrinking
-// it to roughly zoom^2 of the span it was actually measured at - visibly,
-// the connecting line stopped partway across a wide row instead of
-// reaching the last column(s)/card(s), on any department busy enough to
-// actually need the zoom (an unzoomed department, zoom === 1, never
-// showed this - dividing by 1 is a no-op). Dividing by the same zoom
-// factor before assigning cancels that second application out.
-function positionOrgChartPdfFanBuses(root) {
-  const chart = root.querySelector('.org-chart');
-  const zoom = chart ? parseFloat(getComputedStyle(chart).zoom) || 1 : 1;
-
+// A busy department also gets scaled down to fit one page
+// (scaleOrgChartPdfTreeToFit, run right before this, which returns the
+// exact scale value used here - see that function's own comment for why
+// this takes it as a parameter rather than re-deriving it from the DOM)
+// - getBoundingClientRect() on anything inside that scaled .org-chart
+// already reports the final, post-scale on-screen pixel values, but
+// every bus element being positioned here is ITSELF inside that same
+// scaled ancestor. Writing those already-scaled measurements straight
+// back as its own left/width would make the browser apply the scale a
+// SECOND time when painting the bus, shrinking it to roughly scale^2 of
+// the span it was actually measured at - visibly, the connecting line
+// would stop partway across a wide row instead of reaching the last
+// column(s)/card(s), on any department busy enough to actually need the
+// scale (an unscaled department, scale === 1, never shows this -
+// dividing by 1 is a no-op). Dividing by the same scale factor before
+// assigning cancels that second application out.
+function positionOrgChartPdfFanBuses(root, scale) {
   root.querySelectorAll('.org-chart-pdf-hods-row, .org-chart-pdf-directors-row').forEach((row) => {
     const bus = row.querySelector(':scope > .org-chart-pdf-hods-bus');
     if (!bus) return;
@@ -1652,8 +1661,8 @@ function positionOrgChartPdfFanBuses(root) {
     const lastRect = cols[cols.length - 1].getBoundingClientRect();
     const left = firstRect.left + firstRect.width / 2 - rowRect.left;
     const right = lastRect.left + lastRect.width / 2 - rowRect.left;
-    bus.style.left = (left / zoom) + 'px';
-    bus.style.width = (Math.max(0, right - left) / zoom) + 'px';
+    bus.style.left = (left / scale) + 'px';
+    bus.style.width = (Math.max(0, right - left) / scale) + 'px';
   });
 
   // Same idea, one level deeper - the designation cards row under each
@@ -1674,29 +1683,30 @@ function positionOrgChartPdfFanBuses(root) {
     const lastRect = cards[cards.length - 1].getBoundingClientRect();
     const left = firstRect.left + firstRect.width / 2 - rowRect.left;
     const right = lastRect.left + lastRect.width / 2 - rowRect.left;
-    bus.style.left = (left / zoom) + 'px';
-    bus.style.width = (Math.max(0, right - left) / zoom) + 'px';
+    bus.style.left = (left / scale) + 'px';
+    bus.style.width = (Math.max(0, right - left) / scale) + 'px';
   });
 }
 
 // Every designation card authors the exact same tick width (2px) and
 // arrowhead border-triangle (3px/3px/4px) - identical CSS on every card,
-// so they should all look identical. Under a genuinely fractional zoom
+// so they should all look identical. Under a genuinely fractional scale
 // (any busy department scaled by scaleOrgChartPdfTreeToFit to something
 // other than a clean fraction like 0.5), though, each card sits at its
 // own sub-pixel horizontal offset, and Chrome's print rasterizer rounds
 // that same 2px/3px/4px geometry to a different actual device-pixel size
 // per card as a result - some come out visibly thicker or thinner than
 // others in the real downloaded PDF, even though nothing about their own
-// CSS differs. Dividing every one of these sizes by the same zoom factor
+// CSS differs. Dividing every one of these sizes by the same scale factor
 // before assigning it (matching the left/width compensation already used
 // for the bus lines above) makes each one an exact multiple of the
-// physical size once the browser's own zoom multiplies it back out,
+// physical size once the browser's own transform multiplies it back out,
 // instead of an arbitrary fraction that has to be rounded - removing the
 // inconsistency instead of just hoping it rounds the same way twice.
-function normalizeOrgChartCardConnectorSizes(root) {
-  const chart = root.querySelector('.org-chart');
-  const zoom = chart ? parseFloat(getComputedStyle(chart).zoom) || 1 : 1;
+// Takes scale as a parameter rather than re-deriving it, for the same
+// reason positionOrgChartPdfFanBuses does - see scaleOrgChartPdfTreeToFit's
+// own comment.
+function normalizeOrgChartCardConnectorSizes(root, scale) {
   // Physical on-page pixel sizes this must render as, matching the print
   // CSS's own authored values (body.printing-org-chart .org-chart-card
   // ::before/::after) exactly - only how they're reached changes.
@@ -1707,16 +1717,16 @@ function normalizeOrgChartCardConnectorSizes(root) {
     const tick = card.querySelector(':scope > .org-chart-card-tick');
     const arrow = card.querySelector(':scope > .org-chart-card-arrow');
     if (!tick || !arrow) return;
-    // The card's own authored (pre-zoom) width - getBoundingClientRect
-    // reports the post-zoom rendered size, so this divides that back out
+    // The card's own authored (pre-scale) width - getBoundingClientRect
+    // reports the post-scale rendered size, so this divides that back out
     // the same way every other measurement here does.
-    const width = card.getBoundingClientRect().width / zoom;
+    const width = card.getBoundingClientRect().width / scale;
 
-    const tickWidth = TICK_WIDTH / zoom;
+    const tickWidth = TICK_WIDTH / scale;
     tick.style.left = (width / 2 - tickWidth / 2) + 'px';
-    tick.style.top = (-TICK_TOP / zoom) + 'px';
+    tick.style.top = (-TICK_TOP / scale) + 'px';
     tick.style.width = tickWidth + 'px';
-    tick.style.height = (TICK_HEIGHT / zoom) + 'px';
+    tick.style.height = (TICK_HEIGHT / scale) + 'px';
 
     // left positions this element's own BORDER box, not its 0-width
     // content box - border-left/-right (equal widths, transparent)
@@ -1733,12 +1743,12 @@ function normalizeOrgChartCardConnectorSizes(root) {
     // i.e. -arrowSide - happens to cancel this same offset back out;
     // reproducing that same net result without a transform means
     // subtracting arrowSide up front instead.)
-    const arrowSide = ARROW_SIDE / zoom;
+    const arrowSide = ARROW_SIDE / scale;
     arrow.style.left = (width / 2 - arrowSide) + 'px';
-    arrow.style.top = (-ARROW_TOP / zoom) + 'px';
+    arrow.style.top = (-ARROW_TOP / scale) + 'px';
     arrow.style.borderLeftWidth = arrowSide + 'px';
     arrow.style.borderRightWidth = arrowSide + 'px';
-    arrow.style.borderTopWidth = (ARROW_BORDER / zoom) + 'px';
+    arrow.style.borderTopWidth = (ARROW_BORDER / scale) + 'px';
   });
 }
 
@@ -1781,17 +1791,48 @@ const MM_TO_PX = 96 / 25.4;
 const PRINT_PAGE_CONTENT_WIDTH_PX = (297 - 20) * MM_TO_PX;
 const PRINT_PAGE_CONTENT_HEIGHT_PX = (210 - 16) * MM_TO_PX;
 
-// Shrinks the whole tree (zoom, not transform - zoom actually changes
-// how much page space an element occupies, unlike transform: scale,
-// which only affects painting) just enough to fit one landscape page,
-// for a department busy enough that the compact print sizing alone
-// isn't enough (many real Directors/HODs). Never scales up past 1 - a
-// normal, uncrowded department renders at its usual compact size,
-// completely untouched.
+// Shrinks the whole tree just enough to fit one landscape page, for a
+// department busy enough that the compact print sizing alone isn't enough
+// (many real Directors/HODs). Never scales up past 1 - a normal, uncrowded
+// department renders at its usual compact size, completely untouched.
+//
+// Uses transform: scale, not the CSS zoom property this used previously.
+// zoom is a non-standard, Chromium-only legacy property, and its behavior
+// turned out not to be as reliably consistent as assumed - the same zoom
+// value read back afterward via getComputedStyle (which every caller of
+// this used to do independently, to convert its own measurements back to
+// pre-zoom units) reported different numbers depending on rendering
+// context in ways that were never fully pinned down over a long back-
+// and-forth chasing what looked like separate bugs (arrow thickness,
+// then position, then a gap, each "fixed" only to reappear elsewhere) -
+// one contributing factor that WAS pinned down: printing from inside the
+// desktop phone-frame iframe (see workforce-shell.html) versus a real
+// phone's direct, unwrapped page measurably changed the numbers.
+// transform: scale is a standard, precisely-specified CSS feature with
+// no such cross-context ambiguity - getBoundingClientRect on anything
+// inside a transformed element reliably reports its true post-transform
+// position everywhere. Returning the exact scale value here, for callers
+// to use directly instead of ever reading it back from the DOM
+// themselves, removes the other half of the ambiguity - every consumer
+// now uses the one true number this function itself computed, not a
+// re-derived copy that could disagree with it.
+//
+// transform never changes how much page space an element occupies
+// (unlike zoom, which does) - .org-chart itself is left at its own full,
+// natural, pre-scale layout size on purpose, so every descendant still
+// lays out exactly as if nothing were being shrunk at all (no wrapping
+// or reflow differences to account for). Only orgChartScaleWrap, a
+// plain wrapper around .org-chart that nothing else measures or
+// positions against, gets an explicit post-scale width/height, so the
+// surrounding print page reserves only the actual visible footprint
+// instead of the full unscaled one.
 function scaleOrgChartPdfTreeToFit(printEl) {
   const chart = printEl.querySelector('.org-chart');
-  if (!chart) return;
-  chart.style.zoom = '';
+  const wrap = printEl.querySelector('#orgChartScaleWrap');
+  if (!chart) return 1;
+  chart.style.transform = '';
+  chart.style.transformOrigin = 'top left';
+  if (wrap) { wrap.style.width = ''; wrap.style.height = ''; }
   // .org-chart's own getBoundingClientRect() alone under-reports the
   // true size for a busy department - its Directors/HODs row
   // (flex-wrap: nowrap, see that CSS rule's own comment) can genuinely
@@ -1800,6 +1841,7 @@ function scaleOrgChartPdfTreeToFit(printEl) {
   // scrollWidth either, only actual scroll containers). Union this with
   // every row that's allowed to overflow instead, to get the TRUE
   // extent regardless of what .org-chart's own box reports.
+  const chartRect = chart.getBoundingClientRect();
   const probes = [chart, ...chart.querySelectorAll('.org-chart-pdf-directors-row, .org-chart-pdf-hods-row, .org-chart-cards-row')];
   let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
   probes.forEach((el) => {
@@ -1810,7 +1852,32 @@ function scaleOrgChartPdfTreeToFit(printEl) {
     bottom = Math.max(bottom, r.bottom);
   });
   const scale = Math.min(1, PRINT_PAGE_CONTENT_WIDTH_PX / (right - left), PRINT_PAGE_CONTENT_HEIGHT_PX / (bottom - top));
-  if (scale < 1) chart.style.zoom = String(scale);
+  if (scale < 1) {
+    // transform-origin: top left anchors the scale at .org-chart's OWN
+    // top-left corner, not at (left, top) above - a directors/HODs row
+    // wide enough to need this whole function centers itself via
+    // justify-content: center, which can overflow .org-chart's own box
+    // equally on both sides, including to the left/above of that anchor
+    // point. Left unaddressed, that overflow would still shrink by the
+    // right amount but stay pinned exactly where it was pre-scale,
+    // sitting partly off the page's own left/top edge instead of moving
+    // inward together with everything else. translate (applied here
+    // BEFORE scale, per how CSS composes a function list - the last-
+    // listed function transforms the element's own local coordinates
+    // first, then earlier ones act on that result - so this shift itself
+    // also ends up scaled by the same factor, landing exactly on the
+    // true left/top edge) pulls that overflow back onto the page,
+    // pre-cancelling exactly the gap this anchor point would otherwise
+    // leave.
+    const shiftX = chartRect.left - left;
+    const shiftY = chartRect.top - top;
+    chart.style.transform = 'scale(' + scale + ') translate(' + shiftX + 'px, ' + shiftY + 'px)';
+    if (wrap) {
+      wrap.style.width = ((right - left) * scale) + 'px';
+      wrap.style.height = ((bottom - top) * scale) + 'px';
+    }
+  }
+  return scale;
 }
 
 document.getElementById('exportOrgChartPdf').addEventListener('click', async () => {
@@ -1848,12 +1915,15 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
   // 'beforeprint' (which, tested directly, doesn't reliably fire after
   // print media has actually been applied). Scale first, then position
   // the fan-out bus lines against the final (possibly shrunk) layout.
-  // preventPartialCardWraps has to run first, before scale touches zoom
-  // and before either measures the tree's true extent.
+  // preventPartialCardWraps has to run first, before scale is computed
+  // and before either measures the tree's true extent. The scale value
+  // scaleOrgChartPdfTreeToFit returns is then passed explicitly into
+  // both of the others, rather than having them each re-derive it from
+  // the DOM - see that function's own comment for why.
   preventPartialCardWraps(printEl);
-  scaleOrgChartPdfTreeToFit(printEl);
-  positionOrgChartPdfFanBuses(printEl);
-  normalizeOrgChartCardConnectorSizes(printEl);
+  const orgChartScale = scaleOrgChartPdfTreeToFit(printEl);
+  positionOrgChartPdfFanBuses(printEl, orgChartScale);
+  normalizeOrgChartCardConnectorSizes(printEl, orgChartScale);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
     document.body.classList.remove('printing-org-chart');

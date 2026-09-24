@@ -2208,8 +2208,17 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 
   /* Same cards/tree markup and layout logic as the on-screen view - only
      sizing is scaled down here so a busy department (many designations,
-     each listing every employee by name) still fits one landscape page. */
-  body.printing-org-chart .org-chart { border: none; border-radius: 0; margin-top: 0; }
+     each listing every employee by name) still fits one landscape page.
+     overflow: visible overrides the base rule's own overflow: hidden
+     (there to clip an on-screen-only dropdown elsewhere, see that rule's
+     own comment) - scaleOrgChartPdfTreeToFit measures a busy department's
+     Directors/HODs row overflowing past .org-chart's own box on purpose
+     (that's how it detects the tree needs shrinking at all), and now
+     scales .org-chart with transform rather than the old zoom, which
+     never shrinks .org-chart's own box the way zoom incidentally did -
+     without this override that overflow would get silently clipped by
+     .org-chart's own edge instead of scaling down into view. */
+  body.printing-org-chart .org-chart { border: none; border-radius: 0; margin-top: 0; overflow: visible; }
   /* space-between (instead of the on-screen default flex-start, where the
      banner's flex:1 grows to fill the row) keeps the info card pinned to
      the right while the banner below is free to shrink to its own
