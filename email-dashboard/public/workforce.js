@@ -1692,11 +1692,17 @@ function normalizeOrgChartCardConnectorSizes(root) {
     tick.style.width = tickWidth + 'px';
     tick.style.height = (TICK_HEIGHT / zoom) + 'px';
 
-    // A border-triangle's own visible center sits one arrowSide past its
-    // own left edge (the box spans left to left + 2*arrowSide with the
-    // border-left/border-right transparent), not at left itself.
+    // The box itself is 0x0 (width/height: 0) - border-left and
+    // border-right (equal widths, transparent) extend symmetrically
+    // outward from that single point, so the triangle's own tip already
+    // sits exactly at left with no offset needed (this is also why the
+    // original ::after's left: 50% alone, with no meaningful translateX
+    // contribution from a 0-width box, already centered it correctly -
+    // subtracting arrowSide here, matching how the tick's own real,
+    // non-zero width needs half its own width subtracted, was the bug:
+    // it shifted every arrow left by that same fixed amount).
     const arrowSide = ARROW_SIDE / zoom;
-    arrow.style.left = (width / 2 - arrowSide) + 'px';
+    arrow.style.left = (width / 2) + 'px';
     arrow.style.top = (-ARROW_TOP / zoom) + 'px';
     arrow.style.borderLeftWidth = arrowSide + 'px';
     arrow.style.borderRightWidth = arrowSide + 'px';
