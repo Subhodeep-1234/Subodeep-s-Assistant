@@ -1692,17 +1692,23 @@ function normalizeOrgChartCardConnectorSizes(root) {
     tick.style.width = tickWidth + 'px';
     tick.style.height = (TICK_HEIGHT / zoom) + 'px';
 
-    // The box itself is 0x0 (width/height: 0) - border-left and
-    // border-right (equal widths, transparent) extend symmetrically
-    // outward from that single point, so the triangle's own tip already
-    // sits exactly at left with no offset needed (this is also why the
-    // original ::after's left: 50% alone, with no meaningful translateX
-    // contribution from a 0-width box, already centered it correctly -
-    // subtracting arrowSide here, matching how the tick's own real,
-    // non-zero width needs half its own width subtracted, was the bug:
-    // it shifted every arrow left by that same fixed amount).
+    // left positions this element's own BORDER box, not its 0-width
+    // content box - border-left/-right (equal widths, transparent)
+    // extend outward from the content box on each side, so the content
+    // box (and with it, the triangle's own tip, which sits at the
+    // content box's position) lands arrowSide to the RIGHT of whatever
+    // left is set to, not at left itself. The previous version of this
+    // dropped the arrowSide subtraction, reasoning the tip already sat
+    // at left with "no offset needed" - that reasoning skipped the
+    // border box's own width entirely and left every arrow shifted
+    // right by exactly one arrowSide. (The original ::after's plain
+    // left: 50% + transform: translateX(-50%) avoided this because the
+    // translateX shift - -50% of the border box's own 2*arrowSide width,
+    // i.e. -arrowSide - happens to cancel this same offset back out;
+    // reproducing that same net result without a transform means
+    // subtracting arrowSide up front instead.)
     const arrowSide = ARROW_SIDE / zoom;
-    arrow.style.left = (width / 2) + 'px';
+    arrow.style.left = (width / 2 - arrowSide) + 'px';
     arrow.style.top = (-ARROW_TOP / zoom) + 'px';
     arrow.style.borderLeftWidth = arrowSide + 'px';
     arrow.style.borderRightWidth = arrowSide + 'px';
