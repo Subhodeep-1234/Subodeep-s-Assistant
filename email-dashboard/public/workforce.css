@@ -2380,23 +2380,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child) > .org-chart-cards-row-bus {
     display: none;
   }
-  /* width: fit-content (capped at the old fixed 106px, floored at 74px)
-     instead of a flat 106px for every card - a short designation like
-     "PA (1)" with one short name no longer carries the same blank
-     padding a genuinely wide card like "Tower Crane Operator (1)" needs,
-     so a HOD's whole row takes up less total width. Every card's own
-     tick/arrow/bus-line position is already measured live off its real
-     rendered box (getBoundingClientRect, not this 106px figure), so
-     narrower cards need no other change to stay correctly connected -
-     the real benefit is scaleOrgChartPdfTreeToFit then has less total
-     width to shrink to fit one page, so a busy department needs a less
-     aggressive zoom (or none at all) to fit, the same reason Accounts
-     - a department that was never wide enough to need much shrinking in
-     the first place - already prints every line and arrow at one crisp,
-     consistent size. max-width still caps it at the old 106px so a long
-     designation/employee name wraps across lines exactly as before,
-     rather than stretching the card wider than that. */
-  body.printing-org-chart .org-chart-card { width: fit-content; min-width: 74px; max-width: 106px; border-radius: 5px; }
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
   /* Matches the card's own 5px radius here (on screen: 11px, for its
      12px card) so the head's corners still nest inside the card's,
      rather than the on-screen sizing showing through at print scale. */
