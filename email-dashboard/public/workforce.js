@@ -1256,6 +1256,18 @@ function orgChartCardHtml(group, index, palette) {
   const color = palette[index % palette.length];
   return (
     '<div class="org-chart-card" style="--card-color:' + color.bg + '; --card-tint:' + color.tint + '">' +
+      // Real elements, not the on-screen view's ::before/::after tick+
+      // arrow - hidden everywhere except the PDF tree (print CSS), where
+      // normalizeOrgChartCardConnectorSizes gives every one of them the
+      // same physical on-page size regardless of the tree's own zoom
+      // factor. See that function's own comment for why: an identically
+      // authored 2px tick/3-4px arrowhead border-triangle, scaled by the
+      // SAME fractional zoom, was still rounding to a different device
+      // pixel size card to card (purely from each card's own sub-pixel
+      // horizontal offset) - some cards' connectors came out visibly
+      // thicker than others in the real downloaded PDF.
+      '<span class="org-chart-card-tick"></span>' +
+      '<span class="org-chart-card-arrow"></span>' +
       '<div class="org-chart-card-head">' +
         '<span class="org-chart-card-head-icon">' + icon(designationIconFor(group.designation), 13) + '</span>' +
         escapeHtml(titleCase(group.designation)) + ' (' + group.count + ')' +
@@ -1641,6 +1653,57 @@ function positionOrgChartPdfFanBuses(root) {
   });
 }
 
+// Every designation card authors the exact same tick width (2px) and
+// arrowhead border-triangle (3px/3px/4px) - identical CSS on every card,
+// so they should all look identical. Under a genuinely fractional zoom
+// (any busy department scaled by scaleOrgChartPdfTreeToFit to something
+// other than a clean fraction like 0.5), though, each card sits at its
+// own sub-pixel horizontal offset, and Chrome's print rasterizer rounds
+// that same 2px/3px/4px geometry to a different actual device-pixel size
+// per card as a result - some come out visibly thicker or thinner than
+// others in the real downloaded PDF, even though nothing about their own
+// CSS differs. Dividing every one of these sizes by the same zoom factor
+// before assigning it (matching the left/width compensation already used
+// for the bus lines above) makes each one an exact multiple of the
+// physical size once the browser's own zoom multiplies it back out,
+// instead of an arbitrary fraction that has to be rounded - removing the
+// inconsistency instead of just hoping it rounds the same way twice.
+function normalizeOrgChartCardConnectorSizes(root) {
+  const chart = root.querySelector('.org-chart');
+  const zoom = chart ? parseFloat(getComputedStyle(chart).zoom) || 1 : 1;
+  // Physical on-page pixel sizes this must render as, matching the print
+  // CSS's own authored values (body.printing-org-chart .org-chart-card
+  // ::before/::after) exactly - only how they're reached changes.
+  const TICK_WIDTH = 2, TICK_HEIGHT = 5, TICK_TOP = 9;
+  const ARROW_SIDE = 3, ARROW_BORDER = 4, ARROW_TOP = 4;
+
+  root.querySelectorAll('.org-chart-card').forEach((card) => {
+    const tick = card.querySelector(':scope > .org-chart-card-tick');
+    const arrow = card.querySelector(':scope > .org-chart-card-arrow');
+    if (!tick || !arrow) return;
+    // The card's own authored (pre-zoom) width - getBoundingClientRect
+    // reports the post-zoom rendered size, so this divides that back out
+    // the same way every other measurement here does.
+    const width = card.getBoundingClientRect().width / zoom;
+
+    const tickWidth = TICK_WIDTH / zoom;
+    tick.style.left = (width / 2 - tickWidth / 2) + 'px';
+    tick.style.top = (-TICK_TOP / zoom) + 'px';
+    tick.style.width = tickWidth + 'px';
+    tick.style.height = (TICK_HEIGHT / zoom) + 'px';
+
+    // A border-triangle's own visible center sits one arrowSide past its
+    // own left edge (the box spans left to left + 2*arrowSide with the
+    // border-left/border-right transparent), not at left itself.
+    const arrowSide = ARROW_SIDE / zoom;
+    arrow.style.left = (width / 2 - arrowSide) + 'px';
+    arrow.style.top = (-ARROW_TOP / zoom) + 'px';
+    arrow.style.borderLeftWidth = arrowSide + 'px';
+    arrow.style.borderRightWidth = arrowSide + 'px';
+    arrow.style.borderTopWidth = (ARROW_BORDER / zoom) + 'px';
+  });
+}
+
 // Each designation-cards row (org-chart-cards-row) wraps by default, so a
 // HOD with more groups than fit on one line spills onto a second physical
 // line - harmless when every line ends up with exactly one card (a plain
@@ -1752,6 +1815,7 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
   preventPartialCardWraps(printEl);
   scaleOrgChartPdfTreeToFit(printEl);
   positionOrgChartPdfFanBuses(printEl);
+  normalizeOrgChartCardConnectorSizes(printEl);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
     document.body.classList.remove('printing-org-chart');
