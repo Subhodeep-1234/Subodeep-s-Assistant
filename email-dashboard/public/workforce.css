@@ -2191,6 +2191,17 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
     border-left-color: transparent;
     border-right-color: transparent;
     border-top-color: #000;
+    /* border-style: solid above applies to all four sides, including the
+       bottom - which normalizeOrgChartCardConnectorSizes never gives a
+       width (only left/right/top), so it was left at the default medium
+       (~3px) width with a default currentColor (black), rendering as a
+       stray extra border segment that distorted the triangle instead of
+       leaving a clean point. The original ::after version never had this
+       problem: it set each side via the border-left/-right/-top
+       shorthand individually, so border-bottom's style stayed at its own
+       default (none, i.e. invisible) rather than inheriting "solid" from
+       a shared property the way it does here. */
+    border-bottom: 0;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
