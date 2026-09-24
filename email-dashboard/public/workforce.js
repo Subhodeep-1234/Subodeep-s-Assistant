@@ -1641,6 +1641,37 @@ function positionOrgChartPdfFanBuses(root) {
   });
 }
 
+// Each designation-cards row (org-chart-cards-row) wraps by default, so a
+// HOD with more groups than fit on one line spills onto a second physical
+// line - harmless when every line ends up with exactly one card (a plain
+// vertical stack; the bus-line math in positionOrgChartPdfFanBuses
+// degenerates to a single point there, since the first and last card
+// share the same center once stacked), but when a line holds two or more
+// cards, that math (which only ever reads the first and last card's own
+// center) has no way to represent two separate physical lines - cards
+// stranded on that second line lost their real connector entirely and
+// read as stray disconnected boxes. Must run before
+// scaleOrgChartPdfTreeToFit touches chart.style.zoom (still 1 here, so
+// offsetTop needs no zoom-division correction) and before that function
+// measures the tree's true extent, so a row corrected here is already
+// accounted for in the page-fit shrink, the same way a naturally wide
+// Directors/HODs row already is.
+function preventPartialCardWraps(printEl) {
+  printEl.querySelectorAll('.org-chart-cards-row').forEach((row) => {
+    const cards = Array.from(row.querySelectorAll(':scope > .org-chart-card'));
+    if (cards.length < 2) return;
+    const tops = new Set(cards.map((c) => Math.round(c.offsetTop)));
+    if (tops.size <= 1) return; // already one line, nothing to fix
+    if (tops.size === cards.length) return; // one card per line - harmless stack
+    // A real partial wrap: some line holds 2+ cards while another line
+    // holds a different set - force this specific row (and only this
+    // one) to a single unbroken line instead, same as a wide Directors/
+    // HODs row is already always allowed to be.
+    row.style.flexWrap = 'nowrap';
+    row.style.maxWidth = 'none';
+  });
+}
+
 // Landscape A4's own true content-box size in CSS px, matching
 // #orgChartPrintContent's fixed 297mm width and 8mm/10mm padding (see
 // that CSS rule's own comment for why it's a fixed size, not 100%) -
@@ -1716,6 +1747,9 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
   // 'beforeprint' (which, tested directly, doesn't reliably fire after
   // print media has actually been applied). Scale first, then position
   // the fan-out bus lines against the final (possibly shrunk) layout.
+  // preventPartialCardWraps has to run first, before scale touches zoom
+  // and before either measures the tree's true extent.
+  preventPartialCardWraps(printEl);
   scaleOrgChartPdfTreeToFit(printEl);
   positionOrgChartPdfFanBuses(printEl);
   window.print();

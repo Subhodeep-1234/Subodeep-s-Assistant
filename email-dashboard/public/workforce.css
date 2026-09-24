@@ -2307,22 +2307,33 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      the bus line's px inset), this overlap guarantees they visibly
      fuse into one continuous line with no seam. */
   body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
-  body.printing-org-chart .org-chart-cards-row::before { height: 1px; left: 51px; right: 51px; }
-  /* Inside the PDF tree specifically, use the JS-measured
-     .org-chart-cards-row-bus instead of the fixed-inset ::before above -
-     the fixed 51px inset assumes every card is exactly the standalone
-     PDF's own 106px, which no longer reliably holds once the whole tree
-     can also be running through scaleOrgChartPdfTreeToFit (rounding at
-     an arbitrary zoom level can shift a card's real width by a
-     fraction of a px, enough to visibly overshoot past its arrow at
-     this scale). Standalone single-level PDF (not inside the tree)
-     keeps the ::before version untouched. */
-  body.printing-org-chart .org-chart-pdf-hod-slot .org-chart-cards-row::before,
-  body.printing-org-chart .org-chart-pdf-director-col .org-chart-cards-row::before {
+  /* A HOD (or, for a department with no separate Director tier, the
+     whole page) with enough designation groups to outgrow one line can
+     have the flex-wrap: wrap above split its cards across two physical
+     sub-rows - fine when every sub-row ends up with exactly one card
+     (a plain vertical stack, still one continuous connector down each
+     card in turn), but when a sub-row holds two or more, the bus-line
+     math below (which only ever measures the first and last card's own
+     center) has no way to represent two separate rows - cards stranded
+     on that second sub-row lost their real connector entirely and read
+     as stray disconnected boxes. preventPartialCardWraps (in JS, run
+     before scaleOrgChartPdfTreeToFit) detects exactly that case
+     beforehand and sets flex-wrap: nowrap and max-width: none directly
+     as inline style on just the rows that need it (inline style wins
+     over this class rule), leaving every other row's own compact wrap -
+     and print size - untouched. */
+  /* Always the JS-measured .org-chart-cards-row-bus now, never the
+     fixed-51px-inset ::before above - that fixed inset assumed every
+     card is exactly the standalone 106px, which stops holding as soon as
+     a row can also be running through scaleOrgChartPdfTreeToFit (rounding
+     at an arbitrary zoom level can shift a card's real width by a
+     fraction of a px). positionOrgChartPdfFanBuses already measures
+     every .org-chart-cards-row unconditionally, tree-nested or not, so
+     there's no case left where the cheaper fixed version is still safe. */
+  body.printing-org-chart .org-chart-cards-row::before {
     display: none;
   }
-  body.printing-org-chart .org-chart-pdf-hod-slot .org-chart-cards-row-bus,
-  body.printing-org-chart .org-chart-pdf-director-col .org-chart-cards-row-bus {
+  body.printing-org-chart .org-chart-cards-row-bus {
     display: block;
     position: absolute;
     top: 0;
