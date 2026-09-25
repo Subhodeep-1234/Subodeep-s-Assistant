@@ -1889,6 +1889,193 @@ function scaleOrgChartPdfTreeToFit(printEl) {
   return scale;
 }
 
+// Single SVG overlay replacing the four old connector mechanisms above
+// (background-color bars, ::before/::after tick+arrow pseudo-elements,
+// the JS-positioned fan-bus spans, and the JS-positioned card tick/arrow
+// elements) with one line+arrowhead drawn from each box/pill/card's own
+// real measured position - a line and its arrowhead can never end up
+// disagreeing about where a box actually is, the way four independently
+// positioned pieces occasionally did. None of the old design changes:
+// same line color (#000), same line widths (2px for every vertical stem/
+// drop, 1px for every horizontal bus - the old CSS's own values), same
+// arrowhead size (3px+3px border-left/right, 4px border-top, exactly
+// like the old card arrow and hod-slot/director-col arrow already used),
+// same gaps (every one of the old connector placeholder elements stays
+// in the DOM, still occupying its exact old layout space via
+// visibility: hidden rather than display: none - see the print CSS rule
+// - so every position measured here is the exact same position the old
+// mechanisms drew at). No arrow lands on a pill (the HOD/owner -> collar
+// stem never had one); every other drop - MD -> Director, Director ->
+// HOD, and into every designation card - gets one, tip on the target's
+// own top edge.
+//
+// Runs after scaleOrgChartPdfTreeToFit, so every position measured here
+// is already in the final, fitted layout - getBoundingClientRect() on a
+// scaled ancestor's descendant reports the POST-scale on-screen pixel
+// value, divided by that same scale (same convention as
+// positionOrgChartPdfFanBuses/normalizeOrgChartCardConnectorSizes above)
+// to convert back to the SVG's own pre-scale coordinate space. The SVG
+// itself is appended as a plain child of .org-chart-tree, inside the
+// same transform: scale ancestor as every box - it scales down together
+// with them automatically, no separate scaling logic of its own needed.
+function drawOrgChartPdfConnectorsSvg(root, scale) {
+  const chartTree = root.querySelector('.org-chart-tree');
+  if (!chartTree) return null;
+  const refRect = chartTree.getBoundingClientRect();
+
+  function localRect(el) {
+    const r = el.getBoundingClientRect();
+    return {
+      left: (r.left - refRect.left) / scale,
+      top: (r.top - refRect.top) / scale,
+      width: r.width / scale,
+      height: r.height / scale
+    };
+  }
+  const centerX = (r) => r.left + r.width / 2;
+  const bottomY = (r) => r.top + r.height;
+  const snap = (v) => Math.round(v * 2) / 2; // half-pixel snap
+
+  const segments = [];
+  function addLine(x1, y1, x2, y2, arrow, strokeWidth) {
+    segments.push({ x1: snap(x1), y1: snap(y1), x2: snap(x2), y2: snap(y2), arrow: !!arrow, strokeWidth });
+  }
+
+  const STEM_PLACEHOLDER_CLASSES = ['org-chart-connector-down', 'org-chart-branch-connector', 'org-chart-pill-connector'];
+  const isPlaceholder = (el) => !!el && STEM_PLACEHOLDER_CLASSES.some((c) => el.classList.contains(c));
+  function previousRealSibling(el) {
+    let p = el.previousElementSibling;
+    while (isPlaceholder(p)) p = p.previousElementSibling;
+    return p;
+  }
+
+  // Fan-out: one stem down from fromRect's own bottom-center to busY, a
+  // horizontal bus at busY spanning the first target's own center to the
+  // last one's (skipped when there's only one target - a lone stem
+  // carries its own arrow all the way down instead, no pointless bus),
+  // then one drop with an arrow per target, tip landing on its own
+  // top-center.
+  function drawFan(fromRect, fromY, targets, busY) {
+    const fx = centerX(fromRect);
+    if (targets.length === 1) {
+      addLine(fx, fromY, targets[0].x, targets[0].y, true, 2);
+      return;
+    }
+    const xs = targets.map((t) => t.x);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    if (busY > fromY) addLine(fx, fromY, fx, busY, false, 2);
+    if (maxX !== minX) addLine(minX, busY, maxX, busY, false, 1);
+    targets.forEach((t) => addLine(t.x, busY, t.x, t.y, true, 2));
+  }
+
+  // 1) Single stems: .org-chart-connector-down / .org-chart-branch-connector
+  // whose target is a plain box or a pill directly - a fan-out row or a
+  // cards row is skipped here (handled by 2/3 below, each sourcing its
+  // own "from" the same way, via this same placeholder's previousRealSibling).
+  // A placeholder immediately followed by ANOTHER placeholder (the "owner
+  // has no HOD of their own" shape, where a section's own branch-connector
+  // sits right after this one) draws nothing itself - the next
+  // placeholder's own previousRealSibling already skips back past both to
+  // find the true parent, so between them they draw one unbroken line
+  // rather than two overlapping ones.
+  root.querySelectorAll('.org-chart-connector-down, .org-chart-branch-connector').forEach((placeholder) => {
+    const to = placeholder.nextElementSibling;
+    if (!to || isPlaceholder(to)) return;
+    if (to.classList.contains('org-chart-pdf-directors-row') || to.classList.contains('org-chart-pdf-hods-row') || to.classList.contains('org-chart-cards-row')) return;
+    const fromEl = previousRealSibling(placeholder);
+    const fromR = localRect(fromEl || placeholder);
+    const fromY = fromEl ? bottomY(fromR) : fromR.top;
+    const toR = localRect(to);
+    const arrow = !to.classList.contains('org-chart-pill');
+    addLine(centerX(fromR), fromY, centerX(toR), toR.top, arrow, 2);
+  });
+
+  // 2) Director/HOD fan-outs - busY is the row's own real top (measured,
+  // not guessed): exactly where the old flat connector-down/branch-
+  // connector bar ended and the row's own reserved tick+arrow padding
+  // began, so the bus lands exactly where the old design's did.
+  root.querySelectorAll('.org-chart-pdf-directors-row, .org-chart-pdf-hods-row').forEach((row) => {
+    const fromEl = previousRealSibling(row);
+    if (!fromEl) return;
+    const fromR = localRect(fromEl);
+    const bus = row.querySelector(':scope > .org-chart-pdf-hods-bus');
+    const slots = Array.from(row.children).filter((c) => c !== bus);
+    if (slots.length === 0) return;
+    const targets = slots.map((slot) => {
+      const box = slot.querySelector(':scope > .org-chart-hod-box');
+      const r = localRect(box || slot);
+      return { x: centerX(r), y: r.top };
+    });
+    const rowR = localRect(row);
+    drawFan(fromR, bottomY(fromR), targets, rowR.top);
+  });
+
+  // 3) Designation-card fan-outs, one per collar section - grouped by
+  // physical row (a busy section can wrap into more than one; each
+  // wrapped row chains off the previous row's own bottom).
+  root.querySelectorAll('.org-chart-cards-row').forEach((cardsRow) => {
+    const pill = previousRealSibling(cardsRow);
+    if (!pill) return;
+    let fromR = localRect(pill);
+    let fromY = bottomY(fromR);
+    const cards = Array.from(cardsRow.children).filter((c) => c.classList.contains('org-chart-card'));
+    if (cards.length === 0) return;
+    const rows = [];
+    cards.forEach((card) => {
+      const r = localRect(card);
+      let bucket = rows.find((b) => Math.abs(b.top - r.top) < 2);
+      if (!bucket) { bucket = { top: r.top, items: [] }; rows.push(bucket); }
+      bucket.items.push(r);
+    });
+    rows.sort((a, b) => a.top - b.top);
+    const cardsRowR = localRect(cardsRow);
+    rows.forEach((rowGroup, i) => {
+      const targets = rowGroup.items.map((r) => ({ x: centerX(r), y: r.top }));
+      const busY = i === 0 ? cardsRowR.top : fromY + (rowGroup.top - fromY) / 2;
+      drawFan(fromR, fromY, targets, busY);
+      const maxBottom = Math.max(...rowGroup.items.map((r) => bottomY(r)));
+      fromR = { left: fromR.left, top: fromR.top, width: fromR.width, height: maxBottom - fromR.top };
+      fromY = maxBottom;
+    });
+  });
+
+  // Build and inject the SVG - one shared marker, identical to the old
+  // card/hod-slot/director-col arrowhead (3px+3px border-left/right, 4px
+  // border-top), one shared stroke color, explicit per-segment stroke
+  // width (2px vertical, 1px horizontal, matching the old CSS exactly).
+  const svgNs = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNs, 'svg');
+  svg.setAttribute('class', 'org-chart-pdf-connectors-svg');
+  const defs = document.createElementNS(svgNs, 'defs');
+  const marker = document.createElementNS(svgNs, 'marker');
+  marker.setAttribute('id', 'orgChartPdfArrow');
+  marker.setAttribute('markerWidth', '4');
+  marker.setAttribute('markerHeight', '6');
+  marker.setAttribute('refX', '4');
+  marker.setAttribute('refY', '3');
+  marker.setAttribute('orient', 'auto');
+  marker.setAttribute('markerUnits', 'userSpaceOnUse');
+  const arrowPath = document.createElementNS(svgNs, 'path');
+  arrowPath.setAttribute('d', 'M 0 0 L 0 6 L 4 3 Z');
+  arrowPath.setAttribute('fill', '#000');
+  marker.appendChild(arrowPath);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  segments.forEach((seg) => {
+    const path = document.createElementNS(svgNs, 'path');
+    path.setAttribute('d', 'M ' + seg.x1 + ' ' + seg.y1 + ' L ' + seg.x2 + ' ' + seg.y2);
+    path.setAttribute('stroke', '#000');
+    path.setAttribute('stroke-width', String(seg.strokeWidth));
+    path.setAttribute('fill', 'none');
+    if (seg.arrow) path.setAttribute('marker-end', 'url(#orgChartPdfArrow)');
+    svg.appendChild(path);
+  });
+
+  chartTree.appendChild(svg);
+  return svg;
+}
+
 document.getElementById('exportOrgChartPdf').addEventListener('click', async () => {
   if (!lastOrgChartData) return;
   const dept = document.getElementById('orgChartDeptSelect').value;
@@ -1919,23 +2106,24 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
 
   // The org-chart print CSS applies as soon as body.printing-org-chart is
   // set (not gated behind @media print - see that block's own comment on
-  // why), so the compact/positioned layout these two steps need to
-  // measure is already in effect right here, no need to wait for
-  // 'beforeprint' (which, tested directly, doesn't reliably fire after
-  // print media has actually been applied). Scale first, then position
-  // the fan-out bus lines against the final (possibly shrunk) layout.
+  // why), so the compact/positioned layout this needs to measure is
+  // already in effect right here, no need to wait for 'beforeprint'
+  // (which, tested directly, doesn't reliably fire after print media has
+  // actually been applied). Scale first, then draw the SVG connector
+  // overlay against the final (possibly shrunk) layout.
   // preventPartialCardWraps has to run first, before scale is computed
-  // and before either measures the tree's true extent. The scale value
-  // scaleOrgChartPdfTreeToFit returns is then passed explicitly into
-  // both of the others, rather than having them each re-derive it from
-  // the DOM - see that function's own comment for why.
+  // and before the SVG measures the tree's true extent.
+  // positionOrgChartPdfFanBuses/normalizeOrgChartCardConnectorSizes are
+  // no longer called - drawOrgChartPdfConnectorsSvg replaces every
+  // connector they used to position (see the print CSS's own comment on
+  // why the old elements stay in the DOM, just invisible).
   preventPartialCardWraps(printEl);
   const orgChartScale = scaleOrgChartPdfTreeToFit(printEl);
-  positionOrgChartPdfFanBuses(printEl, orgChartScale);
-  normalizeOrgChartCardConnectorSizes(printEl, orgChartScale);
+  const connectorsSvg = drawOrgChartPdfConnectorsSvg(printEl, orgChartScale);
   window.print();
   window.addEventListener('afterprint', function cleanup() {
     document.body.classList.remove('printing-org-chart');
+    if (connectorsSvg) connectorsSvg.remove();
     printEl.hidden = true;
     printEl.innerHTML = '';
     style.remove();

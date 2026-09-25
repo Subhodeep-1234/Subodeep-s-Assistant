@@ -2260,6 +2260,59 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-pill-connector { height: 5px; }
   body.printing-org-chart .org-chart-pill { padding: 2px 10px; font-size: 0.54rem; }
 
+  /* Single SVG connector overlay (drawOrgChartPdfConnectorsSvg in
+     workforce.js) replaces the four old connector mechanisms below,
+     drawn from each box/pill/card's own real measured position instead
+     of four independently-positioned pieces that could disagree with
+     each other. None of their own layout-affecting sizing changes here -
+     .org-chart-connector-down/.org-chart-branch-connector/
+     .org-chart-pill-connector keep occupying their exact same height
+     (visibility: hidden, not display: none, so the gap they create stays
+     exactly as it was) so the SVG lands on precisely the same old
+     positions; only their own painted bar/tick/arrow becomes invisible,
+     print-only, never touching the on-screen view these same elements
+     are also shared with. */
+  body.printing-org-chart .org-chart-connector-down,
+  body.printing-org-chart .org-chart-branch-connector,
+  body.printing-org-chart .org-chart-pill-connector {
+    visibility: hidden;
+  }
+  body.printing-org-chart .org-chart-pdf-hods-bus,
+  body.printing-org-chart .org-chart-cards-row-bus,
+  body.printing-org-chart .org-chart-card-tick,
+  body.printing-org-chart .org-chart-card-arrow {
+    display: none !important;
+  }
+  /* Made invisible by painting them transparent, not content: none -
+     content: none removes the pseudo-element's generated box entirely,
+     which changed what scaleOrgChartPdfTreeToFit measures for a row
+     containing these (confirmed by direct A/B testing: a busy, multi-
+     Director/HOD department came out at a visibly different scale with
+     content: none, identical with this). Painting transparent keeps the
+     exact same box/geometry these rows were already sized and measured
+     around - just invisible, same as visibility: hidden achieves for the
+     flow connectors above, for the same reason. */
+  body.printing-org-chart .org-chart-pdf-hod-slot::before,
+  body.printing-org-chart .org-chart-pdf-director-col::before {
+    background: transparent !important;
+  }
+  body.printing-org-chart .org-chart-pdf-hod-slot::after,
+  body.printing-org-chart .org-chart-pdf-director-col::after {
+    border-left-color: transparent !important;
+    border-right-color: transparent !important;
+    border-top-color: transparent !important;
+  }
+  body.printing-org-chart .org-chart-tree { position: relative; }
+  .org-chart-pdf-connectors-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
   /* A third tier (HOD, under a Director) reads as one step down from the
      Director box above it - same navy box, just a size notch smaller,
      rather than introducing a whole new visual style for it. */
