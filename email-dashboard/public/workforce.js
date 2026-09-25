@@ -1843,6 +1843,7 @@ function scaleOrgChartPdfTreeToFit(printEl) {
   treeWrap.style.height = '';
   treeWrap.style.marginLeft = '';
   treeWrap.style.marginRight = '';
+  treeWrap.style.overflow = '';
   // At this point .org-chart-tree is still its own natural, un-touched
   // width - 100% of #orgChartTreeFitWrap, which is itself 100% of
   // .org-chart, i.e. the full page width, exactly the box every
@@ -1881,7 +1882,32 @@ function scaleOrgChartPdfTreeToFit(printEl) {
   // px value that would silently go stale if that CSS ever changed.
   const footerGap = (footer && treeWrap) ? Math.max(0, footer.getBoundingClientRect().top - treeWrap.getBoundingClientRect().bottom) : 0;
   const availableHeight = PRINT_PAGE_CONTENT_HEIGHT_PX - topRowHeight - footerHeight - footerGap;
-  const scale = Math.min(ORG_CHART_TREE_MAX_SCALE, ORG_CHART_TREE_AVAILABLE_WIDTH_PX / width, availableHeight / height);
+  // Two width budgets: Accounts' own margin target (narrower, used to GROW
+  // a tree to look as full as Accounts) and the full page width (wider,
+  // the most the old .org-chart-wide mechanism itself ever gave a tree
+  // to shrink into, and also what it capped a merely-oversized tree at,
+  // via scale 1). Taking the larger of the two guarantees the new scale
+  // is never smaller than the old one, in every case:
+  //  - tree already fits the margin budget: marginScale alone (grows it,
+  //    unaffected by fullPageScale).
+  //  - tree is wider than the margin budget but still fits within the
+  //    full page (e.g. MDO DEPT., fullPageScale just above 1): old
+  //    mechanism capped this at exactly scale 1 (no shrink at all), so
+  //    min(1, fullPageScale) reproduces that cap instead of letting
+  //    fullPageScale push scale above 1 here.
+  //  - tree is wider than the full page too (genuinely needs to shrink):
+  //    fullPageScale is the binding, wider budget, matching/exceeding
+  //    what the old mechanism gave it.
+  // (Confirmed the hard way: using the margin width unconditionally
+  // shrank every already-busy department - e.g. Administration (HO) from
+  // 0.6284 to 0.5546 - exactly backwards from the goal; and a plain
+  // width < fullPage ? full : margin conditional still regressed MDO
+  // DEPT., 1.0000 to 0.8893, because its fullPageScale of 1.0077 isn't
+  // "< 1" but the old mechanism capped it at 1 rather than growing it.)
+  const marginBasedScale = ORG_CHART_TREE_AVAILABLE_WIDTH_PX / width;
+  const fullPageBasedScale = PRINT_PAGE_CONTENT_WIDTH_PX / width;
+  const widthScale = Math.max(marginBasedScale, Math.min(1, fullPageBasedScale));
+  const scale = Math.min(ORG_CHART_TREE_MAX_SCALE, widthScale, availableHeight / height);
   // A department whose tree already, natively, needs essentially no
   // scaling (within 1%) is left completely untouched - tree/treeWrap
   // stay in the fully reset state above (no transform, no locked width,
@@ -1918,6 +1944,16 @@ function scaleOrgChartPdfTreeToFit(printEl) {
   treeWrap.style.height = (height * scale) + 'px';
   treeWrap.style.marginLeft = 'auto';
   treeWrap.style.marginRight = 'auto';
+  // .org-chart-tree keeps its own full, natural, page-width layout box
+  // (locked above) so its children never reflow - but that box has
+  // align-items: center, so a tree whose tight content is narrower than
+  // that full width carries real, symmetric dead space on both flanks.
+  // Scaling the whole box scales that dead space too, so it can spill
+  // well past this wrapper's own (deliberately tight) size - clip it
+  // here: everything beyond the wrapper's box is, by construction,
+  // exactly that same blank space, never real content, so nothing
+  // visible is lost.
+  treeWrap.style.overflow = 'hidden';
   return scale;
 }
 
