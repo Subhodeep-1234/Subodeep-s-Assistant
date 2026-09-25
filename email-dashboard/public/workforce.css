@@ -2257,6 +2257,17 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-hod-role { font-size: 0.52rem; margin-top: 0; }
   body.printing-org-chart .org-chart-connector-down,
   body.printing-org-chart .org-chart-branch-connector { height: 6px; }
+  /* A branch-connector immediately followed by a single leader box (no
+     bus, e.g. Saurabh Baid -> Kishor Kumar Daga) is otherwise only 6px -
+     visibly shorter than the 9px gap every OTHER box-drop uses (a box
+     hanging from a fan-out bus: .org-chart-pdf-directors-row/-hods-row's
+     own padding-top: 9px above). Matching it to that same 9px, only for
+     this specific shape (:has() with a next-sibling combinator matches
+     only when the very next element is a leader box - a bus fan-out or a
+     pill is untouched), is the one general layout rule the SVG connector
+     lengths themselves are measured from - no other gap, box, or line
+     changes. */
+  body.printing-org-chart .org-chart-branch-connector:has(+ .org-chart-hod-box) { height: 9px; }
   body.printing-org-chart .org-chart-pill-connector { height: 5px; }
   body.printing-org-chart .org-chart-pill { padding: 2px 10px; font-size: 0.54rem; }
 
