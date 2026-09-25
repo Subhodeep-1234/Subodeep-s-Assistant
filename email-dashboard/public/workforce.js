@@ -1570,15 +1570,7 @@ function renderOrgChartPdfTreeHtml(data) {
     belowMd = (data.mdBranch.hods.length ? '' : '<div class="org-chart-connector-down"></div>') + orgChartPdfBranchContentHtml(data.mdBranch);
   }
 
-  // orgChartScaleWrap exists purely so scaleOrgChartPdfTreeToFit can give
-  // it an explicit post-scale size - .org-chart itself always keeps its
-  // own natural, full (pre-scale) layout size so its children lay out
-  // exactly as if nothing were shrunk at all; only this wrapper's box
-  // (which nothing else measures or positions against) needs to reflect
-  // the smaller visual footprint, so the surrounding print page reserves
-  // only that much space instead of the full unscaled height.
   return (
-    '<div id="orgChartScaleWrap">' +
     '<div class="org-chart">' +
       '<div class="org-chart-top-row">' +
         '<div class="org-chart-banner">' +
@@ -1597,16 +1589,17 @@ function renderOrgChartPdfTreeHtml(data) {
         '</div>' +
       '</div>' +
 
+      '<div id="orgChartTreeFitWrap">' +
       '<div class="org-chart-tree">' +
         mdBox +
         belowMd +
+      '</div>' +
       '</div>' +
 
       '<div class="org-chart-footer">' +
         '<span class="org-chart-footer-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></span>' +
         '<span>Alcove Realty | Excellence in Every Department</span>' +
       '</div>' +
-    '</div>' +
     '</div>'
   );
 }
@@ -1800,92 +1793,131 @@ const MM_TO_PX = 96 / 25.4;
 const PRINT_PAGE_CONTENT_WIDTH_PX = (297 - 20) * MM_TO_PX;
 const PRINT_PAGE_CONTENT_HEIGHT_PX = (210 - 16) * MM_TO_PX;
 
-// Shrinks the whole tree just enough to fit one landscape page, for a
-// department busy enough that the compact print sizing alone isn't enough
-// (many real Directors/HODs). Never scales up past 1 - a normal, uncrowded
-// department renders at its usual compact size, completely untouched.
+// Accounts' own left/right margin - the gap between the page's real
+// printable edge and the tree's true VISIBLE content (its leader boxes/
+// pills/cards), not .org-chart-tree's own box, which is always exactly
+// the page's printable width regardless of content (a plain block
+// element, 100% of .org-chart) and so reports a margin of zero
+// regardless of how much blank space its own centered content leaves on
+// each side. Measured directly from Accounts' own rendered PDF - a
+// department the chart already fits well for - and reused as a fixed
+// target for every department, so every one gets exactly the same white
+// gap Accounts has today, whether its own tree needs to shrink to fit or
+// grow to fill the space.
+const ORG_CHART_TREE_MARGIN_PX = 61.52;
+const ORG_CHART_TREE_AVAILABLE_WIDTH_PX = PRINT_PAGE_CONTENT_WIDTH_PX - 2 * ORG_CHART_TREE_MARGIN_PX;
+// A department whose tree is much smaller than the page (a single HOD,
+// one card) would otherwise scale up enough to fill that same width -
+// capped so it stays a readable, normally-proportioned chart instead of
+// a handful of cartoonishly large boxes.
+const ORG_CHART_TREE_MAX_SCALE = 1.6;
+
+// Scales ONLY the tree (.org-chart-tree, inside the new #orgChartTreeFitWrap
+// wrapper) to use exactly the same left/right margins Accounts already
+// has, growing a small chart to fill the page and shrinking a busy one to
+// fit it - the same single mechanism either way. The header and footer
+// are siblings of the wrapper, never touched here, so they stay exactly
+// where an unscaled department already has them (page edges, like
+// Accounts) regardless of what the tree itself needs to do.
 //
-// Uses transform: scale, not the CSS zoom property this used previously.
-// zoom is a non-standard, Chromium-only legacy property, and its behavior
-// turned out not to be as reliably consistent as assumed - the same zoom
-// value read back afterward via getComputedStyle (which every caller of
-// this used to do independently, to convert its own measurements back to
-// pre-zoom units) reported different numbers depending on rendering
-// context in ways that were never fully pinned down over a long back-
-// and-forth chasing what looked like separate bugs (arrow thickness,
-// then position, then a gap, each "fixed" only to reappear elsewhere) -
-// one contributing factor that WAS pinned down: printing from inside the
-// desktop phone-frame iframe (see workforce-shell.html) versus a real
-// phone's direct, unwrapped page measurably changed the numbers.
-// transform: scale is a standard, precisely-specified CSS feature with
-// no such cross-context ambiguity - getBoundingClientRect on anything
-// inside a transformed element reliably reports its true post-transform
-// position everywhere. Returning the exact scale value here, for callers
-// to use directly instead of ever reading it back from the DOM
-// themselves, removes the other half of the ambiguity - every consumer
-// now uses the one true number this function itself computed, not a
-// re-derived copy that could disagree with it.
-//
-// transform never changes how much page space an element occupies
-// (unlike zoom, which does) - .org-chart itself is left at its own full,
-// natural, pre-scale layout size on purpose, so every descendant still
-// lays out exactly as if nothing were being shrunk at all (no wrapping
-// or reflow differences to account for). Only orgChartScaleWrap, a
-// plain wrapper around .org-chart that nothing else measures or
-// positions against, gets an explicit post-scale width/height, so the
-// surrounding print page reserves only the actual visible footprint
-// instead of the full unscaled one.
+// Uses transform: scale, not the CSS zoom property this used previously
+// (see git history for why: zoom's behavior wasn't reliably consistent
+// across rendering contexts). transform never changes how much page
+// space an element occupies, unlike zoom - .org-chart-tree is left at
+// its own full, natural, pre-scale layout size so its own children lay
+// out exactly as if nothing were being scaled at all (no wrapping or
+// reflow differences to account for). Only the wrapper - which nothing
+// else measures or positions against - gets an explicit post-scale
+// width/height and horizontal auto-margins, so the surrounding page
+// reserves exactly the scaled footprint, centered.
 function scaleOrgChartPdfTreeToFit(printEl) {
-  const chart = printEl.querySelector('.org-chart');
-  const wrap = printEl.querySelector('#orgChartScaleWrap');
-  if (!chart) return 1;
-  chart.style.transform = '';
-  chart.style.transformOrigin = 'top left';
-  if (wrap) { wrap.style.width = ''; wrap.style.height = ''; }
-  // .org-chart's own getBoundingClientRect() alone under-reports the
-  // true size for a busy department - its Directors/HODs row
-  // (flex-wrap: nowrap, see that CSS rule's own comment) can genuinely
-  // overflow past .org-chart's own laid-out box rather than growing it
-  // to match (overflow: visible doesn't count toward a parent's own
-  // scrollWidth either, only actual scroll containers). Union this with
-  // every row that's allowed to overflow instead, to get the TRUE
-  // extent regardless of what .org-chart's own box reports.
-  const chartRect = chart.getBoundingClientRect();
-  const probes = [chart, ...chart.querySelectorAll('.org-chart-pdf-directors-row, .org-chart-pdf-hods-row, .org-chart-cards-row')];
+  const tree = printEl.querySelector('.org-chart-tree');
+  const treeWrap = printEl.querySelector('#orgChartTreeFitWrap');
+  const topRow = printEl.querySelector('.org-chart-top-row');
+  const footer = printEl.querySelector('.org-chart-footer');
+  if (!tree || !treeWrap) return 1;
+  tree.style.transform = '';
+  tree.style.transformOrigin = 'top left';
+  tree.style.width = '';
+  treeWrap.style.width = '';
+  treeWrap.style.height = '';
+  treeWrap.style.marginLeft = '';
+  treeWrap.style.marginRight = '';
+  // At this point .org-chart-tree is still its own natural, un-touched
+  // width - 100% of #orgChartTreeFitWrap, which is itself 100% of
+  // .org-chart, i.e. the full page width, exactly the box every
+  // designation-cards row has always wrapped against - so every
+  // measurement below is taken under that same, familiar constraint.
+  const treeRect = tree.getBoundingClientRect();
+  const leaves = tree.querySelectorAll('.org-chart-hod-box, .org-chart-pill, .org-chart-card');
   let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
-  probes.forEach((el) => {
+  leaves.forEach((el) => {
     const r = el.getBoundingClientRect();
     left = Math.min(left, r.left);
     right = Math.max(right, r.right);
     top = Math.min(top, r.top);
     bottom = Math.max(bottom, r.bottom);
   });
-  const scale = Math.min(1, PRINT_PAGE_CONTENT_WIDTH_PX / (right - left), PRINT_PAGE_CONTENT_HEIGHT_PX / (bottom - top));
-  if (scale < 1) {
-    // transform-origin: top left anchors the scale at .org-chart's OWN
-    // top-left corner, not at (left, top) above - a directors/HODs row
-    // wide enough to need this whole function centers itself via
-    // justify-content: center, which can overflow .org-chart's own box
-    // equally on both sides, including to the left/above of that anchor
-    // point. Left unaddressed, that overflow would still shrink by the
-    // right amount but stay pinned exactly where it was pre-scale,
-    // sitting partly off the page's own left/top edge instead of moving
-    // inward together with everything else. translate (applied here
-    // BEFORE scale, per how CSS composes a function list - the last-
-    // listed function transforms the element's own local coordinates
-    // first, then earlier ones act on that result - so this shift itself
-    // also ends up scaled by the same factor, landing exactly on the
-    // true left/top edge) pulls that overflow back onto the page,
-    // pre-cancelling exactly the gap this anchor point would otherwise
-    // leave.
-    const shiftX = chartRect.left - left;
-    const shiftY = chartRect.top - top;
-    chart.style.transform = 'scale(' + scale + ') translate(' + shiftX + 'px, ' + shiftY + 'px)';
-    if (wrap) {
-      wrap.style.width = ((right - left) * scale) + 'px';
-      wrap.style.height = ((bottom - top) * scale) + 'px';
-    }
-  }
+  // A busy department's Directors/HODs row (flex-wrap: nowrap) can
+  // genuinely spill past even this natural, page-width box - union with
+  // every row allowed to overflow it, same reasoning this function
+  // always used.
+  tree.querySelectorAll('.org-chart-pdf-directors-row, .org-chart-pdf-hods-row, .org-chart-cards-row').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+    top = Math.min(top, r.top);
+    bottom = Math.max(bottom, r.bottom);
+  });
+  if (!isFinite(left)) return 1; // no content found - nothing to scale
+  const width = right - left;
+  const height = bottom - top;
+  const topRowHeight = topRow ? topRow.getBoundingClientRect().height : 0;
+  const footerHeight = footer ? footer.getBoundingClientRect().height : 0;
+  // .org-chart-footer carries its own fixed margin-top (space before the
+  // footer - see that rule's own comment) - measured live, the same
+  // gap-between-the-tree-and-whatever-comes-next amount every other
+  // measurement here already accounts for, rather than assuming a fixed
+  // px value that would silently go stale if that CSS ever changed.
+  const footerGap = (footer && treeWrap) ? Math.max(0, footer.getBoundingClientRect().top - treeWrap.getBoundingClientRect().bottom) : 0;
+  const availableHeight = PRINT_PAGE_CONTENT_HEIGHT_PX - topRowHeight - footerHeight - footerGap;
+  const scale = Math.min(ORG_CHART_TREE_MAX_SCALE, ORG_CHART_TREE_AVAILABLE_WIDTH_PX / width, availableHeight / height);
+  // A department whose tree already, natively, needs essentially no
+  // scaling (within 1%) is left completely untouched - tree/treeWrap
+  // stay in the fully reset state above (no transform, no locked width,
+  // no explicit wrapper size). Measured directly: even a scale THIS
+  // close to 1 (0.99998, from a sub-pixel mismatch between the target
+  // margin and Accounts' own already-correct one) visibly changed how
+  // Chrome rasterizes text once any transform is applied at all (GPU
+  // compositing snaps sub-pixel glyph positions differently than normal,
+  // non-transformed layout) - a real, measured pixel diff on a
+  // department this rule (7) requires to keep looking exactly as it
+  // does today.
+  if (scale > 0.99 && scale < 1.01) return 1;
+  // Locks .org-chart-tree's own layout width to exactly the natural,
+  // page-width box just measured, BEFORE transforming it or resizing the
+  // wrapper below - so #orgChartTreeFitWrap becoming narrower (or wider)
+  // than that can never feed back into a different card-wrap decision
+  // than the one already measured above: the tree keeps laying out its
+  // own children exactly as if nothing were being scaled at all, and only
+  // the whole (now width-locked) result visually shrinks or grows.
+  tree.style.width = treeRect.width + 'px';
+  // transform-origin: top left anchors the scale at .org-chart-tree's OWN
+  // top-left corner, not at (left, top) above - translate (applied here
+  // BEFORE scale, per how CSS composes a function list - the last-listed
+  // function transforms the element's own local coordinates first, then
+  // earlier ones act on that result, so this shift itself also ends up
+  // scaled by the same factor) re-anchors the true content's own top-left
+  // onto the wrapper's own top-left, so growing/shrinking the tree never
+  // leaves it sitting off-center inside the wrapper - the wrapper's own
+  // margin: auto (below) does 100% of the actual page centering.
+  const shiftX = treeRect.left - left;
+  const shiftY = treeRect.top - top;
+  tree.style.transform = 'scale(' + scale + ') translate(' + shiftX + 'px, ' + shiftY + 'px)';
+  treeWrap.style.width = (width * scale) + 'px';
+  treeWrap.style.height = (height * scale) + 'px';
+  treeWrap.style.marginLeft = 'auto';
+  treeWrap.style.marginRight = 'auto';
   return scale;
 }
 
