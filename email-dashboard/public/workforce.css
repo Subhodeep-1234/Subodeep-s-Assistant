@@ -2097,6 +2097,16 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
    class is added, instead of waiting for actual print, causes no
    on-screen glitch: #orgChartContent goes display:none in this exact
    same ruleset, synchronously, before the browser's next paint. */
+  /* Chromium's print/PDF engine paints the page's base background layer
+     (body's own --paper grey) at a size that, measured directly against
+     the exported PDF's own raw content stream, comes out about 19.5%
+     larger in both dimensions than the actual page - a real mismatch in
+     Chromium's own print compositor, reproducible regardless of every
+     CSS/margin/viewport lever tried, so it isn't something to chase
+     further from here. Overriding the color itself, not the size, sidesteps
+     it entirely: even oversized, this layer now paints white, so the
+     grey never has a color to show through as. */
+  body.printing-org-chart { background: #fff; }
   body.printing-org-chart * { visibility: hidden; }
   body.printing-org-chart #printReport,
   body.printing-org-chart #printReport * {
@@ -2115,12 +2125,23 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      here (fit-content row widths, flex-wrap points, the bus-line
      positioning) consistent with the actual print output regardless of
      what device or window size this runs on. */
+  /* height: 210mm (landscape A4's own true height) alongside the width
+     above, and an explicit white background - without both, this box is
+     only ever as tall as its own content (auto height) and paints
+     nothing outside its own children, so anywhere the tree doesn't
+     reach, the app shell's own grey background (behind this absolutely-
+     positioned box) shows through as a visible grey band along the
+     bottom and, whenever content is short, down past the wrapper's own
+     narrower width too - this box needs to BE the full white page, not
+     just wrap whatever content happens to be in it. */
   body.printing-org-chart #orgChartPrintContent {
     position: absolute;
     top: 0;
     left: 0;
     width: 297mm;
+    height: 210mm;
     padding: 8mm 10mm;
+    background: #fff;
   }
   /* visibility: hidden keeps everything else in normal flow, so the rest
      of the app shell still contributes its full height to the document -

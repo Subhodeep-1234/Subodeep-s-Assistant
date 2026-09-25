@@ -2288,7 +2288,15 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
   printEl.hidden = false;
   document.body.classList.add('printing-org-chart');
   const style = document.createElement('style');
-  style.textContent = '@page { size: landscape; margin: 0; }';
+  // Explicit A4 landscape dimensions, not just "landscape" - the bare
+  // keyword only sets orientation and leaves the actual paper size to
+  // the browser's own default (measured directly: Chromium's default is
+  // US Letter, 279.4mm x 215.9mm, not A4's 297mm x 210mm), so the real
+  // output page silently didn't match the 297mm/210mm every fit-to-page
+  // measurement in this file assumes - the mismatch showed up as a grey
+  // gap along the page's own right and bottom edges, beyond the sized-
+  // for-A4 white content box.
+  style.textContent = '@page { size: 297mm 210mm; margin: 0; }';
   document.head.appendChild(style);
 
   // The org-chart print CSS applies as soon as body.printing-org-chart is
