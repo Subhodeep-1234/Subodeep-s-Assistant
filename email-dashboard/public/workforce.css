@@ -2275,7 +2275,14 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-connector-down,
   body.printing-org-chart .org-chart-branch-connector,
   body.printing-org-chart .org-chart-pill-connector {
-    visibility: hidden;
+    /* !important: without it, this loses to #orgChartPrintContent *'s
+       own unconditional visibility: visible rule above (an ID selector
+       always outranks a two-class one, regardless of source order) -
+       confirmed via direct getComputedStyle inspection that these
+       elements were still rendering their old solid-black bar underneath
+       the new SVG line without this, just invisibly so (identical color
+       and near-identical position to the line drawn on top of it). */
+    visibility: hidden !important;
   }
   body.printing-org-chart .org-chart-pdf-hods-bus,
   body.printing-org-chart .org-chart-cards-row-bus,

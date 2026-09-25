@@ -1892,22 +1892,33 @@ function scaleOrgChartPdfTreeToFit(printEl) {
 // Single SVG overlay replacing the four old connector mechanisms above
 // (background-color bars, ::before/::after tick+arrow pseudo-elements,
 // the JS-positioned fan-bus spans, and the JS-positioned card tick/arrow
-// elements) with one line+arrowhead drawn from each box/pill/card's own
-// real measured position - a line and its arrowhead can never end up
-// disagreeing about where a box actually is, the way four independently
-// positioned pieces occasionally did. None of the old design changes:
-// same line color (#000), same line widths (2px for every vertical stem/
-// drop, 1px for every horizontal bus - the old CSS's own values), same
-// arrowhead size (3px+3px border-left/right, 4px border-top, exactly
-// like the old card arrow and hod-slot/director-col arrow already used),
-// same gaps (every one of the old connector placeholder elements stays
-// in the DOM, still occupying its exact old layout space via
-// visibility: hidden rather than display: none - see the print CSS rule
-// - so every position measured here is the exact same position the old
-// mechanisms drew at). No arrow lands on a pill (the HOD/owner -> collar
-// stem never had one); every other drop - MD -> Director, Director ->
-// HOD, and into every designation card - gets one, tip on the target's
-// own top edge.
+// elements) with one line+arrowhead system drawn from each box/pill/
+// card's own real measured position - a line and its arrowhead can never
+// end up disagreeing about where a box actually is, the way four
+// independently positioned pieces occasionally did. Traverses the tree
+// the same way the HTML generators built it (see orgChartPdfBranchContentHtml,
+// orgChartSectionHtml, renderOrgChartPdfTreeHtml) - a leader box,
+// followed by a chain of collar sections and/or a further fan-out -
+// recursing into every fanned-out slot for its own chain, so a slot with
+// no leader box of its own (a direct report fanned in next to real HODs,
+// or the Managing Director's own direct branch) is never mistaken for a
+// single point when its own content immediately fans out again.
+//
+// Every arrow is an explicit filled triangle (no <marker>, which never
+// rendered quite symmetrically) - integer width/height from the old
+// design's own arrow size, tip exactly on the target's top edge, the
+// line trimmed to stop at the triangle's own base. Every fan-out's bus +
+// two end drops is ONE continuous polyline (stroke-linejoin: miter) so
+// corners are solid, not two separately-stroked pieces leaving a notch;
+// every other line uses stroke-linecap: square, which self-overlaps by
+// half a stroke width at both ends - exactly enough to close the seam at
+// a T-junction without a visible gap or a doubled-up, thicker-looking
+// overlap. A final pass merges any still-overlapping collinear segments
+// into one before rendering, so nothing is ever painted twice.
+//
+// No arrow lands on a pill (the HOD/owner -> collar stem never had one);
+// every other drop - MD -> Director, Director -> HOD, and into every
+// designation card - gets one.
 //
 // Runs after scaleOrgChartPdfTreeToFit, so every position measured here
 // is already in the final, fitted layout - getBoundingClientRect() on a
@@ -1923,6 +1934,9 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   if (!chartTree) return null;
   const refRect = chartTree.getBoundingClientRect();
 
+  const STROKE = 1.5; // one uniform thickness for every line, bus included
+  const ARROW_LEN = 4, ARROW_WIDE = 6; // old design's own arrowhead size (border-top 4px, border-left/right 3px+3px)
+
   function localRect(el) {
     const r = el.getBoundingClientRect();
     return {
@@ -1936,90 +1950,66 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   const bottomY = (r) => r.top + r.height;
   const snap = (v) => Math.round(v * 2) / 2; // half-pixel snap
 
-  const segments = [];
-  function addLine(x1, y1, x2, y2, arrow, strokeWidth) {
-    segments.push({ x1: snap(x1), y1: snap(y1), x2: snap(x2), y2: snap(y2), arrow: !!arrow, strokeWidth });
+  const segments = []; // simple open lines: {x1,y1,x2,y2}
+  const polylines = []; // fan corners: [{x,y}, {x,y}, ...] - one continuous stroke, miter joins
+  const triangles = []; // arrowheads: {x, y} tip position (always downward)
+
+  function addSegment(x1, y1, x2, y2) {
+    x1 = snap(x1); y1 = snap(y1); x2 = snap(x2); y2 = snap(y2);
+    if (Math.abs(x1 - x2) < 0.01 && Math.abs(y1 - y2) < 0.01) return; // zero-length guard
+    segments.push({ x1, y1, x2, y2 });
+  }
+  function addTriangle(x, y) { triangles.push({ x: snap(x), y: snap(y) }); }
+  // A single drop, optionally ending in an arrow - the line itself stops
+  // ARROW_LEN short of the target so it ends at the triangle's own base
+  // instead of running through it.
+  function addDrop(x, fromY, target, arrow) {
+    if (arrow) {
+      addSegment(x, fromY, x, target.y - ARROW_LEN);
+      addTriangle(target.x, target.y);
+    } else {
+      addSegment(x, fromY, x, target.y);
+    }
   }
 
-  const STEM_PLACEHOLDER_CLASSES = ['org-chart-connector-down', 'org-chart-branch-connector', 'org-chart-pill-connector'];
-  const isPlaceholder = (el) => !!el && STEM_PLACEHOLDER_CLASSES.some((c) => el.classList.contains(c));
-  function previousRealSibling(el) {
-    let p = el.previousElementSibling;
-    while (isPlaceholder(p)) p = p.previousElementSibling;
-    return p;
-  }
-
-  // Fan-out: one stem down from fromRect's own bottom-center to busY, a
-  // horizontal bus at busY spanning the first target's own center to the
-  // last one's (skipped when there's only one target - a lone stem
-  // carries its own arrow all the way down instead, no pointless bus),
-  // then one drop with an arrow per target, tip landing on its own
-  // top-center.
-  function drawFan(fromRect, fromY, targets, busY) {
-    const fx = centerX(fromRect);
+  // Fan-out: the bus + the first and last child's own drops are ONE
+  // continuous polyline (first child top -> up to busY -> across -> down
+  // to last child top), so the two corners get a solid miter join
+  // instead of a notch between two separately-stroked pieces. The
+  // parent's own stem into the bus, and every middle child's drop out of
+  // it, are plain open segments - stroke-linecap: square (set once, on
+  // the whole connector layer) makes each of those self-overlap the bus
+  // by half a stroke width at the T-junction, closing the seam there too.
+  function drawFan(entryPoint, targets, busY) {
+    if (targets.length === 0) return;
     if (targets.length === 1) {
-      addLine(fx, fromY, targets[0].x, targets[0].y, true, 2);
+      addDrop(entryPoint.x, entryPoint.y, targets[0], targets[0].arrow !== false);
       return;
     }
-    const xs = targets.map((t) => t.x);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    if (busY > fromY) addLine(fx, fromY, fx, busY, false, 2);
-    if (maxX !== minX) addLine(minX, busY, maxX, busY, false, 1);
-    targets.forEach((t) => addLine(t.x, busY, t.x, t.y, true, 2));
+    const sorted = targets.slice().sort((a, b) => a.x - b.x);
+    const first = sorted[0], last = sorted[sorted.length - 1];
+    const firstArrow = first.arrow !== false, lastArrow = last.arrow !== false;
+    const firstEndY = firstArrow ? first.y - ARROW_LEN : first.y;
+    const lastEndY = lastArrow ? last.y - ARROW_LEN : last.y;
+    polylines.push([
+      { x: snap(first.x), y: snap(firstEndY) },
+      { x: snap(first.x), y: snap(busY) },
+      { x: snap(last.x), y: snap(busY) },
+      { x: snap(last.x), y: snap(lastEndY) }
+    ]);
+    if (firstArrow) addTriangle(first.x, first.y);
+    if (lastArrow) addTriangle(last.x, last.y);
+    if (Math.abs(entryPoint.y - busY) > 0.01) addSegment(entryPoint.x, entryPoint.y, entryPoint.x, busY);
+    sorted.slice(1, -1).forEach((t) => addDrop(t.x, busY, t, t.arrow !== false));
   }
 
-  // 1) Single stems: .org-chart-connector-down / .org-chart-branch-connector
-  // whose target is a plain box or a pill directly - a fan-out row or a
-  // cards row is skipped here (handled by 2/3 below, each sourcing its
-  // own "from" the same way, via this same placeholder's previousRealSibling).
-  // A placeholder immediately followed by ANOTHER placeholder (the "owner
-  // has no HOD of their own" shape, where a section's own branch-connector
-  // sits right after this one) draws nothing itself - the next
-  // placeholder's own previousRealSibling already skips back past both to
-  // find the true parent, so between them they draw one unbroken line
-  // rather than two overlapping ones.
-  root.querySelectorAll('.org-chart-connector-down, .org-chart-branch-connector').forEach((placeholder) => {
-    const to = placeholder.nextElementSibling;
-    if (!to || isPlaceholder(to)) return;
-    if (to.classList.contains('org-chart-pdf-directors-row') || to.classList.contains('org-chart-pdf-hods-row') || to.classList.contains('org-chart-cards-row')) return;
-    const fromEl = previousRealSibling(placeholder);
-    const fromR = localRect(fromEl || placeholder);
-    const fromY = fromEl ? bottomY(fromR) : fromR.top;
-    const toR = localRect(to);
-    const arrow = !to.classList.contains('org-chart-pill');
-    addLine(centerX(fromR), fromY, centerX(toR), toR.top, arrow, 2);
-  });
-
-  // 2) Director/HOD fan-outs - busY is the row's own real top (measured,
-  // not guessed): exactly where the old flat connector-down/branch-
-  // connector bar ended and the row's own reserved tick+arrow padding
-  // began, so the bus lands exactly where the old design's did.
-  root.querySelectorAll('.org-chart-pdf-directors-row, .org-chart-pdf-hods-row').forEach((row) => {
-    const fromEl = previousRealSibling(row);
-    if (!fromEl) return;
-    const fromR = localRect(fromEl);
-    const bus = row.querySelector(':scope > .org-chart-pdf-hods-bus');
-    const slots = Array.from(row.children).filter((c) => c !== bus);
-    if (slots.length === 0) return;
-    const targets = slots.map((slot) => {
-      const box = slot.querySelector(':scope > .org-chart-hod-box');
-      const r = localRect(box || slot);
-      return { x: centerX(r), y: r.top };
-    });
-    const rowR = localRect(row);
-    drawFan(fromR, bottomY(fromR), targets, rowR.top);
-  });
-
-  // 3) Designation-card fan-outs, one per collar section - grouped by
-  // physical row (a busy section can wrap into more than one; each
-  // wrapped row chains off the previous row's own bottom).
-  root.querySelectorAll('.org-chart-cards-row').forEach((cardsRow) => {
-    const pill = previousRealSibling(cardsRow);
-    if (!pill) return;
-    let fromR = localRect(pill);
-    let fromY = bottomY(fromR);
+  // Groups a collar section's cards into physical rows (a busy section
+  // can wrap into more than one) and draws one fan per row, chained off
+  // the previous row's own bottom - returns the final anchor, for the
+  // NEXT collar section (White -> Blue -> Group D) to continue from.
+  function processCardsRow(cardsRow, entryPoint) {
     const cards = Array.from(cardsRow.children).filter((c) => c.classList.contains('org-chart-card'));
-    if (cards.length === 0) return;
+    if (cards.length === 0) return entryPoint;
     const rows = [];
     cards.forEach((card) => {
       const r = localRect(card);
@@ -2029,50 +2019,179 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
     });
     rows.sort((a, b) => a.top - b.top);
     const cardsRowR = localRect(cardsRow);
+    let anchor = entryPoint;
     rows.forEach((rowGroup, i) => {
-      const targets = rowGroup.items.map((r) => ({ x: centerX(r), y: r.top }));
-      const busY = i === 0 ? cardsRowR.top : fromY + (rowGroup.top - fromY) / 2;
-      drawFan(fromR, fromY, targets, busY);
+      const targets = rowGroup.items.map((r) => ({ x: centerX(r), y: r.top, arrow: true }));
+      const busY = i === 0 ? cardsRowR.top : anchor.y + (rowGroup.top - anchor.y) / 2;
+      drawFan(anchor, targets, busY);
       const maxBottom = Math.max(...rowGroup.items.map((r) => bottomY(r)));
-      fromR = { left: fromR.left, top: fromR.top, width: fromR.width, height: maxBottom - fromR.top };
-      fromY = maxBottom;
+      anchor = { x: anchor.x, y: maxBottom };
     });
-  });
+    return anchor;
+  }
 
-  // Build and inject the SVG - one shared marker, identical to the old
-  // card/hod-slot/director-col arrowhead (3px+3px border-left/right, 4px
-  // border-top), one shared stroke color, explicit per-segment stroke
-  // width (2px vertical, 1px horizontal, matching the old CSS exactly).
+  // A director/HOD fan-out row - draws the bus + one drop per slot
+  // (arrowed onto a slot's own leader box, or - when a slot has no box of
+  // its own, a direct report fanned in next to real HODs, or the MD's
+  // own boxless direct branch - a plain stem onto that slot's own top,
+  // no arrow, since what's really landed on there is itself a pill or a
+  // further fan-out, not a box), then recurses into every slot for its
+  // own chain below.
+  function processFanRow(row, entryPoint) {
+    const rowR = localRect(row);
+    const busY = rowR.top;
+    const bus = row.querySelector(':scope > .org-chart-pdf-hods-bus');
+    const slots = Array.from(row.children).filter((c) => c !== bus);
+    if (slots.length === 0) return;
+    const targets = slots.map((slot) => {
+      const box = slot.querySelector(':scope > .org-chart-hod-box');
+      const r = localRect(box || slot);
+      return { x: centerX(r), y: r.top, arrow: !!box, slot };
+    });
+    drawFan(entryPoint, targets, busY);
+    targets.forEach((t) => processSlot(t.slot, { x: t.x, y: t.y }));
+  }
+
+  // Walks one slot's own children in the exact order the HTML generators
+  // emit them: an optional leader box, then zero or more collar sections
+  // and/or a further nested fan-out (2+ HODs with no direct box of their
+  // own - orgChartPdfPlainColumnHtml/orgChartPdfBranchContentHtml's 2+-
+  // HOD branch). entryPoint is where a connector from ABOVE already
+  // lands (its own arrow already drawn by the caller) - this only draws
+  // what happens from there down through this slot's own content.
+  function processSlot(slot, entryPoint) {
+    const children = Array.from(slot.children);
+    let idx = 0;
+    let anchor = entryPoint;
+    if (children[idx] && children[idx].classList.contains('org-chart-hod-box')) {
+      const r = localRect(children[idx]);
+      anchor = { x: centerX(r), y: bottomY(r) };
+      idx++;
+    }
+    while (idx < children.length && anchor) {
+      const el = children[idx];
+      if (!el.classList || !(el.classList.contains('org-chart-connector-down') || el.classList.contains('org-chart-branch-connector'))) {
+        idx++; continue;
+      }
+      const next = children[idx + 1];
+      if (!next) break;
+      if (next.classList.contains('org-chart-pill')) {
+        const pillR = localRect(next);
+        addSegment(anchor.x, anchor.y, centerX(pillR), pillR.top); // stem into a pill never has an arrow
+        const cardsRow = children[idx + 3];
+        anchor = cardsRow ? processCardsRow(cardsRow, { x: centerX(pillR), y: bottomY(pillR) }) : null;
+        idx += 4;
+      } else if (next.classList.contains('org-chart-pdf-hods-row') || next.classList.contains('org-chart-pdf-directors-row')) {
+        const rowR = localRect(next);
+        addSegment(anchor.x, anchor.y, anchor.x, rowR.top); // stem into the bus, no arrow of its own
+        processFanRow(next, { x: anchor.x, y: rowR.top });
+        idx += 2;
+        anchor = null; // a fan-out is always the last thing in a chain
+      } else if (next.classList.contains('org-chart-hod-box')) {
+        const boxR = localRect(next);
+        addDrop(anchor.x, anchor.y, { x: centerX(boxR), y: boxR.top }, true);
+        anchor = { x: centerX(boxR), y: bottomY(boxR) };
+        idx += 2;
+      } else {
+        idx++;
+      }
+    }
+  }
+
+  // Merges any still-overlapping/duplicate collinear segments into one -
+  // a safety net on top of the traversal above (which visits every
+  // element exactly once and shouldn't produce any), so a line is never
+  // painted twice regardless.
+  function mergeSegments(list) {
+    const vertical = new Map(), horizontal = new Map(), other = [];
+    list.forEach((s) => {
+      if (Math.abs(s.x1 - s.x2) < 0.01) {
+        const key = s.x1.toFixed(1);
+        if (!vertical.has(key)) vertical.set(key, []);
+        vertical.get(key).push([Math.min(s.y1, s.y2), Math.max(s.y1, s.y2)]);
+      } else if (Math.abs(s.y1 - s.y2) < 0.01) {
+        const key = s.y1.toFixed(1);
+        if (!horizontal.has(key)) horizontal.set(key, []);
+        horizontal.get(key).push([Math.min(s.x1, s.x2), Math.max(s.x1, s.x2)]);
+      } else {
+        other.push(s);
+      }
+    });
+    function mergeRanges(ranges) {
+      ranges.sort((a, b) => a[0] - b[0]);
+      const out = [];
+      ranges.forEach(([a, b]) => {
+        const last = out[out.length - 1];
+        if (last && a <= last[1] + 0.5) last[1] = Math.max(last[1], b);
+        else out.push([a, b]);
+      });
+      return out;
+    }
+    const merged = [];
+    vertical.forEach((ranges, key) => {
+      const x = parseFloat(key);
+      mergeRanges(ranges).forEach(([y1, y2]) => merged.push({ x1: x, y1, x2: x, y2 }));
+    });
+    horizontal.forEach((ranges, key) => {
+      const y = parseFloat(key);
+      mergeRanges(ranges).forEach(([x1, x2]) => merged.push({ x1, y1: y, x2, y2: y }));
+    });
+    return merged.concat(other);
+  }
+
+  const mdBox = chartTree.querySelector(':scope > .org-chart-hod-box');
+  if (mdBox) {
+    const r = localRect(mdBox);
+    processSlot(chartTree, { x: centerX(r), y: bottomY(r) });
+  }
+
+  const mergedSegments = mergeSegments(segments);
+
+  // Build and inject the SVG.
   const svgNs = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNs, 'svg');
   svg.setAttribute('class', 'org-chart-pdf-connectors-svg');
-  const defs = document.createElementNS(svgNs, 'defs');
-  const marker = document.createElementNS(svgNs, 'marker');
-  marker.setAttribute('id', 'orgChartPdfArrow');
-  marker.setAttribute('markerWidth', '4');
-  marker.setAttribute('markerHeight', '6');
-  marker.setAttribute('refX', '4');
-  marker.setAttribute('refY', '3');
-  marker.setAttribute('orient', 'auto');
-  marker.setAttribute('markerUnits', 'userSpaceOnUse');
-  const arrowPath = document.createElementNS(svgNs, 'path');
-  arrowPath.setAttribute('d', 'M 0 0 L 0 6 L 4 3 Z');
-  arrowPath.setAttribute('fill', '#000');
-  marker.appendChild(arrowPath);
-  defs.appendChild(marker);
-  svg.appendChild(defs);
 
-  segments.forEach((seg) => {
+  const linesPath = document.createElementNS(svgNs, 'path');
+  const linesD = mergedSegments.map((s) => 'M ' + s.x1 + ' ' + s.y1 + ' L ' + s.x2 + ' ' + s.y2).join(' ');
+  linesPath.setAttribute('d', linesD);
+  linesPath.setAttribute('stroke', '#000');
+  linesPath.setAttribute('stroke-width', String(STROKE));
+  linesPath.setAttribute('stroke-linecap', 'square');
+  linesPath.setAttribute('fill', 'none');
+  svg.appendChild(linesPath);
+
+  polylines.forEach((pts) => {
     const path = document.createElementNS(svgNs, 'path');
-    path.setAttribute('d', 'M ' + seg.x1 + ' ' + seg.y1 + ' L ' + seg.x2 + ' ' + seg.y2);
+    path.setAttribute('d', pts.map((p, i) => (i === 0 ? 'M ' : 'L ') + p.x + ' ' + p.y).join(' '));
     path.setAttribute('stroke', '#000');
-    path.setAttribute('stroke-width', String(seg.strokeWidth));
+    path.setAttribute('stroke-width', String(STROKE));
+    path.setAttribute('stroke-linejoin', 'miter');
+    path.setAttribute('stroke-linecap', 'square');
     path.setAttribute('fill', 'none');
-    if (seg.arrow) path.setAttribute('marker-end', 'url(#orgChartPdfArrow)');
     svg.appendChild(path);
   });
 
+  if (triangles.length) {
+    const trianglesPath = document.createElementNS(svgNs, 'path');
+    const half = ARROW_WIDE / 2;
+    const trianglesD = triangles.map((t) => {
+      const baseY = t.y - ARROW_LEN;
+      return 'M ' + (t.x - half) + ' ' + baseY + ' L ' + (t.x + half) + ' ' + baseY + ' L ' + t.x + ' ' + t.y + ' Z';
+    }).join(' ');
+    trianglesPath.setAttribute('d', trianglesD);
+    trianglesPath.setAttribute('fill', '#000');
+    trianglesPath.setAttribute('stroke', 'none');
+    trianglesPath.setAttribute('shape-rendering', 'geometricPrecision');
+    svg.appendChild(trianglesPath);
+  }
+
   chartTree.appendChild(svg);
+  // Diagnostic only - not read by anything in the render/print path
+  // itself, purely so the verification script (see the connector
+  // checks) can inspect the exact geometry this function computed
+  // instead of re-parsing rendered path strings.
+  svg.__connectorDebug = { segments: mergedSegments, polylines, triangles, STROKE, ARROW_LEN, ARROW_WIDE };
   return svg;
 }
 
