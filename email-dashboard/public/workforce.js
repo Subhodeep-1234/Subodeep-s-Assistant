@@ -1841,6 +1841,7 @@ function scaleOrgChartPdfTreeToFit(printEl) {
   if (!chart) return 1;
   chart.style.transform = '';
   chart.style.transformOrigin = 'top left';
+  chart.style.width = '';
   if (wrap) { wrap.style.width = ''; wrap.style.height = ''; }
   // .org-chart's own getBoundingClientRect() alone under-reports the
   // true size for a busy department - its Directors/HODs row
@@ -1860,31 +1861,49 @@ function scaleOrgChartPdfTreeToFit(printEl) {
     top = Math.min(top, r.top);
     bottom = Math.max(bottom, r.bottom);
   });
-  const scale = Math.min(1, PRINT_PAGE_CONTENT_WIDTH_PX / (right - left), PRINT_PAGE_CONTENT_HEIGHT_PX / (bottom - top));
+  // .org-chart's own width is always exactly the page's printable width
+  // (a plain block element, 100% of #orgChartPrintContent) regardless of
+  // how wide its content actually needs to be - only a genuinely busy
+  // department's Directors/HODs row ever exceeds it. When that happens,
+  // .org-chart-top-row (banner left, summary right via justify-content:
+  // space-between) and .org-chart-footer are ALSO only ever exactly that
+  // same page-width box, never the row's own wider true extent - so
+  // scaling .org-chart down to fit the row shrinks the header/footer by
+  // the same factor even though neither of them ever overflowed on their
+  // own, leaving them (and the whole chart) sized and centered around
+  // the busy row instead of reaching the page's own edges the way a
+  // simple, unscaled department's header/footer already do. Widening
+  // .org-chart itself, first, to the row's true width fixes the cause
+  // instead of the symptom: the row now fits inside .org-chart with no
+  // overflow at all (align-items: center simply centers it within the
+  // new, wider box), and the header/footer - ordinary 100%-width
+  // children of that same box - stretch to match it too. Scaling this
+  // one correctly-sized box down by a single factor then lands the
+  // header, tree and footer flush with the page's edges together,
+  // exactly like an unscaled department already does - not a separate
+  // rule, the same mechanism just no longer measuring a box narrower
+  // than its own content.
+  const trueWidth = right - left;
+  if (trueWidth > chartRect.width + 0.5) {
+    chart.style.width = trueWidth + 'px';
+  }
+  const widenedRect = chart.getBoundingClientRect();
+  const trueHeight = Math.max(bottom - top, widenedRect.height);
+  const scale = Math.min(1, PRINT_PAGE_CONTENT_WIDTH_PX / widenedRect.width, PRINT_PAGE_CONTENT_HEIGHT_PX / trueHeight);
   if (scale < 1) {
-    // transform-origin: top left anchors the scale at .org-chart's OWN
-    // top-left corner, not at (left, top) above - a directors/HODs row
-    // wide enough to need this whole function centers itself via
-    // justify-content: center, which can overflow .org-chart's own box
-    // equally on both sides, including to the left/above of that anchor
-    // point. Left unaddressed, that overflow would still shrink by the
-    // right amount but stay pinned exactly where it was pre-scale,
-    // sitting partly off the page's own left/top edge instead of moving
-    // inward together with everything else. translate (applied here
-    // BEFORE scale, per how CSS composes a function list - the last-
-    // listed function transforms the element's own local coordinates
-    // first, then earlier ones act on that result - so this shift itself
-    // also ends up scaled by the same factor, landing exactly on the
-    // true left/top edge) pulls that overflow back onto the page,
-    // pre-cancelling exactly the gap this anchor point would otherwise
-    // leave.
-    const shiftX = chartRect.left - left;
-    const shiftY = chartRect.top - top;
-    chart.style.transform = 'scale(' + scale + ') translate(' + shiftX + 'px, ' + shiftY + 'px)';
+    chart.style.transform = 'scale(' + scale + ')';
     if (wrap) {
-      wrap.style.width = ((right - left) * scale) + 'px';
-      wrap.style.height = ((bottom - top) * scale) + 'px';
+      wrap.style.width = (widenedRect.width * scale) + 'px';
+      wrap.style.height = (trueHeight * scale) + 'px';
     }
+  } else if (chart.style.width && wrap) {
+    // Widened to fit its own true content, but that alone already fits
+    // the page without needing to scale down (rare - a department whose
+    // Directors/HODs row is wider than .org-chart's forced width but
+    // still narrower than the actual page) - the wrap still needs to
+    // reserve this new, wider footprint instead of the old, narrower one.
+    wrap.style.width = widenedRect.width + 'px';
+    wrap.style.height = trueHeight + 'px';
   }
   return scale;
 }
