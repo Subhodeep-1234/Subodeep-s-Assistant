@@ -2481,7 +2481,17 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child) > .org-chart-cards-row-bus {
     display: none;
   }
-  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
+  /* box-shadow: none - the on-screen shadow's own 8px blur is bigger than
+     the 6px gap a wrapped stack of cards drops to between one another
+     (see body.printing-org-chart .org-chart-cards-row's own gap below),
+     so two adjacent cards' shadows overlapped and filled that gap
+     entirely - visually blurring exactly where each card's own edge
+     really is, so the connector between them (which DOES start/end
+     exactly on those edges - verified directly against their own
+     measured rects) looked like it was floating clear of both instead
+     of touching them. Card size/color/font/spacing are all untouched;
+     only this print-only rendering effect is turned off. */
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; box-shadow: none; }
   /* Matches the card's own 5px radius here (on screen: 11px, for its
      12px card) so the head's corners still nest inside the card's,
      rather than the on-screen sizing showing through at print scale. */
