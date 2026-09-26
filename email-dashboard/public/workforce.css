@@ -2492,18 +2492,14 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child) > .org-chart-cards-row-bus {
     display: none;
   }
-  /* box-shadow tightened again, offset 2px/blur 3px -> 1px/1px, print-
-     only - the connector's own geometry was never wrong (confirmed
-     repeatedly, down to the outer card's exact border box), but even
-     this reduced shadow's visual reach (offset+blur, roughly 2+3=5px
-     past the true edge) still ate more than half of the 9px stacked-
-     card gap, so the connector's own line - which starts exactly at
-     that true edge - read as sitting inside the shadow's soft halo
-     instead of in visibly clear space. 1px offset + 1px blur brings
-     that reach down to about 2px, leaving most of the gap genuinely
-     white while the card still reads as slightly raised, not flat.
-     Color/every other card property untouched. */
-  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; box-shadow: 0 1px 1px var(--shadow); }
+  /* box-shadow dropped entirely, print-only, as the explicit last
+     resort - a 1px/1px shadow (the previous step) still measured clear
+     in an automated render, but the user's own real export at normal
+     zoom still showed it eating into the stacked-card gap, so any
+     shadow at all was too much for this specific tight layout. On
+     screen, .org-chart-card keeps its full shadow untouched - this
+     only ever applies once body.printing-org-chart is set. */
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; box-shadow: none; }
   /* Matches the card's own 5px radius here (on screen: 11px, for its
      12px card) so the head's corners still nest inside the card's,
      rather than the on-screen sizing showing through at print scale. */
