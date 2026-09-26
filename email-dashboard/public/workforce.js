@@ -2004,14 +2004,13 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
 
   const STROKE = 1.5; // one uniform thickness for every line, bus included
   const ARROW_LEN = 4, ARROW_WIDE = 6; // old design's own arrowhead size (border-top 4px, border-left/right 3px+3px)
-  // The tip landed exactly ON the target box's own outer top edge
-  // (measured directly: tip y == box's own top y, to the pixel) -
-  // correct by every earlier spec, but a point sitting exactly on a
-  // border reads as "just inside" the box rather than clearly outside
-  // it at small print sizes. A 1px hairline gap between the tip and the
-  // edge fixes that read without moving the box itself or changing the
-  // arrow's own size/shape (ARROW_LEN/ARROW_WIDE/STROKE untouched).
-  const ARROW_TIP_GAP = 1;
+  // Some phone PDF viewers round these thin strokes/small arrowheads onto
+  // different pixels than desktop renderers, which can silently eat a 1px
+  // gap. 2px on each end gives that rounding margin to close without the
+  // tip or line actually touching a box, on every viewer, not just the
+  // ones this was measured against.
+  const ARROW_TIP_GAP = 2; // clear space between the arrow tip and its target box's outer edge
+  const LINE_START_GAP = 2; // clear space between a box's own bottom edge and where its outgoing connector begins
 
   function localRect(el) {
     const r = el.getBoundingClientRect();
@@ -2024,6 +2023,10 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   }
   const centerX = (r) => r.left + r.width / 2;
   const bottomY = (r) => r.top + r.height;
+  // The anchor a box's own outgoing connector starts from - offset below
+  // the box's true bottom edge by LINE_START_GAP so the line's start
+  // clears the box the same way the arrow tip clears its target.
+  const boxBottomAnchor = (r) => ({ x: centerX(r), y: bottomY(r) + LINE_START_GAP });
   const snap = (v) => Math.round(v * 2) / 2; // half-pixel snap
 
   const segments = []; // simple open lines: {x1,y1,x2,y2}
@@ -2104,7 +2107,7 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
       const busY = i === 0 ? cardsRowR.top : anchor.y + (rowGroup.top - anchor.y) / 2;
       drawFan(anchor, targets, busY);
       const maxBottom = Math.max(...rowGroup.items.map((r) => bottomY(r)));
-      anchor = { x: anchor.x, y: maxBottom };
+      anchor = { x: anchor.x, y: maxBottom + LINE_START_GAP };
     });
     return anchor;
   }
@@ -2144,7 +2147,7 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
     let anchor = entryPoint;
     if (children[idx] && children[idx].classList.contains('org-chart-hod-box')) {
       const r = localRect(children[idx]);
-      anchor = { x: centerX(r), y: bottomY(r) };
+      anchor = boxBottomAnchor(r);
       idx++;
     }
     while (idx < children.length && anchor) {
@@ -2168,8 +2171,17 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
         anchor = null; // a fan-out is always the last thing in a chain
       } else if (next.classList.contains('org-chart-hod-box')) {
         const boxR = localRect(next);
-        addDrop(anchor.x, anchor.y, { x: centerX(boxR), y: boxR.top }, true);
-        anchor = { x: centerX(boxR), y: bottomY(boxR) };
+        // Anchored to the connector element's OWN measured top, not the
+        // threaded anchor.y - a boxless slot's own container top (used as
+        // its entryPoint by processFanRow, since it has no leading box of
+        // its own to derive boxBottomAnchor from) doesn't always line up
+        // with where its first real connector actually renders, which
+        // left this drop with zero real gap. getBoundingClientRect on the
+        // connector itself is always truthful regardless of how the slot
+        // wrapping it is laid out.
+        const fromY = localRect(el).top + LINE_START_GAP;
+        addDrop(anchor.x, fromY, { x: centerX(boxR), y: boxR.top }, true);
+        anchor = boxBottomAnchor(boxR);
         idx += 2;
       } else {
         idx++;
@@ -2221,7 +2233,7 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   const mdBox = chartTree.querySelector(':scope > .org-chart-hod-box');
   if (mdBox) {
     const r = localRect(mdBox);
-    processSlot(chartTree, { x: centerX(r), y: bottomY(r) });
+    processSlot(chartTree, boxBottomAnchor(r));
   }
 
   const mergedSegments = mergeSegments(segments);
