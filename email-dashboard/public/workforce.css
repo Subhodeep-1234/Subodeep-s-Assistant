@@ -2435,18 +2435,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      corner (sub-pixel rounding between the tick's %-based centering and
      the bus line's px inset), this overlap guarantees they visibly
      fuse into one continuous line with no seam. */
-  /* row-gap raised from the old flat 6px to 9px - when a row wraps into a
-     vertical stack of single cards, that's the vertical space each pair
-     drops through, and the connector between them (line + a fixed 4px
-     arrowhead, same everywhere in this chart) needs enough of it for a
-     clearly visible line segment before the arrowhead, not just the
-     arrowhead alone eating nearly the whole gap. 9px matches the height
-     already used by .org-chart-branch-connector:has(+ .org-chart-hod-box)
-     elsewhere in this same file, rather than an arbitrary new number.
-     column-gap (the horizontal spacing between side-by-side cards on the
-     same line) is unchanged at the original 6px - only the vertical
-     stacking case asked for more room. */
-  body.printing-org-chart .org-chart-cards-row { row-gap: 9px; column-gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
+  body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
   /* A HOD (or, for a department with no separate Director tier, the
      whole page) with enough designation groups to outgrow one line can
      have the flex-wrap: wrap above split its cards across two physical
@@ -2499,17 +2488,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-card-head { border-top-left-radius: 4px; border-top-right-radius: 4px; }
   body.printing-org-chart .org-chart-card-head { padding: 2px 6px; font-size: 0.5rem; gap: 3px; }
   body.printing-org-chart .org-chart-card-head-icon svg { width: 8px; height: 8px; }
-  /* Bottom padding raised from the top's own 3px to 5px - the two are
-     numerically symmetric in the CSS already, but a font's glyphs sit
-     higher in their own line box than the exact center (little room
-     above a descender like the "p" in "Ipshita", plenty above the cap-
-     height at the top row), so the last employee row's own text reads
-     as flush against the card's bottom edge even though the box model
-     underneath isn't. Widening just this one value gives it real,
-     visible breathing room without touching the top padding, the card's
-     own width/color/font, the row gap between employees, the 9px
-     stacked-card gap, or any connector geometry. */
-  body.printing-org-chart .org-chart-card-body { padding: 3px 6px 5px; gap: 2px; }
+  body.printing-org-chart .org-chart-card-body { padding: 3px 6px; gap: 2px; }
   body.printing-org-chart .org-chart-card-emp { gap: 4px; }
   body.printing-org-chart .org-chart-card-emp-icon { width: 10px; height: 10px; border-width: 0; }
   body.printing-org-chart .org-chart-card-emp-icon svg { width: 6px; height: 6px; }
