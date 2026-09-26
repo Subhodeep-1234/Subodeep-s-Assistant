@@ -2004,6 +2004,14 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
 
   const STROKE = 1.5; // one uniform thickness for every line, bus included
   const ARROW_LEN = 4, ARROW_WIDE = 6; // old design's own arrowhead size (border-top 4px, border-left/right 3px+3px)
+  // The tip landed exactly ON the target box's own outer top edge
+  // (measured directly: tip y == box's own top y, to the pixel) -
+  // correct by every earlier spec, but a point sitting exactly on a
+  // border reads as "just inside" the box rather than clearly outside
+  // it at small print sizes. A 1px hairline gap between the tip and the
+  // edge fixes that read without moving the box itself or changing the
+  // arrow's own size/shape (ARROW_LEN/ARROW_WIDE/STROKE untouched).
+  const ARROW_TIP_GAP = 1;
 
   function localRect(el) {
     const r = el.getBoundingClientRect();
@@ -2033,8 +2041,9 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   // instead of running through it.
   function addDrop(x, fromY, target, arrow) {
     if (arrow) {
-      addSegment(x, fromY, x, target.y - ARROW_LEN);
-      addTriangle(target.x, target.y);
+      const tipY = target.y - ARROW_TIP_GAP;
+      addSegment(x, fromY, x, tipY - ARROW_LEN);
+      addTriangle(target.x, tipY);
     } else {
       addSegment(x, fromY, x, target.y);
     }
@@ -2057,16 +2066,18 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
     const sorted = targets.slice().sort((a, b) => a.x - b.x);
     const first = sorted[0], last = sorted[sorted.length - 1];
     const firstArrow = first.arrow !== false, lastArrow = last.arrow !== false;
-    const firstEndY = firstArrow ? first.y - ARROW_LEN : first.y;
-    const lastEndY = lastArrow ? last.y - ARROW_LEN : last.y;
+    const firstTipY = first.y - ARROW_TIP_GAP;
+    const lastTipY = last.y - ARROW_TIP_GAP;
+    const firstEndY = firstArrow ? firstTipY - ARROW_LEN : first.y;
+    const lastEndY = lastArrow ? lastTipY - ARROW_LEN : last.y;
     polylines.push([
       { x: snap(first.x), y: snap(firstEndY) },
       { x: snap(first.x), y: snap(busY) },
       { x: snap(last.x), y: snap(busY) },
       { x: snap(last.x), y: snap(lastEndY) }
     ]);
-    if (firstArrow) addTriangle(first.x, first.y);
-    if (lastArrow) addTriangle(last.x, last.y);
+    if (firstArrow) addTriangle(first.x, firstTipY);
+    if (lastArrow) addTriangle(last.x, lastTipY);
     if (Math.abs(entryPoint.y - busY) > 0.01) addSegment(entryPoint.x, entryPoint.y, entryPoint.x, busY);
     sorted.slice(1, -1).forEach((t) => addDrop(t.x, busY, t, t.arrow !== false));
   }
