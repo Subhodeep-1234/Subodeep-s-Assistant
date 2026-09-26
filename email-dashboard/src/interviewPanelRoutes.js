@@ -11,15 +11,21 @@ const WHATSAPP_FORM_LABELS = {
   interviewer: 'Interviewer Evaluation Form'
 };
 
-// Base URL for the two shareable links - PUBLIC_BASE_URL isn't set anywhere
-// else in this app yet (every other feature is same-origin), but this is
-// the first one that needs an absolute URL a candidate/interviewer opens
-// outside the app itself. Vercel sets VERCEL_URL to the deployment's own
-// host with no protocol; falls back to the request's own host for local
-// dev, so this works with no new env var required.
+// Base URL for the two shareable links - the first feature in this app
+// that needs an absolute URL a candidate/interviewer opens outside the
+// app itself, everything else being same-origin. PUBLIC_BASE_URL (set on
+// Vercel to this project's stable production domain) is the source of
+// truth. Deliberately NOT falling back to VERCEL_URL: that env var is the
+// CURRENT deployment's own unique, throwaway hostname, not the stable
+// domain - a link built from it stops working the moment the next
+// deployment supersedes this one, since Vercel puts its own login wall
+// (Vercel SSO) in front of any deployment URL that isn't the live one.
+// Confirmed the hard way: every interview link created between two
+// deploys broke exactly this way. req.protocol + req.get('host') (the
+// domain the admin was actually browsing when they created the record)
+// is the fallback for local dev, where PUBLIC_BASE_URL isn't set.
 function baseUrl(req) {
   if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, '');
-  if (process.env.VERCEL_URL) return 'https://' + process.env.VERCEL_URL;
   return req.protocol + '://' + req.get('host');
 }
 
