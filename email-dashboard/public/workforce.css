@@ -2492,14 +2492,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child) > .org-chart-cards-row-bus {
     display: none;
   }
-  /* box-shadow dropped entirely, print-only, as the explicit last
-     resort - a 1px/1px shadow (the previous step) still measured clear
-     in an automated render, but the user's own real export at normal
-     zoom still showed it eating into the stacked-card gap, so any
-     shadow at all was too much for this specific tight layout. On
-     screen, .org-chart-card keeps its full shadow untouched - this
-     only ever applies once body.printing-org-chart is set. */
-  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; box-shadow: none; }
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; }
   /* Matches the card's own 5px radius here (on screen: 11px, for its
      12px card) so the head's corners still nest inside the card's,
      rather than the on-screen sizing showing through at print scale. */
