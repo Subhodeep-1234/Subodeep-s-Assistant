@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const { getAuthUrl, handleCallback, isAuthenticated, getConfigStatus } = require('./src/auth');
 const gmailService = require('./src/gmailService');
 const workforceRoutes = require('./src/workforceRoutes');
@@ -86,6 +87,33 @@ function sendNoStore(res, filePath) {
   res.sendFile(filePath);
 }
 
+// VERCEL_GIT_COMMIT_SHA is set automatically by Vercel for every single
+// deployment (no config needed) - using it as the cache-busting version
+// means every deploy gets a genuinely new asset URL with zero chance of
+// a human forgetting to bump a hand-maintained ?v=N number (exactly what
+// happened here: workforce.css/js went through five straight commits
+// with the number never touched, so any cache layer that had EVER seen
+// that exact URL before - this app's own server has max-age:0 and
+// revalidates correctly, but a browser, a mobile carrier's transparent
+// proxy, or a CDN edge that doesn't revalidate as reliably - had no
+// reason to treat the content as new). Local dev has no such env var,
+// so it falls back to this process's own start time - every server
+// restart still gets a fresh version, without needing a real commit.
+const ASSET_VERSION = process.env.VERCEL_GIT_COMMIT_SHA || String(Date.now());
+
+// Same no-store guarantee as sendNoStore, but for an HTML document whose
+// OWN <link>/<script> tags need to carry ASSET_VERSION - reads the file
+// instead of streaming it, so the ?v=N placeholders baked into the
+// source (any number; it's always overwritten) can be replaced with the
+// real, current one before the response goes out.
+function sendNoStoreWithAssetVersion(res, filePath) {
+  let html = fs.readFileSync(filePath, 'utf8');
+  html = html.replace(/(workforce\.(?:css|js))\?v=\d+/g, '$1?v=' + ASSET_VERSION);
+  res.set('Cache-Control', 'no-store, must-revalidate');
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
+}
+
 // The bare domain is now the link shared with directors, so it goes straight
 // to the new login instead of the old Mail Management inbox tool.
 app.get('/', (req, res) => {
@@ -127,7 +155,7 @@ app.get('/workforce.html', hrAuth.requireInterviewPanelAccess, (req, res) => {
   const isScopedInterviewPanel = req.hrUser && req.hrUser.scope === 'interviewPanel';
   const isMobileDevice = MOBILE_USER_AGENT.test(req.headers['user-agent'] || '');
   if (req.query.embedded === '1' || isScopedInterviewPanel || isMobileDevice) {
-    return sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce.html'));
+    return sendNoStoreWithAssetVersion(res, path.join(__dirname, 'src', 'views', 'workforce.html'));
   }
   sendNoStore(res, path.join(__dirname, 'src', 'views', 'workforce-shell.html'));
 });
