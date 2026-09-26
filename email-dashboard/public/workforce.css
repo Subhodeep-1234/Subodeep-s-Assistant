@@ -2435,7 +2435,18 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      corner (sub-pixel rounding between the tick's %-based centering and
      the bus line's px inset), this overlap guarantees they visibly
      fuse into one continuous line with no seam. */
-  body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
+  /* row-gap raised from the old flat 6px to 9px - when a row wraps into a
+     vertical stack of single cards, that's the vertical space each pair
+     drops through, and the connector between them (line + a fixed 4px
+     arrowhead, same everywhere in this chart) needs enough of it for a
+     clearly visible line segment before the arrowhead, not just the
+     arrowhead alone eating nearly the whole gap. 9px matches the height
+     already used by .org-chart-branch-connector:has(+ .org-chart-hod-box)
+     elsewhere in this same file, rather than an arbitrary new number.
+     column-gap (the horizontal spacing between side-by-side cards on the
+     same line) is unchanged at the original 6px - only the vertical
+     stacking case asked for more room. */
+  body.printing-org-chart .org-chart-cards-row { row-gap: 9px; column-gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
   /* A HOD (or, for a department with no separate Director tier, the
      whole page) with enough designation groups to outgrow one line can
      have the flex-wrap: wrap above split its cards across two physical
@@ -2481,17 +2492,18 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   body.printing-org-chart .org-chart-cards-row:has(> .org-chart-card:only-child) > .org-chart-cards-row-bus {
     display: none;
   }
-  /* box-shadow: none - the on-screen shadow's own 8px blur is bigger than
-     the 6px gap a wrapped stack of cards drops to between one another
-     (see body.printing-org-chart .org-chart-cards-row's own gap below),
-     so two adjacent cards' shadows overlapped and filled that gap
-     entirely - visually blurring exactly where each card's own edge
-     really is, so the connector between them (which DOES start/end
-     exactly on those edges - verified directly against their own
-     measured rects) looked like it was floating clear of both instead
-     of touching them. Card size/color/font/spacing are all untouched;
-     only this print-only rendering effect is turned off. */
-  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; box-shadow: none; }
+  /* box-shadow's blur cut from the on-screen 8px to 3px, print-only - the
+     shadow itself wasn't the actual problem (a stacked-card connector's
+     line/arrowhead DOES start and end exactly on each card's own real
+     edge, verified directly against their own measured rects), the old
+     8px blur was just bigger than the row-gap it had to fit inside,
+     spreading two adjacent cards' shadows into one continuous haze that
+     obscured exactly where each edge really is. Now that row-gap is 9px
+     (see .org-chart-cards-row above), keeping the full 8px blur would
+     still mostly bridge that gap; 3px comfortably fades out within it,
+     leaving a clean stretch of true white for the connector's own line
+     to read against. Offset/color/every other card property untouched. */
+  body.printing-org-chart .org-chart-card { width: 106px; border-radius: 5px; box-shadow: 0 2px 3px var(--shadow); }
   /* Matches the card's own 5px radius here (on screen: 11px, for its
      12px card) so the head's corners still nest inside the card's,
      rather than the on-screen sizing showing through at print scale. */
