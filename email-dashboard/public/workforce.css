@@ -2435,13 +2435,7 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
      corner (sub-pixel rounding between the tick's %-based centering and
      the bus line's px inset), this overlap guarantees they visibly
      fuse into one continuous line with no seam. */
-  /* gap: 8px (was 6px) - a stacked row-to-row connector now reserves 2px
-     clear space where the line leaves the box above plus 2px where the
-     arrow tip stops short of the box below, on top of the arrowhead's own
-     4px length (drawOrgChartPdfConnectorsSvg's LINE_START_GAP/ARROW_TIP_GAP/
-     ARROW_LEN) - 6px no longer fit that without the line inverting back
-     into the row above. */
-  body.printing-org-chart .org-chart-cards-row { gap: 8px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
+  body.printing-org-chart .org-chart-cards-row { gap: 6px; padding-top: 8px; margin-bottom: 6px; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; }
   /* A HOD (or, for a department with no separate Director tier, the
      whole page) with enough designation groups to outgrow one line can
      have the flex-wrap: wrap above split its cards across two physical
