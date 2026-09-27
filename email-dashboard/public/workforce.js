@@ -2008,7 +2008,7 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   // (post-scale) px, nothing inside it changes. Divided by scale below so
   // the same nominal px value holds regardless of a department's own
   // fit-to-page scale.
-  const CONNECTOR_LAYER_SHIFT_PX = 2;
+  const CONNECTOR_LAYER_SHIFT_PX = 1;
 
   function localRect(el) {
     const r = el.getBoundingClientRect();
