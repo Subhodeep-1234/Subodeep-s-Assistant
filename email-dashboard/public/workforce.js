@@ -2004,6 +2004,11 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
 
   const STROKE = 1.5; // one uniform thickness for every line, bus included
   const ARROW_LEN = 4, ARROW_WIDE = 6; // old design's own arrowhead size (border-top 4px, border-left/right 3px+3px)
+  // TEST ONLY - moves the whole connector overlay down by this many real
+  // (post-scale) px, nothing inside it changes. Divided by scale below so
+  // the same nominal px value holds regardless of a department's own
+  // fit-to-page scale.
+  const CONNECTOR_LAYER_SHIFT_PX = 2;
 
   function localRect(el) {
     const r = el.getBoundingClientRect();
@@ -2219,6 +2224,9 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   const svgNs = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNs, 'svg');
   svg.setAttribute('class', 'org-chart-pdf-connectors-svg');
+  if (CONNECTOR_LAYER_SHIFT_PX) {
+    svg.style.transform = 'translateY(' + (CONNECTOR_LAYER_SHIFT_PX / scale) + 'px)';
+  }
 
   const linesPath = document.createElementNS(svgNs, 'path');
   const linesD = mergedSegments.map((s) => 'M ' + s.x1 + ' ' + s.y1 + ' L ' + s.x2 + ' ' + s.y2).join(' ');
