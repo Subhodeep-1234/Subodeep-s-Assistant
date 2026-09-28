@@ -7,6 +7,7 @@ const insuranceService = require('./insuranceService');
 const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
 const orgChartServerPdf = require('./orgChartServerPdf');
+const aiAssistant = require('./aiAssistant/provider');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -1360,6 +1361,25 @@ router.get('/data-quality', async (req, res) => {
   try {
     const { employees } = await employeeService.getEmployeeData();
     res.json(analytics.dataQualityReport(employees));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// HR Assistant (AI agent) - see src/aiAssistant/. requireHrAuth (mounted
+// on this whole router) already gates this exactly like every other
+// /api/workforce route - no separate auth needed. The provider behind
+// this is a mock today (src/aiAssistant/provider.js explains how a real
+// Claude-backed one plugs in later) - message content is never logged.
+router.post('/hr-assistant/chat', async (req, res) => {
+  try {
+    const message = req.body && req.body.message;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'message is required' });
+    }
+    const history = Array.isArray(req.body.history) ? req.body.history.slice(-10) : [];
+    const result = await aiAssistant.getResponse({ message, history, user: req.hrUser });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
