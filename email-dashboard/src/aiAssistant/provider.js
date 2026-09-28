@@ -3,24 +3,28 @@
 // shape) - callers (the chat route) never need to know which provider
 // answered.
 //
-// Today this always resolves to the mock provider. To connect a real
-// Claude-backed provider later:
-//   1. Add a claudeProvider.js in this same folder that reads
-//      process.env.ANTHROPIC_API_KEY (server-side only - never send this
-//      key to the client) and implements the same getResponse() shape,
-//      using tools.js's functions as its own tool-calling targets.
-//   2. Swap the export below to pick claudeProvider when
-//      ANTHROPIC_API_KEY is set, falling back to the mock provider
-//      otherwise (so local/dev usage keeps working without a key).
-// No UI or route code needs to change for that swap - they only ever
-// call this module's getResponse().
+// Picks claudeProvider when ANTHROPIC_API_KEY is set, mockProvider
+// otherwise - so local/dev usage (and production, until the key is
+// added) keeps working exactly as it does today. claudeProvider.js is
+// only require()'d inside that branch, so with no key set it never even
+// loads, let alone makes a network call. No UI or route code needs to
+// change when the key is added later.
+//
+// If a Claude call itself fails once the key IS set (network issue, rate
+// limit, temporary outage), that one request falls back to the mock
+// provider rather than surfacing a raw error - the assistant stays
+// useful even if Claude is briefly unavailable.
 const mockProvider = require('./mockProvider');
 
 async function getResponse({ message, history, user }) {
-  // if (process.env.ANTHROPIC_API_KEY) {
-  //   const claudeProvider = require('./claudeProvider');
-  //   return claudeProvider.getResponse({ message, history, user });
-  // }
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const claudeProvider = require('./claudeProvider');
+      return await claudeProvider.getResponse({ message, history, user });
+    } catch (err) {
+      console.error('[hr-assistant] Claude provider failed, falling back to mock:', err.message);
+    }
+  }
   return mockProvider.getResponse({ message, history, user });
 }
 

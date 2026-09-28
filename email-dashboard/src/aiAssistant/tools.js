@@ -168,6 +168,55 @@ async function findEmployee(query) {
     }));
 }
 
+// Shared by both providers (mockProvider's letter rule and
+// claudeProvider's "prepareLetter" tool both call this) so the exact same
+// employee-lookup + card shape backs a letter request regardless of
+// which one is answering.
+const LETTER_TYPES = {
+  promotion: 'Promotion & Increment Letter',
+  increment: 'Increment Letter',
+  confirmation: 'Confirmation Letter'
+};
+
+async function prepareLetter({ name, letterType }) {
+  const type = LETTER_TYPES[letterType] || LETTER_TYPES.promotion;
+  const matches = name ? await findEmployee(name) : [];
+  if (!matches.length) {
+    return { title: null, rows: null, actions: [{ label: 'Open Letter Generator', view: 'letterGenerator' }], notFound: name };
+  }
+  const emp = matches[0];
+  return {
+    title: type,
+    rows: [
+      { label: 'Employee Name', value: emp.name },
+      { label: 'Employee ID', value: emp.employeeId },
+      { label: 'Designation', value: emp.designation },
+      { label: 'Department', value: emp.department },
+      { label: 'Letter Type', value: type }
+    ],
+    actions: [{ label: 'Open Letter Generator', view: 'letterGenerator', employeeId: emp.employeeId }]
+  };
+}
+
+// A pure navigation "tool" - no data lookup, just tells the UI which
+// existing view to open (setView() in workforce.js, unchanged). Scoped
+// to the same view names the drawer nav itself exposes, so this can
+// never navigate anywhere the existing app doesn't already have a menu
+// item for.
+const NAVIGABLE_VIEWS = {
+  overview: 'Dashboard', directory: 'Employee Data', joining: 'Joining', tenure: 'Tenure',
+  movement: 'Workforce Movement', doerManagement: 'Doer Management', orgChart: 'Organization Chart',
+  healthInsurance: 'Health Insurance', interviewPanel: 'Interview Panel', letterGenerator: 'Letter Generator',
+  insights: 'Insights', quality: 'Data Quality', ageDistribution: 'Age Distribution',
+  genderDistribution: 'Gender Distribution', collarDistribution: 'Category Distribution'
+};
+
+async function navigateToView(view) {
+  const label = NAVIGABLE_VIEWS[view];
+  if (!label) return { title: null, rows: null, actions: null };
+  return { title: null, rows: null, actions: [{ label: 'Open ' + label, view }] };
+}
+
 module.exports = {
   departmentHeadcount,
   joiningThisMonth,
@@ -179,5 +228,8 @@ module.exports = {
   dataQualityIssues,
   insightsSummary,
   demographics,
-  findEmployee
+  findEmployee,
+  prepareLetter,
+  navigateToView,
+  NAVIGABLE_VIEWS
 };

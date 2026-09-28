@@ -61,7 +61,7 @@ const RULES = [
   },
   {
     test: (m) => /organi[sz]ation chart|org chart/.test(m),
-    run: async () => ({ title: null, rows: null, actions: [{ label: 'Open Organization Chart', view: 'orgChart' }] }),
+    run: () => tools.navigateToView('orgChart'),
     intro: 'You can view the organization chart here.'
   },
   {
@@ -94,25 +94,8 @@ const RULES = [
     run: async (m) => {
       const nameMatch = m.match(/(?:for|to)\s+([a-z][a-z .]*)$/i);
       const name = nameMatch ? nameMatch[1].trim() : '';
-      const matches = name ? await tools.findEmployee(name) : [];
-      const letterType = /promotion/.test(m) ? 'Promotion & Increment Letter'
-        : /increment/.test(m) ? 'Increment Letter'
-        : 'Confirmation Letter';
-      if (!matches.length) {
-        return { title: null, rows: null, actions: [{ label: 'Open Letter Generator', view: 'letterGenerator' }], notFound: name };
-      }
-      const emp = matches[0];
-      return {
-        title: letterType,
-        rows: [
-          { label: 'Employee Name', value: emp.name },
-          { label: 'Employee ID', value: emp.employeeId },
-          { label: 'Designation', value: emp.designation },
-          { label: 'Department', value: emp.department },
-          { label: 'Letter Type', value: letterType }
-        ],
-        actions: [{ label: 'Open Letter Generator', view: 'letterGenerator', employeeId: emp.employeeId }]
-      };
+      const letterType = /promotion/.test(m) ? 'promotion' : /increment/.test(m) ? 'increment' : 'confirmation';
+      return tools.prepareLetter({ name, letterType });
     },
     intro: (m, result) => {
       if (result && result.notFound) return "I couldn't find an employee matching \"" + result.notFound + '". You can search for them directly in the Letter Generator.';
