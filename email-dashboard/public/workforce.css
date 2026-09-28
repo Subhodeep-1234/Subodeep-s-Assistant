@@ -23,6 +23,8 @@ body {
   --move-red-bg: #fee2e2;
   --move-orange: #ea580c;
   --move-orange-bg: #ffedd5;
+  --wf-ai-wash-1: rgba(29, 92, 99, 0.10);
+  --wf-ai-wash-2: rgba(29, 92, 99, 0.05);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -36,6 +38,8 @@ body {
     --move-red-bg: #4a1f1f;
     --move-orange: #fb923c;
     --move-orange-bg: #4a2f14;
+    --wf-ai-wash-1: rgba(79, 169, 163, 0.16);
+    --wf-ai-wash-2: rgba(79, 169, 163, 0.08);
   }
 }
 :root[data-theme="dark"] {
@@ -49,6 +53,8 @@ body {
   --move-red-bg: #4a1f1f;
   --move-orange: #fb923c;
   --move-orange-bg: #4a2f14;
+  --wf-ai-wash-1: rgba(79, 169, 163, 0.16);
+  --wf-ai-wash-2: rgba(79, 169, 163, 0.08);
 }
 
 .wf-shell {
@@ -3186,6 +3192,61 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   flex-direction: column;
   gap: 12px;
   -webkit-overflow-scrolling: touch;
+  /* Soft mint-to-white wash with two pale blobs bleeding in from the
+     top-right and bottom-left - background-attachment's default (scroll,
+     fixed relative to this element rather than to its own contents) means
+     this stays put while the messages inside it scroll past it. */
+  background-color: var(--surface);
+  background-image:
+    radial-gradient(circle at 105% -12%, var(--wf-ai-wash-1), transparent 42%),
+    radial-gradient(circle at -12% 108%, var(--wf-ai-wash-1), transparent 42%),
+    linear-gradient(180deg, var(--wf-ai-wash-2), transparent 55%);
+}
+
+.wf-ai-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 16px 6px;
+}
+.wf-ai-welcome-badge {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-bottom: 18px;
+}
+.wf-ai-welcome-robot { color: var(--accent); }
+.wf-ai-welcome-sparkle {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  color: var(--accent);
+}
+.wf-ai-welcome-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 22px;
+  max-width: 300px;
+}
+.wf-ai-welcome-greeting {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.4;
+}
+.wf-ai-welcome-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .wf-ai-msg { display: flex; }
