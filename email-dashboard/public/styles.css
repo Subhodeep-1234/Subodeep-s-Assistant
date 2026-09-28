@@ -51,6 +51,28 @@
 
 * { box-sizing: border-box; }
 
+/* No blue/grey tap-highlight box on touch anywhere in the app, and no
+   leftover focus outline from a tap - keyboard :focus-visible still gets
+   one. Deliberately no replacement press effect (tint/scale/ripple):
+   tapping performs the action with no visual flash. */
+html, * {
+  -webkit-tap-highlight-color: transparent;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Buttons and ARIA-button controls (every clickable control in this app,
+   from nav items to icon buttons) are never selectable text and never
+   trigger the iOS long-press callout menu. Everything else - report
+   tables, chat messages, any other prose - is untouched. */
+button,
+[role="button"] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* If any element ever exceeds the viewport width by even a pixel (a long
    name, a long address, a wide row), the whole page becomes horizontally
    pannable on mobile - it visibly shifts left/right when touched. This is
