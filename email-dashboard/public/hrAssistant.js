@@ -78,6 +78,54 @@
     return row;
   }
 
+  // One-time welcome block (first thing shown in an empty conversation) -
+  // not a chat bubble, just the first child of the messages list, so it
+  // scrolls away with everything else once real messages start stacking
+  // below it. `name` is the signed-in user's own first name (read from the
+  // profile-driven #drawerName element in openPanel, never hard-coded);
+  // an empty string falls back to the name-less greeting.
+  function addWelcome(name) {
+    const wrap = document.createElement('div');
+    wrap.className = 'wf-ai-welcome';
+
+    const badge = document.createElement('div');
+    badge.className = 'wf-ai-welcome-badge';
+    badge.innerHTML =
+      '<svg class="wf-ai-welcome-robot" viewBox="0 0 64 64" width="72" height="72" fill="none">' +
+        '<circle cx="15" cy="35" r="5.5" fill="currentColor"/>' +
+        '<circle cx="49" cy="35" r="5.5" fill="currentColor"/>' +
+        '<rect x="14" y="16" width="36" height="34" rx="12" fill="#fff" stroke="currentColor" stroke-width="2.5"/>' +
+        '<line x1="32" y1="16" x2="32" y2="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<circle cx="32" cy="6.5" r="3" fill="currentColor"/>' +
+        '<rect x="20" y="27" width="24" height="12" rx="6" fill="currentColor"/>' +
+        '<circle cx="26.5" cy="33" r="2.4" fill="#fff"/>' +
+        '<circle cx="37.5" cy="33" r="2.4" fill="#fff"/>' +
+        '<path d="M25 43q7 5 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>' +
+      '</svg>' +
+      '<svg class="wf-ai-welcome-sparkle" viewBox="0 0 24 24" width="22" height="22" fill="none">' +
+        '<path d="M13 2l1.8 5.2L20 9l-5.2 1.8L13 16l-1.8-5.2L6 9l5.2-1.8z" fill="currentColor"/>' +
+        '<path d="M20 14l0.9 2.1L23 17l-2.1 0.9L20 20l-0.9-2.1L17 17l2.1-0.9z" fill="currentColor"/>' +
+      '</svg>';
+
+    const card = document.createElement('div');
+    card.className = 'wf-ai-welcome-card';
+    const greeting = document.createElement('p');
+    greeting.className = 'wf-ai-welcome-greeting';
+    greeting.textContent = name
+      ? '👋 Hello ' + name + "! I'm your HR Assistant."
+      : "👋 Hello! I'm your HR Assistant.";
+    const sub = document.createElement('p');
+    sub.className = 'wf-ai-welcome-sub';
+    sub.textContent = 'How can I help you today?';
+    card.appendChild(greeting);
+    card.appendChild(sub);
+
+    wrap.appendChild(badge);
+    wrap.appendChild(card);
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
+  }
+
   function addCard(card) {
     const wrap = document.createElement('div');
     wrap.className = 'wf-ai-card';
@@ -302,12 +350,8 @@
     if (!opened) {
       opened = true;
       const name = (document.getElementById('drawerName') && document.getElementById('drawerName').textContent.trim()) || '';
-      const greetName = name && name !== '—' ? name.split(' ')[0] : 'there';
-      addBubble('assistant',
-        'Hello ' + greetName + '! 👋\n\n' +
-        "I'm your HR Assistant.\n\n" +
-        'I can help you with HR reports, employee data, workforce movement, organization chart, health insurance, interview panel, and other HR tasks.'
-      );
+      const greetName = name && name !== '—' ? name.split(' ')[0] : '';
+      addWelcome(greetName);
     }
     setTimeout(() => input.focus(), 50);
   }
