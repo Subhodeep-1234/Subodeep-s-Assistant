@@ -11,7 +11,6 @@
   const messagesEl = document.getElementById('hrAssistantMessages');
   const form = document.getElementById('hrAssistantForm');
   const input = document.getElementById('assistantQuestion');
-  const topbar = document.querySelector('.wf-topbar');
   const plusBtn = document.getElementById('hrAssistantPlusBtn');
   const micBtn = document.getElementById('hrAssistantMicBtn');
   const attachmentChip = document.getElementById('hrAssistantAttachmentChip');
@@ -32,23 +31,41 @@
   const history = [];
   let opened = false;
   let pendingAttachment = null; // { name } - held only in the browser, see setAttachment()
+  let savedScrollY = 0;
 
-  // The panel fills the screen exactly from the app header's bottom edge
-  // to the bottom of whatever is actually visible - which, with an
-  // on-screen keyboard open, is well above window.innerHeight. vh units
-  // and window.innerHeight both describe the full layout viewport (the
-  // part still behind the keyboard on iOS Safari), so the only way to
-  // track the real visible area on both iOS Safari and Android Chrome is
-  // window.visualViewport, kept in sync on every resize/scroll it fires
-  // (keyboard show/hide, orientation change, browser chrome show/hide).
+  // The panel now covers the entire screen, including the app's own
+  // header, so nothing behind it should be reachable or scrollable while
+  // it's open - not even via an edge swipe/overscroll bounce. overflow on
+  // <body> alone doesn't reliably stop the page from scrolling (the
+  // document's actual scrolling box can be <html> instead depending on
+  // the browser), so both get locked; the scroll position is saved/
+  // restored too as a defensive backstop.
+  function lockBodyScroll() {
+    savedScrollY = window.scrollY;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+  }
+  function unlockBodyScroll() {
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    window.scrollTo(0, savedScrollY);
+  }
+
+  // The panel fills the ENTIRE visible screen, top edge to bottom edge,
+  // covering the app's own header completely - not just the space below
+  // it. With an on-screen keyboard open, "visible" is well above
+  // window.innerHeight. vh units and window.innerHeight both describe the
+  // full layout viewport (the part still behind the keyboard on iOS
+  // Safari), so the only way to track the real visible area on both iOS
+  // Safari and Android Chrome is window.visualViewport, kept in sync on
+  // every resize/scroll it fires (keyboard show/hide, orientation change,
+  // browser chrome show/hide).
   function syncPanelToViewport() {
     if (panel.hidden) return;
-    const headerBottom = topbar ? topbar.getBoundingClientRect().bottom : 0;
     const vv = window.visualViewport;
     const visibleTop = vv ? vv.offsetTop : 0;
     const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
-    const top = Math.max(headerBottom, visibleTop);
-    panel.style.top = top + 'px';
+    panel.style.top = visibleTop + 'px';
     panel.style.bottom = Math.max(0, window.innerHeight - visibleBottom) + 'px';
     scrollToBottom();
   }
@@ -341,6 +358,7 @@
 
   function openPanel() {
     panel.hidden = false;
+    lockBodyScroll();
     syncPanelToViewport();
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', syncPanelToViewport);
@@ -359,6 +377,7 @@
 
   function closePanel() {
     panel.hidden = true;
+    unlockBodyScroll();
     if (window.visualViewport) {
       window.visualViewport.removeEventListener('resize', syncPanelToViewport);
       window.visualViewport.removeEventListener('scroll', syncPanelToViewport);
