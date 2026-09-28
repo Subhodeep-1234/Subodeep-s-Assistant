@@ -2004,11 +2004,21 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
 
   const STROKE = 1.5; // one uniform thickness for every line, bus included
   const ARROW_LEN = 4, ARROW_WIDE = 6; // old design's own arrowhead size (border-top 4px, border-left/right 3px+3px)
-  // TEST ONLY - moves the whole connector overlay down by this many real
-  // (post-scale) px, nothing inside it changes. Divided by scale below so
-  // the same nominal px value holds regardless of a department's own
-  // fit-to-page scale.
   const CONNECTOR_LAYER_SHIFT_PX = 1;
+  // Applied per-target, not as a whole-SVG transform - measured directly
+  // (getBoundingClientRect + this SVG's own __connectorDebug triangle
+  // data): a leader box (.org-chart-hod-box, no border) and a designation
+  // card (.org-chart-card, a real 1px border) both have their arrow tip
+  // computed identically (target.y exactly, 0px deficit) BEFORE any
+  // shift. A shift applied as one CSS transform on the whole SVG then
+  // moves every tip down by the same amount regardless of target type -
+  // for a card, that 1px lands on its own border, still reading as "on
+  // the edge"; for a border-less leader box, that same 1px lands directly
+  // in its solid fill, reading as inside it. Scoping the shift to card
+  // targets only (where it was already visually correct) leaves leader-
+  // box tips landing exactly on their true outer edge, matching cards'
+  // own apparent behaviour without changing the shift amount itself.
+  const CARD_TIP_SHIFT = CONNECTOR_LAYER_SHIFT_PX / scale;
 
   function localRect(el) {
     const r = el.getBoundingClientRect();
@@ -2038,8 +2048,9 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   // instead of running through it.
   function addDrop(x, fromY, target, arrow) {
     if (arrow) {
-      addSegment(x, fromY, x, target.y - ARROW_LEN);
-      addTriangle(target.x, target.y);
+      const tipY = target.y + (target.tipShift || 0);
+      addSegment(x, fromY, x, tipY - ARROW_LEN);
+      addTriangle(target.x, tipY);
     } else {
       addSegment(x, fromY, x, target.y);
     }
@@ -2062,16 +2073,18 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
     const sorted = targets.slice().sort((a, b) => a.x - b.x);
     const first = sorted[0], last = sorted[sorted.length - 1];
     const firstArrow = first.arrow !== false, lastArrow = last.arrow !== false;
-    const firstEndY = firstArrow ? first.y - ARROW_LEN : first.y;
-    const lastEndY = lastArrow ? last.y - ARROW_LEN : last.y;
+    const firstTipY = first.y + (first.tipShift || 0);
+    const lastTipY = last.y + (last.tipShift || 0);
+    const firstEndY = firstArrow ? firstTipY - ARROW_LEN : first.y;
+    const lastEndY = lastArrow ? lastTipY - ARROW_LEN : last.y;
     polylines.push([
       { x: snap(first.x), y: snap(firstEndY) },
       { x: snap(first.x), y: snap(busY) },
       { x: snap(last.x), y: snap(busY) },
       { x: snap(last.x), y: snap(lastEndY) }
     ]);
-    if (firstArrow) addTriangle(first.x, first.y);
-    if (lastArrow) addTriangle(last.x, last.y);
+    if (firstArrow) addTriangle(first.x, firstTipY);
+    if (lastArrow) addTriangle(last.x, lastTipY);
     if (Math.abs(entryPoint.y - busY) > 0.01) addSegment(entryPoint.x, entryPoint.y, entryPoint.x, busY);
     sorted.slice(1, -1).forEach((t) => addDrop(t.x, busY, t, t.arrow !== false));
   }
@@ -2094,7 +2107,7 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
     const cardsRowR = localRect(cardsRow);
     let anchor = entryPoint;
     rows.forEach((rowGroup, i) => {
-      const targets = rowGroup.items.map((r) => ({ x: centerX(r), y: r.top, arrow: true }));
+      const targets = rowGroup.items.map((r) => ({ x: centerX(r), y: r.top, arrow: true, tipShift: CARD_TIP_SHIFT }));
       const busY = i === 0 ? cardsRowR.top : anchor.y + (rowGroup.top - anchor.y) / 2;
       drawFan(anchor, targets, busY);
       const maxBottom = Math.max(...rowGroup.items.map((r) => bottomY(r)));
@@ -2224,9 +2237,6 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   const svgNs = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNs, 'svg');
   svg.setAttribute('class', 'org-chart-pdf-connectors-svg');
-  if (CONNECTOR_LAYER_SHIFT_PX) {
-    svg.style.transform = 'translateY(' + (CONNECTOR_LAYER_SHIFT_PX / scale) + 'px)';
-  }
 
   const linesPath = document.createElementNS(svgNs, 'path');
   const linesD = mergedSegments.map((s) => 'M ' + s.x1 + ' ' + s.y1 + ' L ' + s.x2 + ' ' + s.y2).join(' ');
