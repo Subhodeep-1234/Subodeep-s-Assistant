@@ -1,4 +1,10 @@
-const puppeteer = require('puppeteer-core');
+// puppeteer-core and @sparticuz/chromium are both pure ESM packages
+// ("type": "module") - require() of them works on some Node builds (it
+// did locally) but fails hard on Vercel's actual runtime with
+// ERR_REQUIRE_ESM, taking down the whole function since this module is
+// required from server.js's own require chain. Dynamic import() loads an
+// ES module from CommonJS reliably everywhere, so both are loaded lazily
+// inside launchBrowser() instead of require()'d at the top of this file.
 const hrAuth = require('./hrAuth');
 
 // One fixed profile for every export, regardless of who's asking or what
@@ -31,9 +37,10 @@ let browserPromise = null;
 const LOCALE_ARG = '--lang=en-GB';
 
 async function launchBrowser() {
+  const { launch } = await import('puppeteer-core');
   if (process.env.VERCEL) {
-    const chromium = require('@sparticuz/chromium').default;
-    return puppeteer.launch({
+    const { default: chromium } = await import('@sparticuz/chromium');
+    return launch({
       executablePath: await chromium.executablePath(),
       args: [...chromium.args, LOCALE_ARG],
       headless: true
@@ -47,7 +54,7 @@ async function launchBrowser() {
   if (!executablePath) {
     throw new Error('Set PUPPETEER_EXECUTABLE_PATH to a local Chromium/Chrome install for dev testing.');
   }
-  return puppeteer.launch({
+  return launch({
     executablePath,
     args: ['--no-sandbox', LOCALE_ARG],
     headless: true
