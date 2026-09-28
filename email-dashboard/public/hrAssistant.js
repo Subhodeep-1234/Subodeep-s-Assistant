@@ -12,10 +12,26 @@
   const form = document.getElementById('hrAssistantForm');
   const input = document.getElementById('hrAssistantInput');
   const topbar = document.querySelector('.wf-topbar');
+  const plusBtn = document.getElementById('hrAssistantPlusBtn');
+  const micBtn = document.getElementById('hrAssistantMicBtn');
+  const attachmentChip = document.getElementById('hrAssistantAttachmentChip');
+  const attachmentName = document.getElementById('hrAssistantAttachmentName');
+  const attachmentRemoveBtn = document.getElementById('hrAssistantAttachmentRemove');
+  const cameraInput = document.getElementById('hrAssistantCameraInput');
+  const photoInput = document.getElementById('hrAssistantPhotoInput');
+  const fileInput = document.getElementById('hrAssistantFileInput');
+  const sheetBackdrop = document.getElementById('hrAssistantSheetBackdrop');
+  const sheet = document.getElementById('hrAssistantSheet');
+  const sheetHandle = document.getElementById('hrAssistantSheetHandle');
+  const sheetCloseBtn = document.getElementById('hrAssistantSheetCloseBtn');
+  const tileCamera = document.getElementById('hrAssistantTileCamera');
+  const tilePhotos = document.getElementById('hrAssistantTilePhotos');
+  const tileFiles = document.getElementById('hrAssistantTileFiles');
   if (!btn || !panel) return; // this page doesn't have the assistant markup
 
   const history = [];
   let opened = false;
+  let pendingAttachment = null; // { name } - held only in the browser, see setAttachment()
 
   // The panel fills the screen exactly from the app header's bottom edge
   // to the bottom of whatever is actually visible - which, with an
@@ -41,13 +57,22 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function addBubble(role, text) {
+  function addBubble(role, text, attachment) {
     const row = document.createElement('div');
     row.className = 'wf-ai-msg ' + role;
+    const col = document.createElement('div');
+    col.className = 'wf-ai-msg-col';
+    if (attachment) {
+      const chip = document.createElement('div');
+      chip.className = 'wf-ai-msg-attachment';
+      chip.textContent = '📎 ' + attachment.name;
+      col.appendChild(chip);
+    }
     const bubble = document.createElement('div');
     bubble.className = 'wf-ai-bubble';
     bubble.textContent = text;
-    row.appendChild(bubble);
+    col.appendChild(bubble);
+    row.appendChild(col);
     messagesEl.appendChild(row);
     scrollToBottom();
     return row;
@@ -124,6 +149,148 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // Attachments are held only in the browser (as a File object) and never
+  // uploaded anywhere - there's no backend endpoint to receive them and the
+  // mock/Claude providers have no file-handling capability yet. Picking one
+  // just shows a chip above the input row, and once the next message is
+  // sent, the same chip moves into that message's bubble as a purely visual
+  // record of what was attached; the file's bytes are never sent to
+  // /api/workforce/hr-assistant/chat or stored anywhere else.
+  function setAttachment(file) {
+    if (!file) return;
+    pendingAttachment = file;
+    attachmentName.textContent = file.name;
+    attachmentChip.hidden = false;
+  }
+
+  function clearAttachment() {
+    pendingAttachment = null;
+    attachmentChip.hidden = true;
+    cameraInput.value = '';
+    photoInput.value = '';
+    fileInput.value = '';
+  }
+
+  attachmentRemoveBtn.addEventListener('click', clearAttachment);
+  cameraInput.addEventListener('change', () => setAttachment(cameraInput.files[0]));
+  photoInput.addEventListener('change', () => setAttachment(photoInput.files[0]));
+  fileInput.addEventListener('change', () => setAttachment(fileInput.files[0]));
+
+  // "Add to chat" bottom sheet - kept in the DOM with `hidden` toggled and
+  // an `.open` class doing the actual slide animation, so the very first
+  // open still transitions in (rather than jumping) and it's fully out of
+  // the layout/interaction tree while closed.
+  function openSheet() {
+    sheetBackdrop.hidden = false;
+    sheet.hidden = false;
+    void sheet.offsetHeight; // force reflow so the transform transition runs
+    sheetBackdrop.classList.add('open');
+    sheet.classList.add('open');
+  }
+
+  function closeSheet() {
+    sheetBackdrop.classList.remove('open');
+    sheet.classList.remove('open');
+    sheet.style.transform = '';
+    const finish = () => {
+      sheet.hidden = true;
+      sheetBackdrop.hidden = true;
+      sheet.removeEventListener('transitionend', finish);
+    };
+    sheet.addEventListener('transitionend', finish);
+    setTimeout(finish, 300); // fallback if transitionend doesn't fire (reduced motion, etc.)
+  }
+
+  plusBtn.addEventListener('click', openSheet);
+  sheetCloseBtn.addEventListener('click', closeSheet);
+  sheetBackdrop.addEventListener('click', closeSheet);
+
+  tileCamera.addEventListener('click', () => { closeSheet(); cameraInput.click(); });
+  tilePhotos.addEventListener('click', () => { closeSheet(); photoInput.click(); });
+  tileFiles.addEventListener('click', () => { closeSheet(); fileInput.click(); });
+
+  // Swipe-down-to-dismiss, dragging from the handle.
+  let dragStartY = null;
+  let dragDelta = 0;
+  function onDragStart(e) {
+    dragStartY = e.touches ? e.touches[0].clientY : e.clientY;
+    dragDelta = 0;
+    sheet.classList.add('dragging');
+  }
+  function onDragMove(e) {
+    if (dragStartY === null) return;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    dragDelta = Math.max(0, y - dragStartY);
+    sheet.style.transform = 'translateY(' + dragDelta + 'px)';
+  }
+  function onDragEnd() {
+    if (dragStartY === null) return;
+    sheet.classList.remove('dragging');
+    if (dragDelta > 90) {
+      closeSheet();
+    } else {
+      sheet.style.transform = '';
+    }
+    dragStartY = null;
+    dragDelta = 0;
+  }
+  sheetHandle.addEventListener('touchstart', onDragStart, { passive: true });
+  sheetHandle.addEventListener('touchmove', onDragMove, { passive: true });
+  sheetHandle.addEventListener('touchend', onDragEnd);
+
+  // Voice input - Web Speech API. Feature-detected at load with no
+  // permission prompt (the mic permission dialog only appears once
+  // recognition.start() is actually called, i.e. on first tap); hidden
+  // entirely on browsers that don't support it rather than showing a
+  // control that would just fail.
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let recognizing = false;
+
+  if (!SpeechRecognitionCtor) {
+    micBtn.hidden = true;
+  } else {
+    micBtn.addEventListener('click', () => {
+      if (recognizing) {
+        if (recognition) recognition.stop();
+        return;
+      }
+      recognition = new SpeechRecognitionCtor();
+      recognition.lang = navigator.language || 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      let finalTranscript = '';
+      recognition.onstart = () => {
+        recognizing = true;
+        micBtn.classList.add('recording');
+      };
+      recognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) finalTranscript += transcript;
+          else interim += transcript;
+        }
+        input.value = (finalTranscript + interim).trim();
+      };
+      recognition.onerror = () => {
+        recognizing = false;
+        micBtn.classList.remove('recording');
+      };
+      recognition.onend = () => {
+        recognizing = false;
+        micBtn.classList.remove('recording');
+        recognition = null;
+      };
+      try {
+        recognition.start();
+      } catch (err) {
+        recognizing = false;
+        micBtn.classList.remove('recording');
+      }
+    });
+  }
+
   function openPanel() {
     panel.hidden = false;
     syncPanelToViewport();
@@ -166,13 +333,32 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
-    if (!text) return;
+    const attachment = pendingAttachment;
+    if (!text && !attachment) return;
     input.value = '';
     input.disabled = true;
     const sendBtn = form.querySelector('.wf-ai-send-btn');
     if (sendBtn) sendBtn.disabled = true;
+    clearAttachment();
 
-    addBubble('user', text);
+    addBubble('user', text || ('Shared a file: ' + attachment.name), attachment);
+
+    // Attachments aren't wired to anything yet - neither provider can see or
+    // analyze the file (see setAttachment above, it never leaves the
+    // browser), so this says so explicitly rather than silently answering
+    // only the typed text and leaving the person to guess whether the file
+    // was used.
+    if (attachment) {
+      addBubble('assistant', "I can't analyze attachments yet - that'll work once the AI provider is connected. " + (text ? "I'll answer your question below, but I haven't looked at " + attachment.name + '.' : "I haven't looked at " + attachment.name + '.'));
+    }
+
+    if (!text) {
+      input.disabled = false;
+      if (sendBtn) sendBtn.disabled = false;
+      input.focus();
+      return;
+    }
+
     history.push({ role: 'user', text });
     const loadingRow = addBubble('assistant', 'AI is thinking…');
     loadingRow.classList.add('loading');
