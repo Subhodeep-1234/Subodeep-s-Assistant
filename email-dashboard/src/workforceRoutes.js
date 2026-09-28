@@ -6,6 +6,7 @@ const { buildIncrementLetterPdf, buildPromotionIncrementLetterPdf, buildConfirma
 const insuranceService = require('./insuranceService');
 const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
+const orgChartServerPdf = require('./orgChartServerPdf');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -456,6 +457,45 @@ router.get('/org-chart-pdf', async (req, res) => {
     });
     const targetKey = employeeService.normalizeKey(req.query.department);
     res.json(analytics.buildOrgChartPdfTree(employees, departmentNames, targetKey));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUBLIC_BASE_URL (this project's stable production domain) is the source
+// of truth, same reasoning as interviewPanelRoutes.js's own baseUrl() -
+// deliberately not VERCEL_URL, which is only that one deployment's own
+// throwaway hostname. Falls back to the request's own host for local dev.
+function baseUrl(req) {
+  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, '');
+  return req.protocol + '://' + req.get('host');
+}
+
+// Server-side export: our OWN headless browser drives the exact same
+// export flow a real click already runs (see orgChartServerPdf.js),
+// instead of relying on the requesting device's own print pipeline - the
+// mobile-vs-desktop inconsistency this replaces was never in the chart's
+// own geometry, it was Chromium's or Safari's own print-to-PDF step,
+// which was never something the app could control from the client side.
+// requireHrAuth (mounted on this whole router) already guarantees
+// req.hrUser here - no separate auth check needed.
+router.get('/org-chart-pdf-server', async (req, res) => {
+  try {
+    if (!req.query.department) {
+      return res.status(400).json({ error: 'department is required' });
+    }
+    const pdfBytes = await orgChartServerPdf.generateOrgChartPdfBuffer({
+      email: req.hrUser.email,
+      department: req.query.department,
+      baseUrl: baseUrl(req)
+    });
+    // page.pdf() returns a Uint8Array, not a true Node Buffer -
+    // res.send() only recognizes Buffer.isBuffer() for raw binary output,
+    // otherwise it silently JSON-serializes the byte array instead of
+    // sending real PDF bytes.
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', 'attachment; filename="' + encodeURIComponent(req.query.department) + '-Org-Chart.pdf"');
+    res.send(Buffer.from(pdfBytes));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

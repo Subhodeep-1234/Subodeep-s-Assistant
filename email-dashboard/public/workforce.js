@@ -2271,6 +2271,40 @@ function drawOrgChartPdfConnectorsSvg(root, scale) {
   return svg;
 }
 
+// Downloads a PDF Blob directly - no print dialog, same mechanism the
+// server-side org chart export (and its fallback below) both use to hand
+// the user a finished file instead of a print preview.
+function downloadPdfBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// Tries the server-rendered export first (identical output regardless of
+// the caller's own device - see orgChartServerPdf.js) - null on ANY
+// failure (network error, timeout, non-200) so the caller falls back to
+// the existing print-dialog export rather than surfacing an error.
+async function tryServerSideOrgChartPdf(dept) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  try {
+    const resp = await fetch('/api/workforce/org-chart-pdf-server?department=' + encodeURIComponent(dept), {
+      signal: controller.signal
+    });
+    if (!resp.ok) return null;
+    return await resp.blob();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 document.getElementById('exportOrgChartPdf').addEventListener('click', async () => {
   if (!lastOrgChartData) return;
   const dept = document.getElementById('orgChartDeptSelect').value;
@@ -2279,9 +2313,31 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
   const originalLabel = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Preparing…';
+
+  // window.__isServerSideExportRender is set by orgChartServerPdf.js's own
+  // headless render before this handler ever runs - without this check,
+  // that headless browser's own click on this exact button would ALSO
+  // try the server endpoint first, calling back into the very request
+  // that's already driving it (an instant, silent recursive hang, only
+  // ever escaping via the fetch's own abort timeout below).
+  const serverPdf = window.__isServerSideExportRender ? null : await tryServerSideOrgChartPdf(dept);
+  if (serverPdf) {
+    downloadPdfBlob(serverPdf, dept + '-Org-Chart.pdf');
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    return;
+  }
+
   let treeData;
   try {
-    treeData = await fetchJson('/api/workforce/org-chart-pdf?department=' + encodeURIComponent(dept) + '&refresh=1');
+    // The server-driven headless export (orgChartServerPdf.js) sets this
+    // flag before this handler ever runs, to skip forcing a fresh Sheets
+    // fetch here - refresh=1's own cost (a real, ~20s API round trip past
+    // the 2-minute cache) is fine for one human clicking Export once, not
+    // for an automated render that may run back to back across many
+    // departments. The 2-minute cache keeps this well within reason.
+    const refreshParam = window.__skipOrgChartRefresh ? '' : '&refresh=1';
+    treeData = await fetchJson('/api/workforce/org-chart-pdf?department=' + encodeURIComponent(dept) + refreshParam);
   } catch (err) {
     alert('Failed to prepare PDF: ' + err.message);
     btn.disabled = false;

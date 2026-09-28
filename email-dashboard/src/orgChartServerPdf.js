@@ -1,0 +1,158 @@
+const puppeteer = require('puppeteer-core');
+const hrAuth = require('./hrAuth');
+
+// One fixed profile for every export, regardless of who's asking or what
+// device they're on - the whole point of moving this server-side is that
+// the output no longer depends on the caller's own viewport/DPR/browser.
+const FIXED_VIEWPORT_WIDTH = 1250;
+const FIXED_VIEWPORT_HEIGHT = 950;
+const FIXED_DEVICE_SCALE_FACTOR = 1;
+
+const EXPORT_TIMEOUT_MS = 25000;
+const EPHEMERAL_SESSION_TTL_MS = 45 * 1000;
+
+// One shared browser instance reused across invocations on the same warm
+// serverless container - launching Chromium is the slow part (a real cold
+// start), so a container that's already paid that cost for a previous
+// request shouldn't pay it again for the next one.
+let browserPromise = null;
+
+// The chart's own "Generated On" date uses toLocaleDateString(undefined,
+// {day:'2-digit', month:'short', year:'numeric'}) - the field CONTENTS
+// are fixed by those options, but their ORDER/punctuation ("28 Sept 2026"
+// vs "Sep 28, 2026") still comes from the browser's own UI locale, which
+// defaults to en-US in a bare Chromium and is whatever a real desktop
+// browser happens to be configured as. --lang pins the headless browser
+// to the same DD-Month-YYYY form the rest of this app was built around,
+// instead of leaving it to whatever locale the underlying container
+// happens to default to (measured directly: Vercel's own Linux runtime
+// and a local Windows dev machine gave two different formats for the
+// exact same code otherwise).
+const LOCALE_ARG = '--lang=en-GB';
+
+async function launchBrowser() {
+  if (process.env.VERCEL) {
+    const chromium = require('@sparticuz/chromium').default;
+    return puppeteer.launch({
+      executablePath: await chromium.executablePath(),
+      args: [...chromium.args, LOCALE_ARG],
+      headless: true
+    });
+  }
+  // Local dev only - @sparticuz/chromium ships a Linux-only binary (built
+  // for Vercel/Lambda's own runtime), so it can't launch on a Windows or
+  // Mac dev machine. PUPPETEER_EXECUTABLE_PATH lets a developer point at
+  // any local Chromium/Chrome install for testing this module directly.
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (!executablePath) {
+    throw new Error('Set PUPPETEER_EXECUTABLE_PATH to a local Chromium/Chrome install for dev testing.');
+  }
+  return puppeteer.launch({
+    executablePath,
+    args: ['--no-sandbox', LOCALE_ARG],
+    headless: true
+  });
+}
+
+async function getBrowser() {
+  if (browserPromise) {
+    const existing = await browserPromise.catch(() => null);
+    if (existing && existing.connected) return existing;
+    browserPromise = null; // stale/crashed - fall through and relaunch
+  }
+  browserPromise = launchBrowser().catch((err) => {
+    browserPromise = null;
+    throw err;
+  });
+  return browserPromise;
+}
+
+// Renders one department's org chart PDF using our OWN headless browser -
+// never the requesting device's - and returns the resulting file as a
+// Buffer. Drives the exact same client-side export flow a real user's
+// click already runs (workforce.js's own renderOrgChartPdfTreeHtml /
+// scaleOrgChartPdfTreeToFit / drawOrgChartPdfConnectorsSvg), just with
+// window.print() intercepted so we capture the PDF ourselves instead of
+// handing it to a print dialog.
+async function generateOrgChartPdfBuffer({ email, department, baseUrl }) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({
+      width: FIXED_VIEWPORT_WIDTH,
+      height: FIXED_VIEWPORT_HEIGHT,
+      deviceScaleFactor: FIXED_DEVICE_SCALE_FACTOR
+    });
+
+    const url = new URL(baseUrl);
+    const cookieValue = hrAuth.createEphemeralSessionCookieValue(email, EPHEMERAL_SESSION_TTL_MS);
+    await page.setCookie({
+      name: 'hr_session',
+      value: cookieValue,
+      domain: url.hostname,
+      path: '/',
+      httpOnly: true,
+      secure: url.protocol === 'https:'
+    });
+
+    let resolvePrintReady;
+    const printReady = new Promise((resolve) => { resolvePrintReady = resolve; });
+    await page.exposeFunction('__reportPrintReady', () => resolvePrintReady());
+    await page.evaluateOnNewDocument(() => {
+      // The export handler calls window.print() once the print DOM/SVG
+      // overlay is fully built - intercepting it here is the same
+      // "signal export is ready to capture" hook this project's own
+      // verification scripts have used all along.
+      window.print = () => { window.__reportPrintReady(); };
+      // Skip the export handler's own forced Sheets refresh (see its own
+      // comment) - this headless render relies on the existing 2-minute
+      // cache instead of re-paying that ~20s cost on every export.
+      window.__skipOrgChartRefresh = true;
+      // Tells the click handler this click came from our own headless
+      // automation, not a real person - it must skip straight to the
+      // direct-render path instead of trying the server endpoint first,
+      // or it would call back into the very request driving it.
+      window.__isServerSideExportRender = true;
+    });
+
+    // One overall deadline for the whole drive-the-UI sequence, not a
+    // fresh timeout budget per step - the dashboard's own background
+    // prefetches (KPIs, health-insurance data, etc.) mean the page never
+    // truly goes network-idle, so a per-step "networkidle0"-style wait
+    // does not reflect real time spent; domcontentloaded plus our own
+    // explicit selector waits are what actually gate readiness.
+    const t0 = Date.now();
+    const lap = (label) => console.log('[orgChartServerPdf]', label, Date.now() - t0, 'ms');
+    const runExportFlow = (async () => {
+      await page.goto(url.origin + '/workforce.html?embedded=1', { waitUntil: 'domcontentloaded' });
+      lap('goto done');
+      await page.waitForSelector('#menuBtn');
+      lap('menuBtn visible');
+      await page.click('#menuBtn');
+      await page.click('[data-view="orgChart"]');
+      lap('orgChart nav clicked');
+      await page.waitForFunction(() => document.querySelectorAll('#orgChartDeptSelect option').length > 1);
+      lap('dept options populated');
+      await page.select('#orgChartDeptSelect', department);
+      await page.waitForSelector('#exportOrgChartPdf:not([hidden])');
+      lap('export button visible');
+      await page.click('#exportOrgChartPdf');
+      lap('export button clicked');
+      await printReady;
+      lap('printReady resolved');
+    })();
+
+    await Promise.race([
+      runExportFlow,
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timed out preparing the export')), EXPORT_TIMEOUT_MS);
+      })
+    ]);
+
+    return await page.pdf({ landscape: true, printBackground: true, preferCSSPageSize: true });
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+module.exports = { generateOrgChartPdfBuffer };

@@ -146,6 +146,20 @@ function destroySession(res) {
   clearCookie(res, COOKIE_NAME);
 }
 
+// A short-lived session cookie VALUE (not written to any response) for the
+// server's own headless-browser export to authenticate with, scoped to
+// whichever user already triggered the export and expiring in well under
+// a minute - verified by the exact same readSession/requireHrAuth as a
+// real login, just with a much shorter exp, so it can never outlive the
+// one export it was minted for and grants nothing beyond what that user's
+// own real session already grants.
+function createEphemeralSessionCookieValue(email, ttlMs) {
+  return signedCookieValue(requireSessionSecret(), {
+    email: normalizeEmail(email),
+    exp: Date.now() + ttlMs
+  });
+}
+
 function requireHrAuth(req, res, next) {
   if (!process.env.HR_OTP_SECRET || !process.env.HR_SESSION_SECRET) {
     return res.status(500).send('Missing configuration: HR_OTP_SECRET / HR_SESSION_SECRET.');
@@ -282,6 +296,7 @@ module.exports = {
   createSession,
   readSession,
   destroySession,
+  createEphemeralSessionCookieValue,
   requireHrAuth,
   checkAndSetResendCooldown,
   tooManyAttempts,
