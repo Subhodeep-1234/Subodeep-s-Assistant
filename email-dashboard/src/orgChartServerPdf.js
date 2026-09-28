@@ -14,7 +14,7 @@ const FIXED_VIEWPORT_WIDTH = 1250;
 const FIXED_VIEWPORT_HEIGHT = 950;
 const FIXED_DEVICE_SCALE_FACTOR = 1;
 
-const EXPORT_TIMEOUT_MS = 25000;
+const EXPORT_TIMEOUT_MS = 28000;
 const EPHEMERAL_SESSION_TTL_MS = 45 * 1000;
 
 // One shared browser instance reused across invocations on the same warm
@@ -102,6 +102,21 @@ async function generateOrgChartPdfBuffer({ email, department, baseUrl }) {
       secure: url.protocol === 'https:'
     });
 
+    // Blocks the one genuinely unnecessary asset this page loads for a
+    // pure PDF render: chart.js, only ever used by the Overview
+    // dashboard's own donut/line charts, which runServerSideOrgChartExport
+    // (workforce.js) never touches - the <script> tag loading it is
+    // unconditional in the page's own markup, so the browser would fetch
+    // and parse it regardless of which JS code path actually runs.
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (req.url().includes('chart.umd.js')) {
+        req.abort().catch(() => {});
+      } else {
+        req.continue().catch(() => {});
+      }
+    });
+
     let resolvePrintReady;
     const printReady = new Promise((resolve) => { resolvePrintReady = resolve; });
     await page.exposeFunction('__reportPrintReady', () => resolvePrintReady());
@@ -111,40 +126,23 @@ async function generateOrgChartPdfBuffer({ email, department, baseUrl }) {
       // "signal export is ready to capture" hook this project's own
       // verification scripts have used all along.
       window.print = () => { window.__reportPrintReady(); };
-      // Skip the export handler's own forced Sheets refresh (see its own
-      // comment) - this headless render relies on the existing 2-minute
-      // cache instead of re-paying that ~20s cost on every export.
-      window.__skipOrgChartRefresh = true;
-      // Tells the click handler this click came from our own headless
-      // automation, not a real person - it must skip straight to the
-      // direct-render path instead of trying the server endpoint first,
-      // or it would call back into the very request driving it.
-      window.__isServerSideExportRender = true;
     });
 
-    // One overall deadline for the whole drive-the-UI sequence, not a
-    // fresh timeout budget per step - the dashboard's own background
-    // prefetches (KPIs, health-insurance data, etc.) mean the page never
-    // truly goes network-idle, so a per-step "networkidle0"-style wait
-    // does not reflect real time spent; domcontentloaded plus our own
-    // explicit selector waits are what actually gate readiness.
+    // serverRenderDept triggers workforce.js's own direct render path
+    // (runServerSideOrgChartExport) - fetches PDF data and renders
+    // immediately, skipping the drawer-identity check, the Overview
+    // dashboard's own load, and the menu/nav/dropdown click-through this
+    // used to simulate (which also triggered a completely redundant,
+    // forced-refresh on-screen chart fetch the PDF never used). One
+    // page load, one data fetch, then straight to window.print().
     const t0 = Date.now();
     const lap = (label) => console.log('[orgChartServerPdf]', label, Date.now() - t0, 'ms');
     const runExportFlow = (async () => {
-      await page.goto(url.origin + '/workforce.html?embedded=1', { waitUntil: 'domcontentloaded' });
+      await page.goto(
+        url.origin + '/workforce.html?embedded=1&serverRenderDept=' + encodeURIComponent(department),
+        { waitUntil: 'domcontentloaded' }
+      );
       lap('goto done');
-      await page.waitForSelector('#menuBtn');
-      lap('menuBtn visible');
-      await page.click('#menuBtn');
-      await page.click('[data-view="orgChart"]');
-      lap('orgChart nav clicked');
-      await page.waitForFunction(() => document.querySelectorAll('#orgChartDeptSelect option').length > 1);
-      lap('dept options populated');
-      await page.select('#orgChartDeptSelect', department);
-      await page.waitForSelector('#exportOrgChartPdf:not([hidden])');
-      lap('export button visible');
-      await page.click('#exportOrgChartPdf');
-      lap('export button clicked');
       await printReady;
       lap('printReady resolved');
     })();

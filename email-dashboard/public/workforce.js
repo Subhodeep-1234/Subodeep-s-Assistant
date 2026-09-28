@@ -2291,7 +2291,7 @@ function downloadPdfBlob(blob, filename) {
 // the existing print-dialog export rather than surfacing an error.
 async function tryServerSideOrgChartPdf(dept) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   try {
     const resp = await fetch('/api/workforce/org-chart-pdf-server?department=' + encodeURIComponent(dept), {
       signal: controller.signal
@@ -2314,13 +2314,10 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
   btn.disabled = true;
   btn.textContent = 'Preparing…';
 
-  // window.__isServerSideExportRender is set by orgChartServerPdf.js's own
-  // headless render before this handler ever runs - without this check,
-  // that headless browser's own click on this exact button would ALSO
-  // try the server endpoint first, calling back into the very request
-  // that's already driving it (an instant, silent recursive hang, only
-  // ever escaping via the fetch's own abort timeout below).
-  const serverPdf = window.__isServerSideExportRender ? null : await tryServerSideOrgChartPdf(dept);
+  // orgChartServerPdf.js no longer drives this button at all - it renders
+  // via its own direct path (runServerSideOrgChartExport) instead, so a
+  // real click here only ever comes from an actual person.
+  const serverPdf = await tryServerSideOrgChartPdf(dept);
   if (serverPdf) {
     downloadPdfBlob(serverPdf, dept + '-Org-Chart.pdf');
     btn.disabled = false;
@@ -2330,14 +2327,7 @@ document.getElementById('exportOrgChartPdf').addEventListener('click', async () 
 
   let treeData;
   try {
-    // The server-driven headless export (orgChartServerPdf.js) sets this
-    // flag before this handler ever runs, to skip forcing a fresh Sheets
-    // fetch here - refresh=1's own cost (a real, ~20s API round trip past
-    // the 2-minute cache) is fine for one human clicking Export once, not
-    // for an automated render that may run back to back across many
-    // departments. The 2-minute cache keeps this well within reason.
-    const refreshParam = window.__skipOrgChartRefresh ? '' : '&refresh=1';
-    treeData = await fetchJson('/api/workforce/org-chart-pdf?department=' + encodeURIComponent(dept) + refreshParam);
+    treeData = await fetchJson('/api/workforce/org-chart-pdf?department=' + encodeURIComponent(dept) + '&refresh=1');
   } catch (err) {
     alert('Failed to prepare PDF: ' + err.message);
     btn.disabled = false;
@@ -7280,7 +7270,48 @@ function applyInterviewPanelOnlyMode() {
 
 document.getElementById('greetingTime').textContent = greetingForHour(new Date().getHours());
 
+// Server-side export's own direct render path (see orgChartServerPdf.js) -
+// fetches PDF-specific data and runs the exact same render sequence the
+// real Export button uses (renderOrgChartPdfTreeHtml/
+// preventPartialCardWraps/scaleOrgChartPdfTreeToFit/
+// drawOrgChartPdfConnectorsSvg, unchanged - guarantees identical output),
+// but skips every other page bootstrap step: no drawer identity check, no
+// Overview dashboard load (KPIs, chart.js donuts/lines), no menu/nav
+// clicks, no department dropdown, and no on-screen org-chart fetch that
+// selecting a department in that dropdown would otherwise also trigger
+// (a completely separate, forced-refresh Sheets round trip that PDF data
+// never uses). None of that work has any bearing on the PDF.
+async function runServerSideOrgChartExport(department) {
+  try {
+    const treeData = await fetchJson('/api/workforce/org-chart-pdf?department=' + encodeURIComponent(department));
+    // #orgChartPrintContent lives inside <section id="orgChartView" hidden>
+    // - normally un-hidden by setView() when a person navigates there.
+    // display:none on that ancestor zeroes out every descendant's layout
+    // regardless of the print CSS's own visibility overrides below it, so
+    // this must be un-hidden even though nothing else about that section
+    // (its on-screen cards view, nav highlighting, etc.) is used here.
+    document.getElementById('orgChartView').hidden = false;
+    const printEl = document.getElementById('orgChartPrintContent');
+    printEl.innerHTML = renderOrgChartPdfTreeHtml(treeData);
+    printEl.hidden = false;
+    document.body.classList.add('printing-org-chart');
+    const style = document.createElement('style');
+    style.textContent = '@page { size: 297mm 210mm; margin: 0; }';
+    document.head.appendChild(style);
+    preventPartialCardWraps(printEl);
+    const orgChartScale = scaleOrgChartPdfTreeToFit(printEl);
+    drawOrgChartPdfConnectorsSvg(printEl, orgChartScale);
+    window.print();
+  } catch (err) {
+    window.__serverRenderError = err.message;
+  }
+}
+
 (async function initApp() {
+  const autoExportDept = new URLSearchParams(location.search).get('serverRenderDept');
+  if (autoExportDept) {
+    return runServerSideOrgChartExport(autoExportDept);
+  }
   const identity = await loadDrawerIdentity();
   if (identity && identity.scope === 'interviewPanel') {
     applyInterviewPanelOnlyMode();
