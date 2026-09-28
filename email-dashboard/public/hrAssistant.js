@@ -10,7 +10,7 @@
   const closeBtn = document.getElementById('hrAssistantCloseBtn');
   const messagesEl = document.getElementById('hrAssistantMessages');
   const form = document.getElementById('hrAssistantForm');
-  const input = document.getElementById('hrAssistantInput');
+  const input = document.getElementById('assistantQuestion');
   const topbar = document.querySelector('.wf-topbar');
   const plusBtn = document.getElementById('hrAssistantPlusBtn');
   const micBtn = document.getElementById('hrAssistantMicBtn');
@@ -353,7 +353,8 @@
       const greetName = name && name !== '—' ? name.split(' ')[0] : '';
       addWelcome(greetName);
     }
-    setTimeout(() => input.focus(), 50);
+    // Deliberately no auto-focus here - the keyboard should only open when
+    // the person actually taps the input, not the moment the panel opens.
   }
 
   function closePanel() {
