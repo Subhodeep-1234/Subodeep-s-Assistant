@@ -6,16 +6,36 @@
 // duplicating navigation logic.
 (function () {
   const btn = document.getElementById('hrAssistantBtn');
-  const backdrop = document.getElementById('hrAssistantBackdrop');
   const panel = document.getElementById('hrAssistantPanel');
   const closeBtn = document.getElementById('hrAssistantCloseBtn');
   const messagesEl = document.getElementById('hrAssistantMessages');
   const form = document.getElementById('hrAssistantForm');
   const input = document.getElementById('hrAssistantInput');
+  const topbar = document.querySelector('.wf-topbar');
   if (!btn || !panel) return; // this page doesn't have the assistant markup
 
   const history = [];
   let opened = false;
+
+  // The panel fills the screen exactly from the app header's bottom edge
+  // to the bottom of whatever is actually visible - which, with an
+  // on-screen keyboard open, is well above window.innerHeight. vh units
+  // and window.innerHeight both describe the full layout viewport (the
+  // part still behind the keyboard on iOS Safari), so the only way to
+  // track the real visible area on both iOS Safari and Android Chrome is
+  // window.visualViewport, kept in sync on every resize/scroll it fires
+  // (keyboard show/hide, orientation change, browser chrome show/hide).
+  function syncPanelToViewport() {
+    if (panel.hidden) return;
+    const headerBottom = topbar ? topbar.getBoundingClientRect().bottom : 0;
+    const vv = window.visualViewport;
+    const visibleTop = vv ? vv.offsetTop : 0;
+    const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    const top = Math.max(headerBottom, visibleTop);
+    panel.style.top = top + 'px';
+    panel.style.bottom = Math.max(0, window.innerHeight - visibleBottom) + 'px';
+    scrollToBottom();
+  }
 
   function scrollToBottom() {
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -105,8 +125,13 @@
   }
 
   function openPanel() {
-    backdrop.hidden = false;
     panel.hidden = false;
+    syncPanelToViewport();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', syncPanelToViewport);
+      window.visualViewport.addEventListener('scroll', syncPanelToViewport);
+    }
+    window.addEventListener('orientationchange', syncPanelToViewport);
     if (!opened) {
       opened = true;
       const name = (document.getElementById('drawerName') && document.getElementById('drawerName').textContent.trim()) || '';
@@ -121,13 +146,22 @@
   }
 
   function closePanel() {
-    backdrop.hidden = true;
     panel.hidden = true;
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', syncPanelToViewport);
+      window.visualViewport.removeEventListener('scroll', syncPanelToViewport);
+    }
+    window.removeEventListener('orientationchange', syncPanelToViewport);
   }
 
   btn.addEventListener('click', openPanel);
   closeBtn.addEventListener('click', closePanel);
-  backdrop.addEventListener('click', closePanel);
+  // Re-sync right on focus/blur too, in addition to the visualViewport
+  // listeners above - covers the moment the keyboard is animating in/out
+  // before the viewport has finished settling, so the input bar doesn't
+  // visibly lag behind it.
+  input.addEventListener('focus', () => setTimeout(syncPanelToViewport, 50));
+  input.addEventListener('blur', () => setTimeout(syncPanelToViewport, 50));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

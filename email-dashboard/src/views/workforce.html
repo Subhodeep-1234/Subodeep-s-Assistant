@@ -98,7 +98,6 @@
          every wf-view section, at the top level of wf-shell, so it stays
          reachable from wherever the common header is, regardless of
          which view is currently active. -->
-    <div class="wf-ai-backdrop" id="hrAssistantBackdrop" hidden></div>
     <div class="wf-ai-panel" id="hrAssistantPanel" hidden role="dialog" aria-label="HR Assistant">
       <div class="wf-ai-panel-head">
         <span class="wf-ai-panel-icon">
@@ -114,6 +113,9 @@
       </div>
       <div class="wf-ai-messages" id="hrAssistantMessages"></div>
       <form class="wf-ai-input-row" id="hrAssistantForm">
+        <button type="button" class="wf-ai-attach-btn" aria-label="Attach file" tabindex="-1">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48"/></svg>
+        </button>
         <input type="text" id="hrAssistantInput" placeholder="Type your question…" autocomplete="off" />
         <button type="submit" class="wf-ai-send-btn" aria-label="Send">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
