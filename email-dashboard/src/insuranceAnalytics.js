@@ -183,20 +183,32 @@ function buildTotalInsuredLivesList(members) {
 // builder in this file uses - a family member removed from the policy
 // (status no longer Active) still has a row here but shouldn't count
 // towards this employee's coverage/premium totals. Returns null when no
-// row at all matches this employee, so the route can tell the difference
-// from a real employee with zero coverage.
+// row at all matches this employee (including the addition-sheet
+// fallback below), so the route can tell the difference from a real
+// employee with zero coverage.
 //
 // `includeInactive` is only passed true from the Pending Exits/Total
 // Exits/New Additions lists (see insuranceRoutes.js) - an exited
 // employee's Member List row doesn't disappear, its status just flips to
 // Inactive, so requiring status === 'Active' unconditionally made every
-// exit (and any brand-new addition not yet marked Active) 404 here even
-// though their row genuinely exists. Covered Employees/Family Members/
-// Total Insured Lives don't pass it, since those lists are themselves
-// Active-only, so an Active row should always be found from them.
-function buildEmployeeInsuranceProfile(members, employeeId, { includeInactive = false } = {}) {
+// exit 404 here even though their row genuinely exists. Covered
+// Employees/Family Members/Total Insured Lives don't pass it, since
+// those lists are themselves Active-only, so an Active row should always
+// be found from them.
+//
+// `additions` is only passed from the New Additions list. A brand-new
+// addition isn't an Inactive Member List row waiting to be reactivated -
+// it has NO Member List row at all yet, because that's the whole point
+// of "New Addition Requests" (it tracks submissions not yet processed
+// onto the Member List). Its actual data - name, DOJ, DOB, sum insured -
+// lives on the Additions tab instead, so when there's no Member List row
+// at all, this falls back to building a profile from there (no premium,
+// since Additions doesn't carry one - the person hasn't been priced yet).
+function buildEmployeeInsuranceProfile(members, employeeId, { includeInactive = false, additions = null } = {}) {
   const rows = members.filter((m) => m.employeeId === employeeId && (includeInactive || m.status === 'Active'));
-  if (!rows.length) return null;
+  if (!rows.length) {
+    return additions ? buildProfileFromAdditionRows(additions.filter((a) => a.employeeId === employeeId)) : null;
+  }
   const isSelf = (m) => String(m.relationship || '').toLowerCase() === 'self';
   const selfRow = rows.find(isSelf);
   const familyRows = rows.filter((m) => !isSelf(m));
@@ -231,6 +243,41 @@ function buildEmployeeInsuranceProfile(members, employeeId, { includeInactive = 
     familyCount: familyRows.length,
     totalPremium: rows.reduce((sum, m) => sum + m.premiumWithGST, 0),
     premiumByGroup,
+    countByGroup
+  };
+}
+
+function buildProfileFromAdditionRows(rows) {
+  if (!rows.length) return null;
+  const isSelf = (a) => String(a.relationship || '').toLowerCase() === 'self';
+  const selfRow = rows.find(isSelf);
+  const familyRows = rows.filter((a) => !isSelf(a));
+
+  const countByGroup = { employees: 0, spouse: 0, children: 0, parents: 0, other: 0 };
+  rows.forEach((a) => { countByGroup[relationshipGroup(a.relationship)] += 1; });
+
+  return {
+    self: selfRow
+      ? {
+          name: selfRow.name,
+          age: null,
+          sumInsured: selfRow.sumInsured,
+          premiumWithGST: 0,
+          status: 'Pending',
+          grade: ''
+        }
+      : null,
+    family: familyRows.map((a) => ({
+      name: a.name,
+      relationship: a.relationship,
+      age: null,
+      sumInsured: a.sumInsured,
+      premiumWithGST: 0,
+      status: 'Pending'
+    })),
+    familyCount: familyRows.length,
+    totalPremium: 0,
+    premiumByGroup: { employees: 0, spouse: 0, children: 0, parents: 0, other: 0 },
     countByGroup
   };
 }

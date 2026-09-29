@@ -248,10 +248,16 @@ router.get('/employee/:employeeId', async (req, res) => {
       policyDocumentsService.getPolicyDriveData({ forceRefresh })
     ]);
     const employeeId = req.params.employeeId;
-    // Only the Pending Exits/Total Exits/New Additions lists send this -
-    // see buildEmployeeInsuranceProfile for why they need it.
-    const includeInactive = req.query.includeInactive === '1';
-    const profile = analytics.buildEmployeeInsuranceProfile(insuranceData.members, employeeId, { includeInactive });
+    // Sent only from Pending Exits/Total Exits ('exit') or New Additions
+    // ('addition') - see buildEmployeeInsuranceProfile for why each needs
+    // different relaxed behaviour. Covered Employees/Family Members/Total
+    // Insured Lives send neither and keep the strict Active-only default.
+    const source = req.query.source;
+    const includeInactive = source === 'exit' || source === 'addition';
+    const profile = analytics.buildEmployeeInsuranceProfile(insuranceData.members, employeeId, {
+      includeInactive,
+      additions: source === 'addition' ? insuranceData.additions : null
+    });
     if (!profile || !profile.self) {
       const message = includeInactive
         ? 'This employee has no record in the Member List yet.'
