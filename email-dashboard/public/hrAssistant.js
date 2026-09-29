@@ -94,6 +94,63 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // Two-stage loading indicator: avatar (same robot glyph as the panel
+  // header, minus its decorative sparkle) beside a bubble with animated
+  // dots + a label. Starts at "Thinking.." (2 dots); after 2s, if still
+  // waiting, swaps to "AI is preparing your response..." (3 dots) via the
+  // pending timer below - cleared by the caller the moment a real reply
+  // (or error) arrives, so the second stage simply never shows if the
+  // reply was already fast enough.
+  const LOADING_AVATAR_SVG =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<path d="M10 3.6V5.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+    '<circle cx="10" cy="2.6" r="1.1" fill="currentColor"/>' +
+    '<rect x="2.6" y="5.6" width="14.8" height="12.8" rx="4.2" stroke="currentColor" stroke-width="1.8"/>' +
+    '<circle cx="7.2" cy="11.4" r="1.35" fill="currentColor"/><circle cx="13" cy="11.4" r="1.35" fill="currentColor"/>' +
+    '<path d="M7.8 15.2H12.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+  function addLoadingBubble() {
+    const row = document.createElement('div');
+    row.className = 'wf-ai-msg assistant loading';
+
+    const inner = document.createElement('div');
+    inner.className = 'wf-ai-loading-row';
+
+    const avatar = document.createElement('span');
+    avatar.className = 'wf-ai-loading-avatar';
+    avatar.innerHTML = LOADING_AVATAR_SVG;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'wf-ai-loading-bubble';
+    const dots = document.createElement('span');
+    dots.className = 'wf-ai-loading-dots';
+    const label = document.createElement('span');
+    label.className = 'wf-ai-loading-label';
+
+    function setStage(dotCount, labelText) {
+      dots.innerHTML = '';
+      for (let i = 0; i < dotCount; i++) dots.appendChild(document.createElement('span'));
+      label.textContent = labelText;
+    }
+    setStage(2, 'Thinking..');
+
+    bubble.appendChild(dots);
+    bubble.appendChild(label);
+    inner.appendChild(avatar);
+    inner.appendChild(bubble);
+    row.appendChild(inner);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+
+    row._loadingTimerId = setTimeout(() => setStage(3, 'AI is preparing your response...'), 2000);
+    return row;
+  }
+
+  function removeLoadingBubble(row) {
+    clearTimeout(row._loadingTimerId);
+    row.remove();
+  }
+
   function addBubble(role, text, attachment) {
     const row = document.createElement('div');
     row.className = 'wf-ai-msg ' + role;
@@ -820,8 +877,7 @@
     }
 
     history.push({ role: 'user', text });
-    const loadingRow = addBubble('assistant', 'AI is thinking…');
-    loadingRow.classList.add('loading');
+    const loadingRow = addLoadingBubble();
 
     try {
       const resp = await fetch('/api/workforce/hr-assistant/chat', {
@@ -834,7 +890,7 @@
           attachmentName: attachment ? attachment.name : null
         })
       });
-      loadingRow.remove();
+      removeLoadingBubble(loadingRow);
       if (!resp.ok) {
         addBubble('assistant', 'Unable to retrieve the requested information. Please try again.');
         return;
@@ -846,7 +902,7 @@
       if (data.card) addCard(data.card);
       if (data.actions && data.actions.length) addActions(data.actions);
     } catch (err) {
-      loadingRow.remove();
+      removeLoadingBubble(loadingRow);
       addBubble('assistant', 'Something went wrong. Please try again.');
     } finally {
       input.disabled = false;
