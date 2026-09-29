@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/index.js": {
-      "includeFiles": "{public/**,src/assets/**,src/views/**,node_modules/chart.js/dist/**,node_modules/pdfkit/js/data/**,node_modules/pdfkit/js/standard-fonts/**,node_modules/pdfkit/lib/**,node_modules/@sparticuz/chromium/**}",
+      "includeFiles": "{public/**,src/assets/**,src/views/**,node_modules/chart.js/dist/chart.umd.js,node_modules/pdfkit/js/data/**,node_modules/pdfkit/js/standard-fonts/**,node_modules/pdfkit/lib/**,node_modules/@sparticuz/chromium/**}",
+      "excludeFiles": "node_modules/**/{*.map,*.d.ts,README*,readme*,CHANGELOG*,LICENSE*,test/**,tests/**,__tests__/**}",
       "maxDuration": 30,
       "memory": 1024
     }
