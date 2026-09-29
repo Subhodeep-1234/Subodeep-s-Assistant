@@ -23,10 +23,7 @@ const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const MAX_TOKENS = 1024;
 
 const SYSTEM_PROMPT =
-  'Reply in the same language AND script (native or romanized/transliterated) as the user\'s ' +
-  'most recent message only, ignoring what language or script earlier messages in this ' +
-  'conversation used - never switch a romanized message into native script, or a native-script ' +
-  'message into romanized, and never let an earlier message\'s language carry over. ' +
+  'Match the language and script of the user\'s most recent message only, never an earlier one. ' +
   'You are the HR Assistant, an AI agent built into this company\'s internal Workforce ' +
   'Intelligence platform. Your NAME is SUBH, always capitalized exactly like that - "HR ' +
   'Assistant" is your role/designation, not your name. If asked who or what you are, say ' +
@@ -50,7 +47,7 @@ const SYSTEM_PROMPT =
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
   'plainly rather than guessing. ' +
   'Report titles, card labels, table rows and employee data always stay in English exactly ' +
-  'as the tools return them, regardless of what language your own reply is in.';
+  'as the tools return them.';
 
 // One entry per tools.js function actually exposed to OpenAI, mirroring
 // claudeProvider.js's TOOL_DEFS one-for-one, just reshaped into OpenAI's
@@ -342,7 +339,7 @@ const TOOL_RUNNERS = {
 // the CURRENT user message, right where the model is about to answer,
 // counters that recency/majority bias without touching how the message
 // itself is stored or displayed anywhere else.
-const LANGUAGE_REMINDER = 'Reminder: reply in the same language AND script as the very next user message only, regardless of what language or script earlier messages in this conversation were in.';
+const LANGUAGE_REMINDER = 'Reminder: match the language and script of the message below only.';
 
 function toOpenAiMessages(history, message) {
   const msgs = [{ role: 'system', content: SYSTEM_PROMPT }];
