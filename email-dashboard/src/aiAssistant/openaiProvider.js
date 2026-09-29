@@ -206,6 +206,18 @@ const TOOL_DEFS = [
   {
     type: 'function',
     function: {
+      name: 'get_employee_detail',
+      description: 'Get a single named employee\'s profile: Employee ID, Designation, Department, Status, Date of Birth, Tenure, Total Experience, Reporting Manager. This tool never returns and you must never claim to have Aadhar, PAN, contact number, address, bank details, UAN, ESI number or email - those are excluded entirely, permanently, by design.',
+      parameters: {
+        type: 'object',
+        properties: { name: { type: 'string', description: 'The employee\'s name or ID, as mentioned by the user.' } },
+        required: ['name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_employees',
       description: 'Get an actual filtered, sortable list of individual employees (Emp Code, Name, Designation, Department, Status, DOJ) - use this whenever someone wants to SEE the employees themselves, not just a count (e.g. "list the engineers in Civil", "show me everyone who joined last quarter", "who is in the Sales department"). You DO have access to employee lists via this tool - never say you don\'t. The full list is already shown in the results card below your reply - do not repeat it as a table in your own text, just a short one-line summary.',
       parameters: {
@@ -309,6 +321,7 @@ const TOOL_RUNNERS = {
   get_demographics: (input) => tools.demographics(input.kind),
   find_employee: (input) => tools.findEmployee(input.query),
   get_direct_reports: (input) => tools.directReports(input.name),
+  get_employee_detail: (input) => tools.employeeDetail(input.name),
   list_employees: (input) => tools.listEmployees(input),
   group_employees: (input) => tools.groupEmployees(input, input.groupBy),
   prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),

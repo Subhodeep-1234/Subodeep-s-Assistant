@@ -383,6 +383,44 @@ async function findEmployee(query) {
     }));
 }
 
+// Single-employee detail card - deliberately hand-picks only the fields
+// the user approved for chat (DOB, tenure, total experience, department,
+// designation, reporting manager, plus the basic identifiers already
+// exposed by find_employee). Aadhar, PAN, contact number, address, bank
+// details, UAN/ESI and email are NEVER read into this return value at
+// all - not filtered out afterward, simply never selected from the full
+// employee record in the first place - so there's no code path here that
+// could leak them into a chat reply or conversation history, structurally
+// the same guarantee as the read-only Sheets scopes elsewhere in this
+// feature: an instruction can't be talked around because the data was
+// never fetched into reach to begin with.
+async function employeeDetail(name) {
+  const q = String(name || '').trim();
+  if (!q) return { title: null, rows: null, actions: null };
+  const { employees, departmentNames } = await employeeService.getEmployeeData();
+  const qLower = q.toLowerCase();
+  const matches = employees.filter((e) => e.name.toLowerCase().includes(qLower) || e.employeeId.toLowerCase().includes(qLower));
+  if (!matches.length) {
+    return { title: null, rows: null, actions: [{ label: 'Open Employee Data', view: 'directory' }], notFound: q };
+  }
+  const emp = matches[0];
+  return {
+    title: emp.name,
+    rows: [
+      { label: 'Employee ID', value: emp.employeeId },
+      { label: 'Designation', value: emp.designation || '—' },
+      { label: 'Department', value: departmentNames.get(emp.departmentKey) || emp.department || '—' },
+      { label: 'Status', value: emp.status || '—' },
+      { label: 'Date of Birth', value: emp.dob ? emp.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
+      { label: 'Tenure', value: emp.tenure || '—' },
+      { label: 'Total Experience', value: emp.totalExperience || '—' },
+      { label: 'Reporting Manager', value: emp.reportingManager || '—' }
+    ],
+    footer: null,
+    actions: [{ label: 'Open Employee Data', view: 'directory' }]
+  };
+}
+
 // "Who reports to X" / "who's on X's team" - this dataset's reporting
 // hierarchy is two flat free-text name columns per employee (Reporting
 // Manager i.e. HOD-1, and Reporting DOER), not a manager-employeeId
@@ -498,6 +536,7 @@ module.exports = {
   insightsSummary,
   demographics,
   findEmployee,
+  employeeDetail,
   directReports,
   listEmployees,
   groupEmployees,
