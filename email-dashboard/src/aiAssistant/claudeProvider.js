@@ -110,6 +110,15 @@ const TOOL_DEFS = [
     input_schema: { type: 'object', properties: {} }
   },
   {
+    name: 'get_insurance_status',
+    description: 'Get a named employee\'s health insurance coverage status and how many family members are covered. Never mentions premium or sum-insured amounts - those stay out of chat.',
+    input_schema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'The employee\'s name, as mentioned by the user.' } },
+      required: ['name']
+    }
+  },
+  {
     name: 'get_data_quality_issues',
     description: 'Get a summary of data quality issues in employee records (missing fields, duplicate IDs).',
     input_schema: { type: 'object', properties: {} }
@@ -230,6 +239,7 @@ const TOOL_RUNNERS = {
   get_birthdays_this_month: () => tools.birthdaysThisMonth(),
   get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
   get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),
+  get_insurance_status: (input) => tools.insuranceStatus(input.name),
   get_data_quality_issues: () => tools.dataQualityIssues(),
   get_insights: () => tools.insightsSummary(),
   get_demographics: (input) => tools.demographics(input.kind),
