@@ -30,6 +30,10 @@ const SYSTEM_PROMPT =
   'You are the HR Assistant, an AI agent built into this company\'s internal Workforce ' +
   'Intelligence platform. You help HR staff and managers get reports, employee data, and ' +
   'perform HR tasks by calling the tools you\'re given. ' +
+  'You have direct access to real employee records, not just summaries: list_employees ' +
+  'returns an actual filtered, sorted list of employees (Emp Code, Name, Designation, ' +
+  'Department, Status, DOJ), and group_employees returns counts grouped by any field. Never ' +
+  'say you lack access to employee lists or can\'t filter/list employees - use these tools. ' +
   'You must call a tool on every turn, including this one - there is no way to reply without ' +
   'calling one. If the message is just a greeting, thanks, or anything with no real HR ' +
   'question in it, call no_data_needed. Never state a specific name, number, or date unless ' +
@@ -154,6 +158,47 @@ const TOOL_DEFS = [
   {
     type: 'function',
     function: {
+      name: 'list_employees',
+      description: 'Get an actual filtered, sortable list of individual employees (Emp Code, Name, Designation, Department, Status, DOJ) - use this whenever someone wants to SEE the employees themselves, not just a count (e.g. "list the engineers in Civil", "show me everyone who joined last quarter", "who is in the Sales department"). You DO have access to employee lists via this tool - never say you don\'t.',
+      parameters: {
+        type: 'object',
+        properties: {
+          designation: { type: 'string', description: 'Substring match on designation/title, e.g. "engineer" matches Engineer, Jr. Engineer, Senior Engineer, etc.' },
+          department: { type: 'string', description: 'Exact department name.' },
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'] },
+          dateFrom: { type: 'string', description: 'Joining date range start, YYYY-MM-DD.' },
+          dateTo: { type: 'string', description: 'Joining date range end, YYYY-MM-DD.' },
+          q: { type: 'string', description: 'Free-text search across name, employee ID, email, department, designation, location.' },
+          sortBy: { type: 'string', enum: ['name', 'employeeId', 'designation', 'department', 'doj'] },
+          sortDir: { type: 'string', enum: ['asc', 'desc'] },
+          limit: { type: 'integer', description: 'Max rows to return (default 50, max 200).' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'group_employees',
+      description: 'Count employees grouped by one field (department, designation, status, location, gender, or category), optionally filtered first - use this for "how many X per Y" questions that don\'t match an existing preset report, e.g. "how many engineers per department".',
+      parameters: {
+        type: 'object',
+        properties: {
+          groupBy: { type: 'string', enum: ['department', 'designation', 'status', 'location', 'gender', 'collar'] },
+          designation: { type: 'string', description: 'Substring match on designation/title to filter by first, e.g. "engineer".' },
+          department: { type: 'string' },
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'] },
+          dateFrom: { type: 'string', description: 'Joining date range start, YYYY-MM-DD.' },
+          dateTo: { type: 'string', description: 'Joining date range end, YYYY-MM-DD.' },
+          q: { type: 'string', description: 'Free-text search to filter by first.' }
+        },
+        required: ['groupBy']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'prepare_letter',
       description: 'Prepare a promotion/increment, increment-only, or confirmation letter for a named employee, ready to open in the Letter Generator.',
       parameters: {
@@ -203,6 +248,8 @@ const TOOL_RUNNERS = {
   get_insights: () => tools.insightsSummary(),
   get_demographics: (input) => tools.demographics(input.kind),
   find_employee: (input) => tools.findEmployee(input.query),
+  list_employees: (input) => tools.listEmployees(input),
+  group_employees: (input) => tools.groupEmployees(input, input.groupBy),
   prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),
   navigate_to_view: (input) => tools.navigateToView(input.view),
   no_data_needed: () => ({ title: null, rows: null, actions: null })
@@ -306,7 +353,16 @@ async function getResponse({ message, history, user }) {
     try {
       toolResult = runner ? await runner(input) : { error: 'Unknown tool: ' + toolCall.function.name };
       if (toolResult && !toolResult.error) {
-        card = toolResult.title ? { title: toolResult.title, rows: toolResult.rows, footer: toolResult.footer || null } : null;
+        card = toolResult.title
+          ? {
+              title: toolResult.title,
+              rows: toolResult.rows || null,
+              columns: toolResult.columns || null,
+              tableRows: toolResult.tableRows || null,
+              footer: toolResult.footer || null,
+              note: toolResult.note || null
+            }
+          : null;
         actions = toolResult.actions || null;
       }
     } catch (err) {

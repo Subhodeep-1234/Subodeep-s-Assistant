@@ -23,11 +23,10 @@ function wantsForceRefresh(req) {
   return req.query.refresh === '1' || req.query.refresh === 'true';
 }
 
-// "0" in the sheet's Group - D column means White collar - the other two
-// values already read as real labels ("Group-D", "Blue").
-function formatCollar(value) {
-  return value === '0' ? 'White' : value;
-}
+// formatCollar/filterEmployees now live in employeeService.js (shared with
+// the HR Assistant's list_employees/group_employees tools, which filter
+// identically to this route).
+const { formatCollar } = employeeService;
 
 // Exact server-side copy of the on-screen "Export PDF" report's own sort/
 // grouping (public/workforce.js: DESIGNATION_RANK_TIERS/designationRank/
@@ -182,62 +181,12 @@ router.get('/companies', async (req, res) => {
   }
 });
 
-function matchesFilters(emp, query, normalizeKey) {
-  if (query.status && emp.status !== String(query.status).toUpperCase()) return false;
-  // "Anyone but Inactive" - distinct from an exact status match above, for
-  // filters (some Insights points) that mean to include Notice Period
-  // alongside Active rather than pin down to exactly one status.
-  if (query.statusNot && emp.status === String(query.statusNot).toUpperCase()) return false;
-  if (query.department && emp.departmentKey !== normalizeKey(query.department)) return false;
-  if (query.location && emp.locationKey !== normalizeKey(query.location)) return false;
-  if (query.reportingManager && emp.reportingManagerKey !== normalizeKey(query.reportingManager)) return false;
-  if (query.collar && formatCollar(emp.groupD).toLowerCase() !== String(query.collar).toLowerCase()) return false;
-  if (query.gender && (emp.gender || '').toLowerCase() !== String(query.gender).toLowerCase()) return false;
-  if (query.reportingDoer && emp.reportingDoerKey !== normalizeKey(query.reportingDoer)) return false;
-  if (query.employmentType && emp.employmentType.toLowerCase() !== String(query.employmentType).toLowerCase()) {
-    return false;
-  }
-  if (query.dateFrom) {
-    const from = new Date(query.dateFrom);
-    if (!emp.doj || isNaN(from.getTime()) || emp.doj < from) return false;
-  }
-  if (query.dateTo) {
-    const to = new Date(query.dateTo);
-    if (!emp.doj || isNaN(to.getTime()) || emp.doj > to) return false;
-  }
-  if (query.q) {
-    const needle = String(query.q).toLowerCase();
-    const haystack = [emp.employeeId, emp.name, emp.email, emp.department, emp.designation, emp.location]
-      .join(' ')
-      .toLowerCase();
-    if (!haystack.includes(needle)) return false;
-  }
-  if (query.ageMin || query.ageMax) {
-    if (!emp.dob) return false;
-    const age = analytics.calcAge(emp.dob, new Date());
-    if (query.ageMin && age < Number(query.ageMin)) return false;
-    if (query.ageMax && age > Number(query.ageMax)) return false;
-  }
-  // dobMonth (1-12) / dobYear - birth-month and exact-birth-year matches on
-  // DOB, for Insights' birthday/retirement-this-month points (calcAge's
-  // ageMin/ageMax above is birthday-aware "current age", not a fixed match
-  // on the birth year itself, so it can't express "turning 58 this month").
-  if (query.dobMonth) {
-    if (!emp.dob || emp.dob.getUTCMonth() !== Number(query.dobMonth) - 1) return false;
-  }
-  if (query.dobYear) {
-    if (!emp.dob || emp.dob.getUTCFullYear() !== Number(query.dobYear)) return false;
-  }
-  if (query.missingContact === '1' && emp.contactNumber) return false;
-  return true;
-}
-
 router.get('/employees', async (req, res) => {
   try {
     const { employees, departmentNames, locationNames, reportingManagerNames } = await employeeService.getEmployeeData({
       forceRefresh: wantsForceRefresh(req)
     });
-    const filtered = employees.filter((e) => matchesFilters(e, req.query, employeeService.normalizeKey));
+    const filtered = employeeService.filterEmployees(employees, req.query);
     const items = filtered.slice(0, EMPLOYEE_LIST_CAP).map((e) => ({
       employeeId: e.employeeId,
       name: e.name,
@@ -289,7 +238,7 @@ router.get('/employees/pdf', async (req, res) => {
     const { employees, departmentNames } = await employeeService.getEmployeeData({
       forceRefresh: wantsForceRefresh(req)
     });
-    const filtered = employees.filter((e) => matchesFilters(e, req.query, employeeService.normalizeKey));
+    const filtered = employeeService.filterEmployees(employees, req.query);
 
     const sorted = filtered.slice().sort((a, b) => {
       const collarA = employeeReportCollarRank(formatCollar(a.groupD));

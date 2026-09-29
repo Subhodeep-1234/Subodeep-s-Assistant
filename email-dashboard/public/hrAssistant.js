@@ -179,6 +179,40 @@
     title.className = 'wf-ai-card-title';
     title.textContent = card.title;
     wrap.appendChild(title);
+
+    // Multi-column table mode (list_employees and any future row-per-record
+    // tool) - a real HTML table, horizontally scrollable on narrow screens,
+    // as opposed to the existing single label/value report-card rows below
+    // (which every other tool still uses unchanged).
+    if (card.columns && card.tableRows) {
+      const scroller = document.createElement('div');
+      scroller.className = 'wf-ai-card-table-scroll';
+      const table = document.createElement('table');
+      table.className = 'wf-ai-card-table';
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      card.columns.forEach((col) => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      card.tableRows.forEach((cells) => {
+        const tr = document.createElement('tr');
+        cells.forEach((cell) => {
+          const td = document.createElement('td');
+          td.textContent = cell === '' || cell === null || cell === undefined ? '—' : String(cell);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      scroller.appendChild(table);
+      wrap.appendChild(scroller);
+    }
+
     (card.rows || []).forEach((r) => {
       const row = document.createElement('div');
       row.className = 'wf-ai-card-row';
@@ -197,6 +231,12 @@
       footer.className = 'wf-ai-card-footer';
       footer.innerHTML = '<span>' + escapeHtml(card.footer.label) + '</span><span>' + escapeHtml(String(card.footer.value)) + '</span>';
       wrap.appendChild(footer);
+    }
+    if (card.note) {
+      const note = document.createElement('div');
+      note.className = 'wf-ai-card-note';
+      note.textContent = card.note;
+      wrap.appendChild(note);
     }
     messagesEl.appendChild(wrap);
     scrollToBottom();

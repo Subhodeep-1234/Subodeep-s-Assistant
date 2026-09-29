@@ -151,6 +151,123 @@ async function demographics(kind) {
   };
 }
 
+const LIST_DEFAULT_LIMIT = 50;
+const LIST_MAX_LIMIT = 200;
+
+// Same filter shape as /api/workforce/employees and its PDF export
+// (employeeService.filterEmployees) - so "Download PDF" below can just
+// point at that existing, already-tested route with the same query
+// params, no new PDF-building code needed.
+function buildEmployeeQueryString(filters) {
+  const params = new URLSearchParams();
+  ['designation', 'department', 'status', 'dateFrom', 'dateTo', 'q'].forEach((key) => {
+    if (filters && filters[key]) params.set(key, filters[key]);
+  });
+  const qs = params.toString();
+  return qs ? '?' + qs : '';
+}
+
+const LIST_SORT_FIELDS = {
+  name: (e) => (e.name || '').toLowerCase(),
+  employeeId: (e) => (e.employeeId || '').toLowerCase(),
+  designation: (e) => (e.designation || '').toLowerCase(),
+  department: (e, departmentNames) => (departmentNames.get(e.departmentKey) || e.department || '').toLowerCase(),
+  doj: (e) => (e.doj ? e.doj.getTime() : 0)
+};
+
+// A genuine filtered/sorted employee LIST (as opposed to every other tool
+// here, which returns a count or summary) - the gap that made the
+// assistant wrongly claim "no access to employee lists" for a request
+// like "list engineers in my active data". Read-only: this only ever
+// reads via employeeService.getEmployeeData()/filterEmployees, the exact
+// same read path the rest of the app uses - no new data access, just a
+// new shape (a real row-per-employee table) for the AI to return.
+async function listEmployees(filters = {}) {
+  const { employees, departmentNames } = await employeeService.getEmployeeData();
+  const filtered = employeeService.filterEmployees(employees, filters);
+
+  const sortKey = LIST_SORT_FIELDS[filters.sortBy] ? filters.sortBy : 'name';
+  const sortDir = filters.sortDir === 'desc' ? -1 : 1;
+  const getSortValue = LIST_SORT_FIELDS[sortKey];
+  const sorted = filtered.slice().sort((a, b) => {
+    const va = getSortValue(a, departmentNames);
+    const vb = getSortValue(b, departmentNames);
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return 1 * sortDir;
+    return 0;
+  });
+
+  const limit = Math.max(1, Math.min(Number(filters.limit) || LIST_DEFAULT_LIMIT, LIST_MAX_LIMIT));
+  const shown = sorted.slice(0, limit);
+  const truncated = filtered.length > shown.length;
+
+  return {
+    title: 'Employee List',
+    columns: ['Emp Code', 'Name', 'Designation', 'Department', 'Status', 'DOJ'],
+    tableRows: shown.map((e) => [
+      e.employeeId,
+      e.name,
+      e.designation || '—',
+      departmentNames.get(e.departmentKey) || e.department || '—',
+      e.status,
+      e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+    ]),
+    footer: { label: 'Total Matching', value: filtered.length },
+    note: truncated
+      ? ('Showing ' + shown.length + ' of ' + filtered.length + ' - narrow your filters, sort differently, or download the full PDF to see the rest.')
+      : null,
+    actions: [
+      { label: 'View Full Report', view: 'directory' },
+      { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildEmployeeQueryString(filters) }
+    ]
+  };
+}
+
+const GROUP_BY_FIELDS = {
+  department: (e, names) => names.departmentNames.get(e.departmentKey) || e.department || 'Unspecified',
+  designation: (e) => e.designation || 'Unspecified',
+  status: (e) => e.status || 'Unspecified',
+  location: (e, names) => names.locationNames.get(e.locationKey) || e.location || 'Unspecified',
+  gender: (e) => e.gender || 'Unspecified',
+  collar: (e) => employeeService.formatCollar(e.groupD) || 'Unspecified'
+};
+const GROUP_BY_LABELS = {
+  department: 'Department', designation: 'Designation', status: 'Status',
+  location: 'Location', gender: 'Gender', collar: 'Category'
+};
+
+// Counts, grouped by any one field, over the same filtered set list_
+// employees would return - answers "how many X per Y" (e.g. "how many
+// engineers per department") without a preset report existing for it.
+async function groupEmployees(filters = {}, groupBy = 'department') {
+  const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+  const filtered = employeeService.filterEmployees(employees, filters);
+  const getGroupKey = GROUP_BY_FIELDS[groupBy] || GROUP_BY_FIELDS.department;
+  const names = { departmentNames, locationNames };
+
+  const counts = new Map();
+  filtered.forEach((e) => {
+    const key = getGroupKey(e, names);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  const allRows = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, value]) => ({ label, value }));
+  const top = allRows.slice(0, CARD_ROW_LIMIT);
+  const rest = allRows.length - top.length;
+  const groupLabel = GROUP_BY_LABELS[groupBy] || 'Department';
+
+  return {
+    title: 'Employee Count by ' + groupLabel + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
+    rows: top,
+    footer: { label: 'Total Matching', value: filtered.length },
+    actions: [
+      { label: 'View Full Report', view: 'directory' },
+      { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildEmployeeQueryString(filters) }
+    ]
+  };
+}
+
 // Simple substring match on name/employeeId - the same convention every
 // existing employee-search list in workforce.js already uses.
 async function findEmployee(query) {
@@ -229,6 +346,8 @@ module.exports = {
   insightsSummary,
   demographics,
   findEmployee,
+  listEmployees,
+  groupEmployees,
   prepareLetter,
   navigateToView,
   NAVIGABLE_VIEWS
