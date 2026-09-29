@@ -257,6 +257,23 @@ async function callOpenAi(apiKey, messages, forceToolCall) {
   return resp.json();
 }
 
+// Sums the two calls that make up one turn (the initial forced-tool-call
+// request and the follow-up that turns the tool result into a reply) into
+// one real, measured usage figure - not an estimate, straight from
+// OpenAI's own response. cachedTokens (prompt_tokens_details.cached_tokens)
+// is surfaced separately since OpenAI bills those at a discount when the
+// system+tools prefix repeats across requests.
+function combineOpenAiUsage(u1, u2) {
+  const a = u1 || {};
+  const b = u2 || {};
+  return {
+    promptTokens: (a.prompt_tokens || 0) + (b.prompt_tokens || 0),
+    completionTokens: (a.completion_tokens || 0) + (b.completion_tokens || 0),
+    cachedTokens: ((a.prompt_tokens_details && a.prompt_tokens_details.cached_tokens) || 0) +
+      ((b.prompt_tokens_details && b.prompt_tokens_details.cached_tokens) || 0)
+  };
+}
+
 async function getResponse({ message, history, user }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -269,6 +286,7 @@ async function getResponse({ message, history, user }) {
   let data = await callOpenAi(apiKey, messages, true);
   let choice = data.choices && data.choices[0];
   let assistantMessage = choice && choice.message;
+  const usage1 = data.usage || null;
 
   // At most one tool round-trip - every tool here is a single, direct
   // lookup with no reason for the model to chain multiple calls together;
@@ -282,14 +300,6 @@ async function getResponse({ message, history, user }) {
     } catch (err) {
       input = {};
     }
-    // Audit log: which tool, when, for whom - never the data it returns
-    // (see toolCallLog.js).
-    toolCallLog.recordToolCall({
-      email: user && user.email,
-      provider: 'openai',
-      toolName: toolCall.function.name,
-      params: input
-    });
     let toolResult;
     let card = null;
     let actions = null;
@@ -314,9 +324,27 @@ async function getResponse({ message, history, user }) {
     data = await callOpenAi(apiKey, followUpMessages);
     choice = data.choices && data.choices[0];
     assistantMessage = choice && choice.message;
+    const usage2 = data.usage || null;
+    // Audit log: which tool, when, for whom, and the real token usage for
+    // both calls in this turn - never the data a tool returned (see
+    // toolCallLog.js).
+    toolCallLog.recordToolCall({
+      email: user && user.email,
+      provider: 'openai',
+      toolName: toolCall.function.name,
+      params: input,
+      usage: combineOpenAiUsage(usage1, usage2)
+    });
     return { reply: (assistantMessage && assistantMessage.content) || 'Here you go.', card, actions };
   }
 
+  toolCallLog.recordToolCall({
+    email: user && user.email,
+    provider: 'openai',
+    toolName: null,
+    params: {},
+    usage: combineOpenAiUsage(usage1, null)
+  });
   return { reply: (assistantMessage && assistantMessage.content) || "I'm not sure how to help with that yet.", card: null, actions: null };
 }
 
