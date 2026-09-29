@@ -1,4 +1,11 @@
-const { getSheetsClient } = require('./sheetsAuth');
+// Two different scopes on purpose: the daily-snapshot/webhook writers
+// below use the write-scoped client, while the AI-Assistant-reachable
+// read functions near the bottom of this file (getTransfersInLastDays
+// etc.) use the read-only client - so that call path can never reach a
+// write, even indirectly, regardless of what the AI asks for. See
+// sheetsAuth.js for why this split is enforced by Google's own API, not
+// just by this file's own discipline.
+const { getSheetsReadOnlyClient, getSheetsWriteClient } = require('./sheetsAuth');
 const employeeService = require('./employeeService');
 
 // Deliberately a separate spreadsheet from HR Master Data - this is the
@@ -70,7 +77,7 @@ async function ensureTabsOnce(sheets, config) {
 // snapshot (new hires, or the very first run ever) are seeded without
 // generating a false "change" - there's nothing to compare against yet.
 async function runFieldSnapshot(config, employees) {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   await ensureTabsOnce(sheets, config);
 
   const active = employees.filter((e) => e.status === 'ACTIVE' && e.employeeId && e[config.employeeField]);
@@ -135,7 +142,7 @@ async function runDailySnapshot() {
 // webhook call is ever missed (script error, deploy downtime).
 async function checkAndLogFieldChange(config, { employeeId, name, value }) {
   if (!employeeId || !value) return { changed: false };
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   await ensureTabsOnce(sheets, config);
 
   const stateRes = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${config.stateTab}'!A2:D` });
@@ -203,13 +210,19 @@ const changeLogCache = {};
 const changeLogInFlight = {};
 
 async function fetchChangeLogRows(config) {
-  const sheets = getSheetsClient();
-  // Self-healing: a brand-new field's tabs may not exist yet if neither the
-  // daily cron nor a webhook has run since it was added - create them (empty)
-  // rather than erroring, so the dashboard shows a clean 0 instead of failing.
-  await ensureTabsOnce(sheets, config);
-  const res = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${config.logTab}'!A2:E` });
-  return res.data.values || [];
+  const sheets = getSheetsReadOnlyClient();
+  try {
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${config.logTab}'!A2:E` });
+    return res.data.values || [];
+  } catch (err) {
+    // A brand-new field's log tab may not exist yet if neither the daily
+    // cron nor a webhook has run since it was added. This read-only path
+    // can't self-heal by creating it (that's the whole point - it holds
+    // no write scope at all) - the cron/webhook writers below do that via
+    // ensureTabs, so until one of them runs, this just reads as a clean 0
+    // instead of failing, same as before.
+    return [];
+  }
 }
 
 function refreshChangeLogCache(config) {

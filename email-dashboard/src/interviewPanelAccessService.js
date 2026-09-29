@@ -6,7 +6,7 @@
 // writes to (the service account already has write access there - no new
 // sheet/share needed).
 const crypto = require('crypto');
-const { getSheetsClient } = require('./sheetsAuth');
+const { getSheetsWriteClient } = require('./sheetsAuth');
 
 const SHEET_ID = process.env.INTERVIEW_PANEL_SHEET_ID || '1IMKovBhRqthjqAZSioYMKgYSkn2otnFAYhSbEHksrWU';
 const TAB = 'Interview Panel Access';
@@ -33,7 +33,7 @@ function verifyPassword(password, salt, expectedHash) {
 }
 
 async function getAllRows() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
     range: `'${TAB}'!A2:${LAST_COL}`
@@ -70,7 +70,7 @@ async function grantAccess(email, password, createdBy) {
   const normalized = normalizeEmail(email);
   const { salt, hash } = hashPassword(password);
   const now = new Date().toISOString();
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   const found = await findRowByEmail(normalized);
   if (found) {
     await sheets.spreadsheets.values.update({
@@ -93,7 +93,7 @@ async function grantAccess(email, password, createdBy) {
 async function revokeAccess(email) {
   const found = await findRowByEmail(email);
   if (!found) return false;
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
   const tab = meta.data.sheets.find((s) => s.properties.title === TAB);
   await sheets.spreadsheets.batchUpdate({

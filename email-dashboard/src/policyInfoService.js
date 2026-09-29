@@ -1,4 +1,4 @@
-const { getSheetsClient } = require('./sheetsAuth');
+const { getSheetsWriteClient } = require('./sheetsAuth');
 
 // Stored in the Movement Tracker spreadsheet - the one sheet the service
 // account can write to (see movementTracker.js's own note on this); the
@@ -64,7 +64,7 @@ let inFlight = null;
 // every time regardless of whether the tab already existed). Only falls
 // back to creating the tab if the read actually fails because it's missing.
 async function fetchRows() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   try {
     const res = await sheets.spreadsheets.values.get({ spreadsheetId: TRACKER_SHEET_ID, range: `'${TAB}'!A2:B` });
     return res.data.values || [];
@@ -110,7 +110,7 @@ async function getPolicyInfo() {
 
 async function savePolicyInfoField(key, value) {
   if (!FIELD_KEYS.has(key)) throw new Error('Unknown field: ' + key);
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   // getCachedRows() -> fetchRows() already creates the tab lazily if it's
   // somehow still missing at this point - no need to check again here.
   const rows = await getCachedRows();

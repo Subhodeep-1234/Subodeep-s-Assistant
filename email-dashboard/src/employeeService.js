@@ -1,4 +1,4 @@
-const { getSheetsClient, hasServiceAccount } = require('./sheetsAuth');
+const { getSheetsReadOnlyClient, hasServiceAccount } = require('./sheetsAuth');
 
 const SHEET_ID = process.env.HR_SHEET_ID || '1I1vJJy5vXDMysBvXkXREImNZORr6ko1OMvPoNo984RI';
 const TAB_NAME = 'Employee_Master';
@@ -145,7 +145,7 @@ let cache = {
 let inFlight = null;
 
 async function fetchRawRows() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsReadOnlyClient();
   // Only A:AS (through HOD-1) is ever read — cuts payload size vs the full
   // A:BC range, which included columns this app never uses.
   const res = await sheets.spreadsheets.values.get({
@@ -225,7 +225,7 @@ let companyListInFlight = null;
 function refreshCompanyListCache() {
   if (companyListInFlight) return companyListInFlight;
   companyListInFlight = (async () => {
-    const sheets = getSheetsClient();
+    const sheets = getSheetsReadOnlyClient();
     const res = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: COMPANY_LIST_RANGE });
     const companies = (res.data.values || [])
       .map((r) => (r[0] || '').trim())
