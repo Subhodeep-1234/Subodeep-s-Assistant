@@ -339,6 +339,56 @@ async function findEmployee(query) {
     }));
 }
 
+// "Who reports to X" / "who's on X's team" - this dataset's reporting
+// hierarchy is two flat free-text name columns per employee (Reporting
+// Manager i.e. HOD-1, and Reporting DOER), not a manager-employeeId
+// chain, so this looks up direct reports by name match against either
+// column rather than walking a tree. Tries an exact match first (same
+// normalizeKey every other exact-match filter here uses); if nobody
+// matches exactly (a typo, a partial name, "Ajay" instead of the full
+// name), falls back to a substring match so it still finds something
+// reasonable rather than coming back empty on an approximate name.
+async function directReports(name) {
+  const { employees, departmentNames } = await employeeService.getEmployeeData();
+  const q = String(name || '').trim();
+  if (!q) return { title: null, rows: null, actions: null };
+
+  const qKey = employeeService.normalizeKey(q);
+  let matches = employees.filter(
+    (e) => e.status !== 'INACTIVE' && (e.reportingManagerKey === qKey || e.reportingDoerKey === qKey)
+  );
+
+  let resolvedName = q;
+  if (!matches.length) {
+    const qLower = q.toLowerCase();
+    matches = employees.filter(
+      (e) =>
+        e.status !== 'INACTIVE' &&
+        ((e.reportingManager || '').toLowerCase().includes(qLower) || (e.reportingDoer || '').toLowerCase().includes(qLower))
+    );
+    if (matches.length) {
+      const m = matches[0];
+      resolvedName = (m.reportingManager || '').toLowerCase().includes(qLower) ? m.reportingManager : m.reportingDoer;
+    }
+  }
+
+  if (!matches.length) {
+    return { title: null, rows: null, actions: [{ label: 'Open Employee Data', view: 'directory' }], notFound: q };
+  }
+
+  const shown = matches.slice(0, CARD_ROW_LIMIT);
+  const rest = matches.length - shown.length;
+  return {
+    title: 'Reporting to ' + resolvedName + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
+    rows: shown.map((e) => ({
+      label: e.name,
+      value: (e.designation || '—') + ' · ' + (departmentNames.get(e.departmentKey) || e.department || '—')
+    })),
+    footer: { label: 'Total', value: matches.length },
+    actions: [{ label: 'View Full Report', view: 'directory' }]
+  };
+}
+
 // Shared by both providers (mockProvider's letter rule and
 // claudeProvider's "prepareLetter" tool both call this) so the exact same
 // employee-lookup + card shape backs a letter request regardless of
@@ -403,6 +453,7 @@ module.exports = {
   insightsSummary,
   demographics,
   findEmployee,
+  directReports,
   listEmployees,
   groupEmployees,
   prepareLetter,
