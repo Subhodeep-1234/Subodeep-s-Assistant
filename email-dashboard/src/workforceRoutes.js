@@ -8,6 +8,7 @@ const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
 const orgChartServerPdf = require('./orgChartServerPdf');
 const aiAssistant = require('./aiAssistant/provider');
+const chatHistoryService = require('./chatHistoryService');
 
 const router = express.Router();
 const EMPLOYEE_LIST_CAP = 1000;
@@ -1378,11 +1379,50 @@ router.post('/hr-assistant/chat', async (req, res) => {
       return res.status(400).json({ error: 'message is required' });
     }
     const history = Array.isArray(req.body.history) ? req.body.history.slice(-10) : [];
+    const conversationId = typeof req.body.conversationId === 'string' ? req.body.conversationId : null;
+    const attachmentName = typeof req.body.attachmentName === 'string' ? req.body.attachmentName : null;
     const result = await aiAssistant.getResponse({ message, history, user: req.hrUser });
-    res.json(result);
+
+    // Best-effort save - chatHistoryService never throws (see its own
+    // fail-soft design), so a history outage can never turn into a
+    // broken reply here; savedConversationId just comes back null.
+    const savedConversationId = await chatHistoryService.appendTurn(req.hrUser.email, conversationId, {
+      userText: message,
+      userAttachment: attachmentName ? { name: attachmentName } : null,
+      assistantText: result.reply,
+      card: result.card || null,
+      actions: result.actions || null
+    });
+
+    res.json(Object.assign({}, result, { conversationId: savedConversationId }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Chat History - see chatHistoryService.js. Every route here degrades to
+// an empty/no-op result rather than a hard error when Upstash is
+// unavailable, so the History UI just shows "no history" instead of
+// breaking the assistant.
+router.get('/hr-assistant/conversations', async (req, res) => {
+  const items = await chatHistoryService.listConversations(req.hrUser.email, { query: req.query.q });
+  res.json({ items, historyAvailable: chatHistoryService.isAvailable() });
+});
+
+router.get('/hr-assistant/conversations/:id', async (req, res) => {
+  const convo = await chatHistoryService.getConversation(req.hrUser.email, req.params.id);
+  if (!convo) return res.status(404).json({ error: 'Conversation not found.' });
+  res.json(convo);
+});
+
+router.delete('/hr-assistant/conversations/:id', async (req, res) => {
+  await chatHistoryService.deleteConversation(req.hrUser.email, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/hr-assistant/conversations', async (req, res) => {
+  await chatHistoryService.clearAllConversations(req.hrUser.email);
+  res.json({ ok: true });
 });
 
 module.exports = router;
