@@ -23,8 +23,10 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 const MAX_TOKENS = 1024;
 
 const SYSTEM_PROMPT =
-  'Reply in the language of the user\'s most recent message only, ignoring what language ' +
-  'earlier messages in this conversation used. ' +
+  'Reply in the same language AND script (native or romanized/transliterated) as the user\'s ' +
+  'most recent message only, ignoring what language or script earlier messages in this ' +
+  'conversation used - never switch a romanized message into native script, or a native-script ' +
+  'message into romanized, and never let an earlier message\'s language carry over. ' +
   'You are the HR Assistant, an AI agent built into this company\'s internal Workforce ' +
   'Intelligence platform. You help HR staff and managers get reports, employee data, and ' +
   'perform HR tasks by calling the tools you\'re given - never invent numbers yourself, ' +
@@ -161,7 +163,7 @@ const TOOL_RUNNERS = {
 // to the CURRENT user message, right where the model is about to answer,
 // counters that recency/majority bias without touching how the message
 // itself is stored or displayed anywhere else.
-const LANGUAGE_REMINDER = 'Reminder: reply in the language of the message below only, regardless of what language earlier messages in this conversation were in.';
+const LANGUAGE_REMINDER = 'Reminder: reply in the same language AND script as the message below only, regardless of what language or script earlier messages in this conversation were in.';
 
 function toClaudeMessages(history, message) {
   const msgs = (history || [])
