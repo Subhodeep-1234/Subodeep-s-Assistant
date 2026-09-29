@@ -10,6 +10,7 @@ const employeeService = require('../employeeService');
 const analytics = require('../workforceAnalytics');
 const movementTracker = require('../movementTracker');
 const insuranceService = require('../insuranceService');
+const insuranceAnalytics = require('../insuranceAnalytics');
 
 const isActive = (e) => e.status === 'ACTIVE';
 
@@ -151,6 +152,49 @@ async function healthInsurancePendingAdditions() {
     title: 'Pending Health Insurance Additions',
     rows: additions.slice(0, CARD_ROW_LIMIT).map((a) => ({ label: a.name, value: a.employeeId })),
     footer: { label: 'Total Pending', value: additions.length },
+    actions: [{ label: 'Open Health Insurance', view: 'healthInsurance' }]
+  };
+}
+
+// "What's employee X's insurance status" - resolves the name to an
+// employeeId via the same lookup findEmployee uses, then reuses the exact
+// profile-building logic the Health Insurance UI's own employee profile
+// popup uses (insuranceAnalytics.buildEmployeeInsuranceProfile, including
+// its Addition-sheet fallback for someone pending coverage who has no
+// Member List row yet). Deliberately reports only coverage status and
+// family headcount, not premium/sum-insured amounts - that's financial
+// detail the chat interface doesn't need to expose, in the same spirit as
+// keeping PII out of the single-employee-detail tool.
+async function insuranceStatus(name) {
+  const q = String(name || '').trim();
+  if (!q) return { title: null, rows: null, actions: null };
+  const matches = await findEmployee(q);
+  if (!matches.length) {
+    return { title: null, rows: null, actions: [{ label: 'Open Health Insurance', view: 'healthInsurance' }], notFound: q };
+  }
+  const emp = matches[0];
+  const insuranceData = await insuranceService.getInsuranceData();
+  const profile = insuranceAnalytics.buildEmployeeInsuranceProfile(insuranceData.members, emp.employeeId, {
+    includeInactive: true,
+    additions: insuranceData.additions
+  });
+
+  if (!profile || !profile.self) {
+    return {
+      title: 'Insurance Status: ' + emp.name,
+      rows: [{ label: 'Covered', value: 'No record found' }],
+      footer: null,
+      actions: [{ label: 'Open Health Insurance', view: 'healthInsurance' }]
+    };
+  }
+
+  return {
+    title: 'Insurance Status: ' + emp.name,
+    rows: [
+      { label: 'Covered', value: profile.self.status || 'Yes' },
+      { label: 'Family Members Covered', value: profile.familyCount }
+    ],
+    footer: { label: 'Total Insured (incl. self)', value: profile.familyCount + 1 },
     actions: [{ label: 'Open Health Insurance', view: 'healthInsurance' }]
   };
 }
@@ -449,6 +493,7 @@ module.exports = {
   birthdaysThisMonth,
   workforceMovement,
   healthInsurancePendingAdditions,
+  insuranceStatus,
   dataQualityIssues,
   insightsSummary,
   demographics,
