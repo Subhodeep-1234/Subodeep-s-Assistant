@@ -182,12 +182,20 @@ function buildTotalInsuredLivesList(members) {
 // Employee Insurance Profile card. Same Active-only scoping every other
 // builder in this file uses - a family member removed from the policy
 // (status no longer Active) still has a row here but shouldn't count
-// towards this employee's coverage/premium totals. Returns null when that
-// employee has no ACTIVE row at all (e.g. a Pending Exit already dropped
-// off it, or a New Addition not yet on it) so the route can tell the
-// difference from a real employee with zero coverage.
-function buildEmployeeInsuranceProfile(members, employeeId) {
-  const rows = members.filter((m) => m.employeeId === employeeId && m.status === 'Active');
+// towards this employee's coverage/premium totals. Returns null when no
+// row at all matches this employee, so the route can tell the difference
+// from a real employee with zero coverage.
+//
+// `includeInactive` is only passed true from the Pending Exits/Total
+// Exits/New Additions lists (see insuranceRoutes.js) - an exited
+// employee's Member List row doesn't disappear, its status just flips to
+// Inactive, so requiring status === 'Active' unconditionally made every
+// exit (and any brand-new addition not yet marked Active) 404 here even
+// though their row genuinely exists. Covered Employees/Family Members/
+// Total Insured Lives don't pass it, since those lists are themselves
+// Active-only, so an Active row should always be found from them.
+function buildEmployeeInsuranceProfile(members, employeeId, { includeInactive = false } = {}) {
+  const rows = members.filter((m) => m.employeeId === employeeId && (includeInactive || m.status === 'Active'));
   if (!rows.length) return null;
   const isSelf = (m) => String(m.relationship || '').toLowerCase() === 'self';
   const selfRow = rows.find(isSelf);

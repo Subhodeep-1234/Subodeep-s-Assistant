@@ -3907,13 +3907,21 @@ function closeHiEmpProfile() { hiEmpProfileOverlay.hidden = true; }
 document.getElementById('hiEmpProfileCloseBtn').addEventListener('click', closeHiEmpProfile);
 hiEmpProfileOverlay.addEventListener('click', (e) => { if (e.target === hiEmpProfileOverlay) closeHiEmpProfile(); });
 
-async function openHiEmpProfile(employeeId) {
+// `includeInactive` is only passed true from the Pending Exits/Total
+// Exits/New Additions lists (see the click-handler wiring below) - an
+// exited employee's Member List row still exists but with a non-Active
+// status, and a brand-new addition may have no row yet at all, so those
+// three lists need the profile lookup to not require Active. Covered
+// Employees/Family Members/Total Insured Lives are themselves Active-only
+// lists, so they keep the stricter default.
+async function openHiEmpProfile(employeeId, includeInactive) {
   if (!employeeId) return;
   hiEmpProfileTab = 'family';
   hiEmpProfileBody.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   hiEmpProfileOverlay.hidden = false;
   try {
-    const data = await fetchJson('/api/insurance/employee/' + encodeURIComponent(employeeId));
+    const url = '/api/insurance/employee/' + encodeURIComponent(employeeId) + (includeInactive ? '?includeInactive=1' : '');
+    const data = await fetchJson(url);
     renderHiEmpProfile(data);
   } catch (err) {
     hiEmpProfileBody.innerHTML = '<div class="error-banner">' + escapeHtml(err.message) + '</div>';
@@ -4140,11 +4148,13 @@ async function shareFile(btn, fileUrl, filename, errorElId, errorMessage, prefet
 // Scoped to just these six list ids (not a global [data-employee-id]
 // listener) so this never interferes with Employee Directory's own,
 // differently-keyed (data-emp-idx) click handler on a similarly-styled list.
+// The three Exit/Addition lists pass includeInactive - see openHiEmpProfile.
+const HI_INACTIVE_OK_LISTS = ['hiExitsList', 'hiAdditionsList', 'hiTeList'];
 ['hiCeList', 'hiFmList', 'hiTlList', 'hiExitsList', 'hiAdditionsList', 'hiTeList'].forEach((listId) => {
   document.getElementById(listId).addEventListener('click', (e) => {
     const li = e.target.closest('[data-employee-id]');
     if (!li) return;
-    openHiEmpProfile(li.dataset.employeeId);
+    openHiEmpProfile(li.dataset.employeeId, HI_INACTIVE_OK_LISTS.includes(listId));
   });
 });
 

@@ -248,9 +248,15 @@ router.get('/employee/:employeeId', async (req, res) => {
       policyDocumentsService.getPolicyDriveData({ forceRefresh })
     ]);
     const employeeId = req.params.employeeId;
-    const profile = analytics.buildEmployeeInsuranceProfile(insuranceData.members, employeeId);
+    // Only the Pending Exits/Total Exits/New Additions lists send this -
+    // see buildEmployeeInsuranceProfile for why they need it.
+    const includeInactive = req.query.includeInactive === '1';
+    const profile = analytics.buildEmployeeInsuranceProfile(insuranceData.members, employeeId, { includeInactive });
     if (!profile || !profile.self) {
-      return res.status(404).json({ error: 'This employee has no active record in the Member List.' });
+      const message = includeInactive
+        ? 'This employee has no record in the Member List yet.'
+        : 'This employee has no active record in the Member List.';
+      return res.status(404).json({ error: message });
     }
     const hr = hrData.employees.find((e) => e.employeeId === employeeId);
 
