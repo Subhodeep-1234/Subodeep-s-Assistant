@@ -37,8 +37,10 @@ function isAvailable() {
   return Boolean(getClient());
 }
 
-// Records one tool invocation. Never throws.
-async function recordToolCall({ email, provider, toolName, params }) {
+// Records one tool invocation. Never throws. `usage` (optional) is the
+// real, measured token count for the request(s) this turn made - never an
+// estimate - so real cost can be reviewed later instead of guessed at.
+async function recordToolCall({ email, provider, toolName, params, usage }) {
   const redis = getClient();
   if (!redis) return;
   try {
@@ -47,7 +49,8 @@ async function recordToolCall({ email, provider, toolName, params }) {
       email: String(email || '').toLowerCase(),
       provider: provider || 'unknown',
       tool: toolName,
-      params: params && typeof params === 'object' ? params : {}
+      params: params && typeof params === 'object' ? params : {},
+      usage: usage && typeof usage === 'object' ? usage : null
     };
     await redis.lpush(LOG_KEY, JSON.stringify(entry));
     await redis.ltrim(LOG_KEY, 0, MAX_ENTRIES - 1);
