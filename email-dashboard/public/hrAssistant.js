@@ -149,12 +149,21 @@
     const greeting = document.createElement('p');
     greeting.className = 'wf-ai-welcome-greeting';
     greeting.textContent = name
-      ? '👋 Hello ' + name + "! I'm your HR Assistant."
-      : "👋 Hello! I'm your HR Assistant.";
+      ? '👋 Hello, ' + name + '!'
+      : '👋 Hello!';
+    const tagline = document.createElement('p');
+    tagline.className = 'wf-ai-welcome-tagline';
+    tagline.appendChild(document.createTextNode("I'm "));
+    const taglineStrong = document.createElement('span');
+    taglineStrong.className = 'wf-ai-welcome-tagline-strong';
+    taglineStrong.textContent = 'SUBH';
+    tagline.appendChild(taglineStrong);
+    tagline.appendChild(document.createTextNode(', your intelligent HR Assistant.'));
     const sub = document.createElement('p');
     sub.className = 'wf-ai-welcome-sub';
     sub.textContent = 'How can I help you today?';
     card.appendChild(greeting);
+    card.appendChild(tagline);
     card.appendChild(sub);
 
     wrap.appendChild(badge);

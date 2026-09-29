@@ -3261,10 +3261,21 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   color: var(--accent);
   line-height: 1.4;
 }
+.wf-ai-welcome-tagline {
+  margin: 0 0 4px;
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.wf-ai-welcome-tagline-strong {
+  font-weight: 700;
+}
 .wf-ai-welcome-sub {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   color: var(--muted);
+  opacity: 0.75;
 }
 
 .wf-ai-msg { display: flex; }
