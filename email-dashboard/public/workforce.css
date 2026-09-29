@@ -3344,6 +3344,38 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   padding-top: 8px;
   border-top: 2px solid var(--line);
 }
+.wf-ai-card-note {
+  font-size: 0.74rem;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+.wf-ai-card-table-scroll {
+  overflow-x: auto;
+  margin: 0 -14px 8px;
+  padding: 0 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.wf-ai-card-table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 0.78rem; }
+.wf-ai-card-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0 10px 6px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.wf-ai-card-table td {
+  color: var(--ink);
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.wf-ai-card-table tr:last-of-type td { border-bottom: none; }
 
 .wf-ai-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; max-width: 92%; }
 .wf-ai-action-btn {
