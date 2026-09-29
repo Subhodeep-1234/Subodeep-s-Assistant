@@ -139,12 +139,19 @@ async function insightsSummary() {
 
 async function demographics(kind) {
   const { employees } = await employeeService.getEmployeeData();
-  const fn = { age: analytics.ageAnalytics, gender: analytics.genderAnalytics, collar: analytics.collarAnalytics }[kind];
-  const view = { age: 'ageDistribution', gender: 'genderDistribution', collar: 'collarDistribution' }[kind];
-  const title = { age: 'Age Distribution', gender: 'Gender Distribution', collar: 'Category Distribution' }[kind];
+  const fn = {
+    age: analytics.ageAnalytics,
+    gender: analytics.genderAnalytics,
+    collar: analytics.collarAnalytics,
+    tenure: analytics.tenureAnalytics
+  }[kind];
+  const view = { age: 'ageDistribution', gender: 'genderDistribution', collar: 'collarDistribution', tenure: 'tenure' }[kind];
+  const title = { age: 'Age Distribution', gender: 'Gender Distribution', collar: 'Category Distribution', tenure: 'Tenure Distribution' }[kind];
   const data = fn(employees);
   return {
-    title,
+    title: kind === 'tenure' && data.averageTenureYears !== null
+      ? title + ' (avg ' + data.averageTenureYears + ' yrs)'
+      : title,
     rows: data.buckets.map((b) => ({ label: b.label, value: b.count })),
     footer: { label: 'Active Employees', value: data.activeCount },
     actions: [{ label: 'Open ' + title, view }]
@@ -160,8 +167,13 @@ const LIST_MAX_LIMIT = 200;
 // params, no new PDF-building code needed.
 function buildEmployeeQueryString(filters) {
   const params = new URLSearchParams();
-  ['designation', 'department', 'status', 'dateFrom', 'dateTo', 'q'].forEach((key) => {
-    if (filters && filters[key]) params.set(key, filters[key]);
+  [
+    'designation', 'department', 'status', 'dateFrom', 'dateTo', 'q',
+    'tenureYearsMin', 'tenureYearsMax', 'experienceYearsMin', 'experienceYearsMax'
+  ].forEach((key) => {
+    if (filters && filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+      params.set(key, filters[key]);
+    }
   });
   const qs = params.toString();
   return qs ? '?' + qs : '';

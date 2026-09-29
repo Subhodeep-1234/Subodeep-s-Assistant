@@ -264,6 +264,21 @@ function formatCollar(value) {
 // exact wording ("ENGINEER", "JR. ENGINEER", "SENIOR ENGINEER - BBS &
 // BILLING" etc.) - a question like "how many engineers" needs to catch
 // all of those, not just an exact "Engineer" title.
+//
+// Tenure/Total Yrs. of Exp. come out of the sheet as a free-text duration
+// like "6 Year 22 Days" or "26 Year 8 Months 25 Days" - not a number - so
+// tenureYearsMin/Max and experienceYearsMin/Max below parse it into
+// decimal years on the fly rather than needing a separate numeric column.
+function parseYearsFromDuration(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const years = Number((s.match(/(\d+)\s*Year/i) || [])[1] || 0);
+  const months = Number((s.match(/(\d+)\s*Months?/i) || [])[1] || 0);
+  const days = Number((s.match(/(\d+)\s*Days?/i) || [])[1] || 0);
+  if (!years && !months && !days) return null;
+  return Math.round((years + months / 12 + days / 365) * 100) / 100;
+}
+
 function matchesFilters(emp, query) {
   if (query.status && emp.status !== String(query.status).toUpperCase()) return false;
   // "Anyone but Inactive" - distinct from an exact status match above, for
@@ -314,6 +329,18 @@ function matchesFilters(emp, query) {
     if (!emp.dob || emp.dob.getUTCFullYear() !== Number(query.dobYear)) return false;
   }
   if (query.missingContact === '1' && emp.contactNumber) return false;
+  if (query.tenureYearsMin || query.tenureYearsMax) {
+    const years = parseYearsFromDuration(emp.tenure);
+    if (years === null) return false;
+    if (query.tenureYearsMin && years < Number(query.tenureYearsMin)) return false;
+    if (query.tenureYearsMax && years > Number(query.tenureYearsMax)) return false;
+  }
+  if (query.experienceYearsMin || query.experienceYearsMax) {
+    const years = parseYearsFromDuration(emp.totalExperience);
+    if (years === null) return false;
+    if (query.experienceYearsMin && years < Number(query.experienceYearsMin)) return false;
+    if (query.experienceYearsMax && years > Number(query.experienceYearsMax)) return false;
+  }
   return true;
 }
 

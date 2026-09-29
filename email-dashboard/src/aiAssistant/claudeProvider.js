@@ -106,10 +106,10 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_demographics',
-    description: 'Get a breakdown of active employees by age, gender, or collar category (White/Blue/Group-D).',
+    description: 'Get a breakdown of active employees by age, gender, collar category (White/Blue/Group-D), or tenure (time at this company, bucketed, with the average).',
     input_schema: {
       type: 'object',
-      properties: { kind: { type: 'string', enum: ['age', 'gender', 'collar'] } },
+      properties: { kind: { type: 'string', enum: ['age', 'gender', 'collar', 'tenure'] } },
       required: ['kind']
     }
   },
@@ -124,7 +124,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'list_employees',
-    description: 'Get an actual filtered, sortable list of individual employees (Emp Code, Name, Designation, Department, Status, DOJ) - use this whenever someone wants to SEE the employees themselves, not just a count (e.g. "list the engineers in Civil", "show me everyone who joined last quarter", "who is in the Sales department"). You DO have access to employee lists via this tool - never say you don\'t.',
+    description: 'Get an actual filtered, sortable list of individual employees (Emp Code, Name, Designation, Department, Status, DOJ) - use this whenever someone wants to SEE the employees themselves, not just a count (e.g. "list the engineers in Civil", "show me everyone who joined last quarter", "who is in the Sales department"). You DO have access to employee lists via this tool - never say you don\'t. The full list is already shown in the results card below your reply - do not repeat it as a table in your own text, just a short one-line summary.',
     input_schema: {
       type: 'object',
       properties: {
@@ -134,6 +134,10 @@ const TOOL_DEFS = [
         dateFrom: { type: 'string', description: 'Joining date range start, YYYY-MM-DD.' },
         dateTo: { type: 'string', description: 'Joining date range end, YYYY-MM-DD.' },
         q: { type: 'string', description: 'Free-text search across name, employee ID, email, department, designation, location.' },
+        tenureYearsMin: { type: 'number', description: 'Minimum years at this company (tenure), e.g. 5 for "5+ years with us".' },
+        tenureYearsMax: { type: 'number', description: 'Maximum years at this company (tenure).' },
+        experienceYearsMin: { type: 'number', description: 'Minimum total career experience in years, e.g. 10 for "10+ years experience".' },
+        experienceYearsMax: { type: 'number', description: 'Maximum total career experience in years.' },
         sortBy: { type: 'string', enum: ['name', 'employeeId', 'designation', 'department', 'doj'] },
         sortDir: { type: 'string', enum: ['asc', 'desc'] },
         limit: { type: 'integer', description: 'Max rows to return (default 50, max 200).' }
@@ -152,7 +156,11 @@ const TOOL_DEFS = [
         status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'] },
         dateFrom: { type: 'string', description: 'Joining date range start, YYYY-MM-DD.' },
         dateTo: { type: 'string', description: 'Joining date range end, YYYY-MM-DD.' },
-        q: { type: 'string', description: 'Free-text search to filter by first.' }
+        q: { type: 'string', description: 'Free-text search to filter by first.' },
+        tenureYearsMin: { type: 'number', description: 'Minimum years at this company (tenure), to filter by first.' },
+        tenureYearsMax: { type: 'number', description: 'Maximum years at this company (tenure), to filter by first.' },
+        experienceYearsMin: { type: 'number', description: 'Minimum total career experience in years, to filter by first.' },
+        experienceYearsMax: { type: 'number', description: 'Maximum total career experience in years, to filter by first.' }
       },
       required: ['groupBy']
     }
