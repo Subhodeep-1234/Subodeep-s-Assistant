@@ -99,6 +99,14 @@ const TOOL_DEFS = [
   {
     type: 'function',
     function: {
+      name: 'get_birthdays_this_month',
+      description: 'List employees (active and notice period) with a birthday this calendar month, sorted by day.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_workforce_movement',
       description: 'Get a summary of department transfers, promotions, company transfers and location transfers over a recent period.',
       parameters: {
@@ -250,6 +258,7 @@ const TOOL_RUNNERS = {
   get_joining_trend: () => tools.joiningTrend(),
   get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0),
   get_retirement_this_month: () => tools.retirementThisMonth(),
+  get_birthdays_this_month: () => tools.birthdaysThisMonth(),
   get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
   get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),
   get_data_quality_issues: () => tools.dataQualityIssues(),
