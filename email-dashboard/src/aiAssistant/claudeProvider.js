@@ -59,6 +59,16 @@ const TOOL_DEFS = [
     input_schema: { type: 'object', properties: {} }
   },
   {
+    name: 'get_location_headcount',
+    description: 'Get active employee headcount broken down by work location/site.',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'get_doer_headcount',
+    description: 'Get active employee headcount broken down by Reporting DOER (the operational reporting-manager field used for this).',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
     name: 'get_joining_this_month',
     description: 'List employees who joined in the current calendar month.',
     input_schema: { type: 'object', properties: {} }
@@ -202,6 +212,8 @@ const TOOL_DEFS = [
 // its arguments out of Claude's own (already-validated-by-schema) input.
 const TOOL_RUNNERS = {
   get_department_headcount: () => tools.departmentHeadcount(),
+  get_location_headcount: () => tools.locationHeadcount(),
+  get_doer_headcount: () => tools.doerHeadcount(),
   get_joining_this_month: () => tools.joiningThisMonth(),
   get_joining_trend: () => tools.joiningTrend(),
   get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0),

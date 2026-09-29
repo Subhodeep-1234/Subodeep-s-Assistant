@@ -64,6 +64,22 @@ const TOOL_DEFS = [
   {
     type: 'function',
     function: {
+      name: 'get_location_headcount',
+      description: 'Get active employee headcount broken down by work location/site.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_doer_headcount',
+      description: 'Get active employee headcount broken down by Reporting DOER (the operational reporting-manager field used for this).',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_joining_this_month',
       description: 'List employees who joined in the current calendar month.',
       parameters: { type: 'object', properties: {} }
@@ -254,6 +270,8 @@ const TOOL_DEFS = [
 // Identical mapping to claudeProvider.js's TOOL_RUNNERS.
 const TOOL_RUNNERS = {
   get_department_headcount: () => tools.departmentHeadcount(),
+  get_location_headcount: () => tools.locationHeadcount(),
+  get_doer_headcount: () => tools.doerHeadcount(),
   get_joining_this_month: () => tools.joiningThisMonth(),
   get_joining_trend: () => tools.joiningTrend(),
   get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0),
