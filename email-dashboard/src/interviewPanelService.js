@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getSheetsClient } = require('./sheetsAuth');
+const { getSheetsWriteClient } = require('./sheetsAuth');
 
 // A separate spreadsheet the user created and shared with the service
 // account specifically for this feature (never Employee_Master, never the
@@ -125,7 +125,7 @@ function rowToRecord(row, rowIndex) {
 }
 
 async function getAllRows() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
     range: `'${TAB}'!A2:${LAST_COL}`
@@ -203,7 +203,7 @@ async function createCandidate(createdBy, name) {
   newRow[COLS.interviewerToken] = interviewerToken;
   newRow[COLS.name] = name ? String(name).trim() : '';
 
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   await sheets.spreadsheets.values.append({
     spreadsheetId: SHEET_ID,
     range: `'${TAB}'!A2:${LAST_COL}`,
@@ -220,7 +220,7 @@ async function createCandidate(createdBy, name) {
 // batchUpdate rather than rewriting the whole row, so this never
 // accidentally blanks a field the caller didn't mean to touch.
 async function updateFields(rowIndex, fields) {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsWriteClient();
   const data = Object.keys(fields)
     .filter((key) => key in COLS)
     .map((key) => ({

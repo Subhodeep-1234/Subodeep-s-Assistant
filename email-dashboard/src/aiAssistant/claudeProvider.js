@@ -15,6 +15,7 @@
 // could leak it into the { reply, card, actions } shape the client
 // receives.
 const tools = require('./tools');
+const toolCallLog = require('./toolCallLog');
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -30,7 +31,16 @@ const SYSTEM_PROMPT =
   'in a separate card, so do not repeat numbers or lists in your own reply. ' +
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
-  'plainly rather than guessing.';
+  'plainly rather than guessing. ' +
+  'Users may write to you in English, Hindi, or Bengali, including romanized or mixed forms ' +
+  '(Hinglish/Banglish, or English mixed with Hindi/Bengali words in Latin script) within a ' +
+  'single message. Understand the request regardless of language or script mixing, and pick ' +
+  'the right tool exactly as you would for an equivalent English request. Reply in the same ' +
+  'language AND script the user wrote in - romanized input gets a romanized reply, not native ' +
+  'Devanagari/Bengali script; English gets an English reply. Regardless of the user\'s ' +
+  'language, never translate the data itself: report titles, card labels, table rows and any ' +
+  'employee data always stay in English exactly as the tools return them - only your own short ' +
+  'conversational reply follows the user\'s language.';
 
 // One entry per tools.js function actually exposed to Claude. Kept
 // separate from tools.js's own exports (rather than generating this from
@@ -186,7 +196,7 @@ function extractText(content) {
     .trim();
 }
 
-async function getResponse({ message, history }) {
+async function getResponse({ message, history, user }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     // provider.js is only supposed to reach this file when a key exists,
@@ -203,6 +213,15 @@ async function getResponse({ message, history }) {
   if (data.stop_reason === 'tool_use') {
     const toolUseBlock = data.content.find((b) => b.type === 'tool_use');
     const runner = toolUseBlock && TOOL_RUNNERS[toolUseBlock.name];
+    // Audit log: which tool, when, for whom - never the data it returns
+    // (see toolCallLog.js). Logged regardless of whether the tool name
+    // resolved, so an unrecognised tool_use attempt is visible too.
+    toolCallLog.recordToolCall({
+      email: user && user.email,
+      provider: 'claude',
+      toolName: toolUseBlock && toolUseBlock.name,
+      params: (toolUseBlock && toolUseBlock.input) || {}
+    });
     let toolResult;
     let card = null;
     let actions = null;

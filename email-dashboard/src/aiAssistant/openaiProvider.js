@@ -16,6 +16,7 @@
 // could leak it into the { reply, card, actions } shape the client
 // receives.
 const tools = require('./tools');
+const toolCallLog = require('./toolCallLog');
 
 const API_URL = 'https://api.openai.com/v1/chat/completions';
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
@@ -30,7 +31,16 @@ const SYSTEM_PROMPT =
   'in a separate card, so do not repeat numbers or lists in your own reply. ' +
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
-  'plainly rather than guessing.';
+  'plainly rather than guessing. ' +
+  'Users may write to you in English, Hindi, or Bengali, including romanized or mixed forms ' +
+  '(Hinglish/Banglish, or English mixed with Hindi/Bengali words in Latin script) within a ' +
+  'single message. Understand the request regardless of language or script mixing, and pick ' +
+  'the right tool exactly as you would for an equivalent English request. Reply in the same ' +
+  'language AND script the user wrote in - romanized input gets a romanized reply, not native ' +
+  'Devanagari/Bengali script; English gets an English reply. Regardless of the user\'s ' +
+  'language, never translate the data itself: report titles, card labels, table rows and any ' +
+  'employee data always stay in English exactly as the tools return them - only your own short ' +
+  'conversational reply follows the user\'s language.';
 
 // One entry per tools.js function actually exposed to OpenAI, mirroring
 // claudeProvider.js's TOOL_DEFS one-for-one, just reshaped into OpenAI's
@@ -218,7 +228,7 @@ async function callOpenAi(apiKey, messages) {
   return resp.json();
 }
 
-async function getResponse({ message, history }) {
+async function getResponse({ message, history, user }) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     // provider.js is only supposed to reach this file when a key exists,
@@ -243,6 +253,14 @@ async function getResponse({ message, history }) {
     } catch (err) {
       input = {};
     }
+    // Audit log: which tool, when, for whom - never the data it returns
+    // (see toolCallLog.js).
+    toolCallLog.recordToolCall({
+      email: user && user.email,
+      provider: 'openai',
+      toolName: toolCall.function.name,
+      params: input
+    });
     let toolResult;
     let card = null;
     let actions = null;

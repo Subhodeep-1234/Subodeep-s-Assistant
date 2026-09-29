@@ -9,6 +9,7 @@ const { buildTablePdfBuffer } = require('./pdfReport');
 const orgChartServerPdf = require('./orgChartServerPdf');
 const aiAssistant = require('./aiAssistant/provider');
 const aiRateLimiter = require('./aiAssistant/rateLimiter');
+const toolCallLog = require('./aiAssistant/toolCallLog');
 const chatHistoryService = require('./chatHistoryService');
 
 const router = express.Router();
@@ -1436,6 +1437,16 @@ router.delete('/hr-assistant/conversations/:id', async (req, res) => {
 router.delete('/hr-assistant/conversations', async (req, res) => {
   await chatHistoryService.clearAllConversations(req.hrUser.email);
   res.json({ ok: true });
+});
+
+// Audit trail of what the AI actually did - tool name + params only, never
+// employee data (see toolCallLog.js). Any signed-in HR user can review it
+// (same requireHrAuth gate as everything else on this router); there's no
+// separate admin tier in this app.
+router.get('/hr-assistant/tool-log', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+  const items = await toolCallLog.listRecent(limit);
+  res.json({ items, logAvailable: toolCallLog.isAvailable() });
 });
 
 module.exports = router;

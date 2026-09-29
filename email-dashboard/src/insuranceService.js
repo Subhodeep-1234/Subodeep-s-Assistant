@@ -1,4 +1,4 @@
-const { getSheetsClient } = require('./sheetsAuth');
+const { getSheetsReadOnlyClient } = require('./sheetsAuth');
 
 // Separate spreadsheet from HR Master Data - "Mediclaim Addition & Deletion
 // Automation", shared with the same service account, read-only here.
@@ -97,7 +97,7 @@ function parseActiveEmployeeRow(row) {
 }
 
 async function fetchRaw() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsReadOnlyClient();
   const [memberRes, additionsRes, deletionsRes, activeEmpRes] = await Promise.all([
     sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Member List'!A2:O" }),
     sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Additions'!A2:M" }),
@@ -127,7 +127,7 @@ async function fetchRaw() {
 // shaving a round trip, and this only runs when someone actually clicks
 // Send Mail, not on every page load.
 async function getMailRecipients() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsReadOnlyClient();
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!A2:B" });
   const to = [];
   const cc = [];
@@ -171,7 +171,7 @@ function parseMailIdBlocks(rows) {
 // and trimmed, to {to, cc} - same fresh-fetch-on-send reasoning as
 // getMailRecipients above.
 async function getAllDoerMailRecipients() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsReadOnlyClient();
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!F1:G" });
   const result = new Map();
   parseMailIdBlocks(res.data.values).forEach((b) => {
@@ -187,7 +187,7 @@ async function getAllDoerMailRecipients() {
 // fixed audience (Graphics team) for every month's birthday list. Returns
 // {to, cc}, or null if that block isn't there.
 async function getBirthdayMailRecipients() {
-  const sheets = getSheetsClient();
+  const sheets = getSheetsReadOnlyClient();
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: INSURANCE_SHEET_ID, range: "'Mail Id'!I1:J" });
   const blocks = parseMailIdBlocks(res.data.values);
   return blocks.length ? { to: blocks[0].to, cc: blocks[0].cc } : null;
