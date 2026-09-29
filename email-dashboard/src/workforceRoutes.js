@@ -8,6 +8,7 @@ const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
 const orgChartServerPdf = require('./orgChartServerPdf');
 const aiAssistant = require('./aiAssistant/provider');
+const aiRateLimiter = require('./aiAssistant/rateLimiter');
 const chatHistoryService = require('./chatHistoryService');
 
 const router = express.Router();
@@ -1381,6 +1382,18 @@ router.post('/hr-assistant/chat', async (req, res) => {
     const history = Array.isArray(req.body.history) ? req.body.history.slice(-10) : [];
     const conversationId = typeof req.body.conversationId === 'string' ? req.body.conversationId : null;
     const attachmentName = typeof req.body.attachmentName === 'string' ? req.body.attachmentName : null;
+
+    // Hard cost cap, checked before the AI provider is ever called - see
+    // rateLimiter.js. A rejected request never reaches OpenAI/Claude, so
+    // it costs nothing even if a client-side bug fires this in a loop.
+    const rateCheck = await aiRateLimiter.checkAndConsume(req.hrUser.email);
+    if (!rateCheck.allowed) {
+      return res.status(429).json({
+        error: 'Too many requests - please wait a moment before trying again.',
+        retryAfterSeconds: rateCheck.retryAfterSeconds
+      });
+    }
+
     const result = await aiAssistant.getResponse({ message, history, user: req.hrUser });
 
     // Best-effort save - chatHistoryService never throws (see its own
