@@ -44,18 +44,7 @@ const SYSTEM_PROMPT =
   'native-script message into a romanized reply, or a romanized message into native script. ' +
   'Regardless of the user\'s language, never translate the data itself: report titles, card ' +
   'labels, table rows and any employee data always stay in English exactly as the tools ' +
-  'return them - only your own short conversational reply follows the user\'s language. ' +
-  'Native-script Hindi/Bengali requests are easy to mis-route to the wrong tool if you go by ' +
-  'surface impression instead of actually working out the meaning - here are worked examples, ' +
-  'read them carefully and apply the same care to any other native-script request: ' +
-  '"এই মাসে কতজন কর্মচারী যোগ দিয়েছে?" (Bengali) means "how many employees joined this ' +
-  'month" -> get_joining_this_month, NOT get_department_headcount. ' +
-  '"इस महीने कितने कर्मचारी शामिल हुए?" (Hindi) means the same thing -> also ' +
-  'get_joining_this_month, NOT get_department_headcount. ' +
-  '"বিভাগ অনুযায়ী কর্মী সংখ্যা কত?" (Bengali) means "what is the department-wise employee ' +
-  'count" -> get_department_headcount is correct there. ' +
-  'The lesson: a question about how many people joined/arrived recently is about JOINING, ' +
-  'never about the overall headcount breakdown, no matter what script it is written in.';
+  'return them - only your own short conversational reply follows the user\'s language.';
 
 // One entry per tools.js function actually exposed to OpenAI, mirroring
 // claudeProvider.js's TOOL_DEFS one-for-one, just reshaped into OpenAI's
