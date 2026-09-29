@@ -29,8 +29,13 @@ const SYSTEM_PROMPT =
   'message into romanized, and never let an earlier message\'s language carry over. ' +
   'You are the HR Assistant, an AI agent built into this company\'s internal Workforce ' +
   'Intelligence platform. You help HR staff and managers get reports, employee data, and ' +
-  'perform HR tasks by calling the tools you\'re given - never invent numbers yourself, ' +
-  'always call a tool to get real data before answering a factual question. ' +
+  'perform HR tasks by calling the tools you\'re given. ' +
+  'You must call a tool on every turn, including this one - there is no way to reply without ' +
+  'calling one. If the message is just a greeting, thanks, or anything with no real HR ' +
+  'question in it, call no_data_needed. Never state a specific name, number, or date unless ' +
+  'it came from a tool result in this exchange - if a tool returns an empty or missing result, ' +
+  'say plainly that there is no data for that, and do not fill the gap with a plausible-sounding ' +
+  'guess. ' +
   'Keep replies short and professional (1-2 sentences) - the structured data itself is shown ' +
   'in a separate card, so do not repeat numbers or lists in your own reply. ' +
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
@@ -172,6 +177,14 @@ const TOOL_DEFS = [
         required: ['view']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'no_data_needed',
+      description: 'Call this when the message is a greeting, thanks, small talk, or any other message with no real HR question in it that no other tool covers. Returns nothing - just lets you reply conversationally without inventing data.',
+      parameters: { type: 'object', properties: {} }
+    }
   }
 ];
 
@@ -191,7 +204,8 @@ const TOOL_RUNNERS = {
   get_demographics: (input) => tools.demographics(input.kind),
   find_employee: (input) => tools.findEmployee(input.query),
   prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),
-  navigate_to_view: (input) => tools.navigateToView(input.view)
+  navigate_to_view: (input) => tools.navigateToView(input.view),
+  no_data_needed: () => ({ title: null, rows: null, actions: null })
 };
 
 // The language rule lives in SYSTEM_PROMPT's first line, but earlier turns
@@ -215,7 +229,7 @@ function toOpenAiMessages(history, message) {
   return msgs;
 }
 
-async function callOpenAi(apiKey, messages) {
+async function callOpenAi(apiKey, messages, forceToolCall) {
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: {
@@ -227,7 +241,13 @@ async function callOpenAi(apiKey, messages) {
       max_tokens: MAX_TOKENS,
       messages,
       tools: TOOL_DEFS,
-      tool_choice: 'auto'
+      // Forced on the FIRST call only - this is what closes the
+      // hallucination hole: the model physically cannot skip straight to
+      // a text answer (and invent a name/number) without going through a
+      // real tool first, not even for greetings/small talk (no_data_needed
+      // covers those). The follow-up call, after it's already seen the
+      // real tool result, is left as 'auto' so it can just answer in text.
+      tool_choice: forceToolCall ? 'required' : 'auto'
     })
   });
   if (!resp.ok) {
@@ -246,7 +266,7 @@ async function getResponse({ message, history, user }) {
   }
 
   const messages = toOpenAiMessages(history, message);
-  let data = await callOpenAi(apiKey, messages);
+  let data = await callOpenAi(apiKey, messages, true);
   let choice = data.choices && data.choices[0];
   let assistantMessage = choice && choice.message;
 
