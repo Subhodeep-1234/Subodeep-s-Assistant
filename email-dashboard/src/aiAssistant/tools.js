@@ -83,6 +83,20 @@ async function retirementThisMonth() {
   };
 }
 
+async function birthdaysThisMonth() {
+  const { employees } = await employeeService.getEmployeeData();
+  const list = analytics.birthdaysThisMonth(employees);
+  return {
+    title: 'Birthdays This Month',
+    rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({
+      label: e.name,
+      value: e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+    })),
+    footer: { label: 'Total', value: list.length },
+    actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
+  };
+}
+
 async function workforceMovement(days = 90) {
   const [department, designation, company, location] = await Promise.all([
     movementTracker.getTransfersInLastDays(days),
@@ -352,6 +366,7 @@ module.exports = {
   joiningTrend,
   pendingConfirmations,
   retirementThisMonth,
+  birthdaysThisMonth,
   workforceMovement,
   healthInsurancePendingAdditions,
   dataQualityIssues,
