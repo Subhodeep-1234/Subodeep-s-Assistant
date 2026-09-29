@@ -1,0 +1,276 @@
+// Real AI provider - OpenAI with tool (function) calling, wired to
+// tools.js exactly like claudeProvider.js: OpenAI decides WHICH function
+// to call from natural language and this file executes the real one.
+// Inactive unless provider.js picks it (see provider.js, which is the
+// only thing that imports this file, and only does so inside its own
+// "if this is the chosen provider" branch - so this module never even
+// loads, let alone makes a network call, otherwise).
+//
+// Deliberately plain fetch() against the REST API, not the openai SDK -
+// avoids adding a dependency for a feature that's inactive until you
+// paste in a key.
+//
+// SECURITY: the key is read from process.env only, inside this
+// server-side module. It is never logged, never included in any
+// response sent to the browser, and this file has no code path that
+// could leak it into the { reply, card, actions } shape the client
+// receives.
+const tools = require('./tools');
+
+const API_URL = 'https://api.openai.com/v1/chat/completions';
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const MAX_TOKENS = 1024;
+
+const SYSTEM_PROMPT =
+  'You are the HR Assistant, an AI agent built into this company\'s internal Workforce ' +
+  'Intelligence platform. You help HR staff and managers get reports, employee data, and ' +
+  'perform HR tasks by calling the tools you\'re given - never invent numbers yourself, ' +
+  'always call a tool to get real data before answering a factual question. ' +
+  'Keep replies short and professional (1-2 sentences) - the structured data itself is shown ' +
+  'in a separate card, so do not repeat numbers or lists in your own reply. ' +
+  'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
+  'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
+  'plainly rather than guessing.';
+
+// One entry per tools.js function actually exposed to OpenAI, mirroring
+// claudeProvider.js's TOOL_DEFS one-for-one, just reshaped into OpenAI's
+// function-calling schema (parameters instead of input_schema, and each
+// wrapped in a {type:'function', function:{...}} envelope).
+const TOOL_DEFS = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_department_headcount',
+      description: 'Get active employee headcount broken down by department.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_joining_this_month',
+      description: 'List employees who joined in the current calendar month.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_joining_trend',
+      description: 'Get the joining count trend for the last 12 months.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_pending_confirmations',
+      description: 'List employees whose probation confirmation is due this month or next month.',
+      parameters: {
+        type: 'object',
+        properties: { monthOffset: { type: 'integer', enum: [0, 1], description: '0 = this month, 1 = next month' } }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_retirement_this_month',
+      description: 'List employees reaching retirement age (58) this month.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_workforce_movement',
+      description: 'Get a summary of department transfers, promotions, company transfers and location transfers over a recent period.',
+      parameters: {
+        type: 'object',
+        properties: { days: { type: 'integer', description: 'How many days back to look, e.g. 90 for the last 3 months.' } }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_health_insurance_pending_additions',
+      description: 'List employees/family members pending addition to the health insurance policy.',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_data_quality_issues',
+      description: 'Get a summary of data quality issues in employee records (missing fields, duplicate IDs).',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_insights',
+      description: 'Get a list of automatically generated workforce insights (top department, top location, upcoming birthdays, etc).',
+      parameters: { type: 'object', properties: {} }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_demographics',
+      description: 'Get a breakdown of active employees by age, gender, or collar category (White/Blue/Group-D).',
+      parameters: {
+        type: 'object',
+        properties: { kind: { type: 'string', enum: ['age', 'gender', 'collar'] } },
+        required: ['kind']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'find_employee',
+      description: 'Search for an employee by name or employee ID.',
+      parameters: {
+        type: 'object',
+        properties: { query: { type: 'string', description: 'Name or employee ID to search for.' } },
+        required: ['query']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'prepare_letter',
+      description: 'Prepare a promotion/increment, increment-only, or confirmation letter for a named employee, ready to open in the Letter Generator.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'The employee\'s name, as mentioned by the user.' },
+          letterType: { type: 'string', enum: ['promotion', 'increment', 'confirmation'] }
+        },
+        required: ['name', 'letterType']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'navigate_to_view',
+      description: 'Open an existing section of the app for the user (use this for requests like "show the organization chart" that are really just navigation, not a data report).',
+      parameters: {
+        type: 'object',
+        properties: { view: { type: 'string', enum: Object.keys(tools.NAVIGABLE_VIEWS) } },
+        required: ['view']
+      }
+    }
+  }
+];
+
+// Maps a tool_call name back to the real tools.js function + how to pull
+// its arguments out of OpenAI's own (already-validated-by-schema) input.
+// Identical mapping to claudeProvider.js's TOOL_RUNNERS.
+const TOOL_RUNNERS = {
+  get_department_headcount: () => tools.departmentHeadcount(),
+  get_joining_this_month: () => tools.joiningThisMonth(),
+  get_joining_trend: () => tools.joiningTrend(),
+  get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0),
+  get_retirement_this_month: () => tools.retirementThisMonth(),
+  get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
+  get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),
+  get_data_quality_issues: () => tools.dataQualityIssues(),
+  get_insights: () => tools.insightsSummary(),
+  get_demographics: (input) => tools.demographics(input.kind),
+  find_employee: (input) => tools.findEmployee(input.query),
+  prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),
+  navigate_to_view: (input) => tools.navigateToView(input.view)
+};
+
+function toOpenAiMessages(history, message) {
+  const msgs = [{ role: 'system', content: SYSTEM_PROMPT }];
+  (history || [])
+    .filter((h) => h && h.text)
+    .forEach((h) => msgs.push({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.text }));
+  msgs.push({ role: 'user', content: message });
+  return msgs;
+}
+
+async function callOpenAi(apiKey, messages) {
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      messages,
+      tools: TOOL_DEFS,
+      tool_choice: 'auto'
+    })
+  });
+  if (!resp.ok) {
+    const bodyText = await resp.text().catch(() => '');
+    throw new Error('OpenAI API error ' + resp.status + (bodyText ? ': ' + bodyText.slice(0, 200) : ''));
+  }
+  return resp.json();
+}
+
+async function getResponse({ message, history }) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    // provider.js is only supposed to reach this file when a key exists,
+    // but this guard makes that assumption impossible to violate silently.
+    throw new Error('openaiProvider.getResponse called without OPENAI_API_KEY set');
+  }
+
+  const messages = toOpenAiMessages(history, message);
+  let data = await callOpenAi(apiKey, messages);
+  let choice = data.choices && data.choices[0];
+  let assistantMessage = choice && choice.message;
+
+  // At most one tool round-trip - every tool here is a single, direct
+  // lookup with no reason for the model to chain multiple calls together;
+  // capping it keeps latency and cost bounded and avoids ever looping.
+  const toolCall = assistantMessage && assistantMessage.tool_calls && assistantMessage.tool_calls[0];
+  if (toolCall) {
+    const runner = TOOL_RUNNERS[toolCall.function.name];
+    let input = {};
+    try {
+      input = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
+    } catch (err) {
+      input = {};
+    }
+    let toolResult;
+    let card = null;
+    let actions = null;
+    try {
+      toolResult = runner ? await runner(input) : { error: 'Unknown tool: ' + toolCall.function.name };
+      if (toolResult && !toolResult.error) {
+        card = toolResult.title ? { title: toolResult.title, rows: toolResult.rows, footer: toolResult.footer || null } : null;
+        actions = toolResult.actions || null;
+      }
+    } catch (err) {
+      toolResult = { error: err.message };
+    }
+
+    const followUpMessages = messages.concat([
+      assistantMessage,
+      {
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(toolResult).slice(0, 4000)
+      }
+    ]);
+    data = await callOpenAi(apiKey, followUpMessages);
+    choice = data.choices && data.choices[0];
+    assistantMessage = choice && choice.message;
+    return { reply: (assistantMessage && assistantMessage.content) || 'Here you go.', card, actions };
+  }
+
+  return { reply: (assistantMessage && assistantMessage.content) || "I'm not sure how to help with that yet.", card: null, actions: null };
+}
+
+module.exports = { getResponse };
