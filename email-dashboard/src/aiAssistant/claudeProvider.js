@@ -138,6 +138,15 @@ const TOOL_DEFS = [
     }
   },
   {
+    name: 'get_direct_reports',
+    description: 'List employees who report to a named manager or Reporting DOER (their direct team) - use for "who reports to X" or "who\'s on X\'s team".',
+    input_schema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'The manager/DOER\'s name, as mentioned by the user.' } },
+      required: ['name']
+    }
+  },
+  {
     name: 'list_employees',
     description: 'Get an actual filtered, sortable list of individual employees (Emp Code, Name, Designation, Department, Status, DOJ) - use this whenever someone wants to SEE the employees themselves, not just a count (e.g. "list the engineers in Civil", "show me everyone who joined last quarter", "who is in the Sales department"). You DO have access to employee lists via this tool - never say you don\'t. The full list is already shown in the results card below your reply - do not repeat it as a table in your own text, just a short one-line summary.',
     input_schema: {
@@ -225,6 +234,7 @@ const TOOL_RUNNERS = {
   get_insights: () => tools.insightsSummary(),
   get_demographics: (input) => tools.demographics(input.kind),
   find_employee: (input) => tools.findEmployee(input.query),
+  get_direct_reports: (input) => tools.directReports(input.name),
   list_employees: (input) => tools.listEmployees(input),
   group_employees: (input) => tools.groupEmployees(input, input.groupBy),
   prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),
