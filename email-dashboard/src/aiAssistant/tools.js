@@ -29,6 +29,34 @@ async function departmentHeadcount() {
   };
 }
 
+async function locationHeadcount() {
+  const { employees, locationNames } = await employeeService.getEmployeeData();
+  const rows = analytics.locationBreakdown(employees, locationNames, isActive);
+  const total = employees.filter(isActive).length;
+  const top = rows.slice(0, CARD_ROW_LIMIT);
+  const rest = rows.length - top.length;
+  return {
+    title: 'Location-wise Active Headcount' + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
+    rows: top.map((r) => ({ label: r.name, value: r.count })),
+    footer: { label: 'Total Active Employees', value: total },
+    actions: [{ label: 'View Full Report', view: 'directory' }]
+  };
+}
+
+async function doerHeadcount() {
+  const { employees, doerNames } = await employeeService.getEmployeeData();
+  const rows = analytics.doerBreakdown(employees, doerNames, isActive);
+  const total = employees.filter(isActive).length;
+  const top = rows.slice(0, CARD_ROW_LIMIT);
+  const rest = rows.length - top.length;
+  return {
+    title: 'Reporting DOER-wise Active Headcount' + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
+    rows: top.map((r) => ({ label: r.name, value: r.count })),
+    footer: { label: 'Total Active Employees', value: total },
+    actions: [{ label: 'View Full Report', view: 'directory' }, { label: 'Download PDF', downloadUrl: '/api/workforce/doer-breakdown/pdf' }]
+  };
+}
+
 async function joiningThisMonth() {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const now = new Date();
@@ -362,6 +390,8 @@ async function navigateToView(view) {
 
 module.exports = {
   departmentHeadcount,
+  locationHeadcount,
+  doerHeadcount,
   joiningThisMonth,
   joiningTrend,
   pendingConfirmations,
