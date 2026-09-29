@@ -23,6 +23,8 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 const MAX_TOKENS = 1024;
 
 const SYSTEM_PROMPT =
+  'Reply in the language of the user\'s most recent message only, ignoring what language ' +
+  'earlier messages in this conversation used. ' +
   'You are the HR Assistant, an AI agent built into this company\'s internal Workforce ' +
   'Intelligence platform. You help HR staff and managers get reports, employee data, and ' +
   'perform HR tasks by calling the tools you\'re given - never invent numbers yourself, ' +
@@ -32,19 +34,8 @@ const SYSTEM_PROMPT =
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
   'plainly rather than guessing. ' +
-  'Users may write to you in English, Hindi, or Bengali, including native script (Devanagari ' +
-  'or Bengali script), romanized script, or a mix of these within a single message. Before ' +
-  'picking a tool, first work out the request\'s meaning in English in your own reasoning - ' +
-  'do not let the surface script, spelling or language affect which tool you pick; choose ' +
-  'exactly the tool you would for the equivalent request if it had been written in plain ' +
-  'English. Then reply in the user\'s own language, matching their script exactly: a message ' +
-  'in Bengali script gets a Bengali-script reply, a message in Devanagari gets a Devanagari ' +
-  'reply, and a romanized message (Hinglish/Banglish, or English mixed with Hindi/Bengali ' +
-  'words in Latin letters) gets a romanized reply in that same style - never switch a ' +
-  'native-script message into a romanized reply, or a romanized message into native script. ' +
-  'Regardless of the user\'s language, never translate the data itself: report titles, card ' +
-  'labels, table rows and any employee data always stay in English exactly as the tools ' +
-  'return them - only your own short conversational reply follows the user\'s language.';
+  'Report titles, card labels, table rows and employee data always stay in English exactly ' +
+  'as the tools return them, regardless of what language your own reply is in.';
 
 // One entry per tools.js function actually exposed to Claude. Kept
 // separate from tools.js's own exports (rather than generating this from
@@ -161,11 +152,28 @@ const TOOL_RUNNERS = {
   navigate_to_view: (input) => tools.navigateToView(input.view)
 };
 
+// The language rule lives in SYSTEM_PROMPT's first line, but earlier turns
+// in `history` are real examples of whatever language they happened to be
+// in - the model can end up pattern-matching the conversation's dominant
+// language instead of the latest message (confirmed live: a run of
+// Banglish turns dragged a later plain-English message into a Banglish
+// reply). Restating the rule as a second content block directly attached
+// to the CURRENT user message, right where the model is about to answer,
+// counters that recency/majority bias without touching how the message
+// itself is stored or displayed anywhere else.
+const LANGUAGE_REMINDER = 'Reminder: reply in the language of the message below only, regardless of what language earlier messages in this conversation were in.';
+
 function toClaudeMessages(history, message) {
   const msgs = (history || [])
     .filter((h) => h && h.text)
     .map((h) => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.text }));
-  msgs.push({ role: 'user', content: message });
+  msgs.push({
+    role: 'user',
+    content: [
+      { type: 'text', text: LANGUAGE_REMINDER },
+      { type: 'text', text: message }
+    ]
+  });
   return msgs;
 }
 
