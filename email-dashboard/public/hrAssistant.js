@@ -27,12 +27,30 @@
   const tileCamera = document.getElementById('hrAssistantTileCamera');
   const tilePhotos = document.getElementById('hrAssistantTilePhotos');
   const tileFiles = document.getElementById('hrAssistantTileFiles');
+  const historyBtn = document.getElementById('hrAssistantHistoryBtn');
+  const newChatBtn = document.getElementById('hrAssistantNewChatBtn');
+  const historySheetBackdrop = document.getElementById('hrHistorySheetBackdrop');
+  const historySheet = document.getElementById('hrHistorySheet');
+  const historySheetHandle = document.getElementById('hrHistorySheetHandle');
+  const historySheetCloseBtn = document.getElementById('hrHistorySheetCloseBtn');
+  const historySheetSearch = document.getElementById('hrHistorySheetSearch');
+  const historySheetSearchClear = document.getElementById('hrHistorySheetSearchClear');
+  const historySheetList = document.getElementById('hrHistorySheetList');
+  const historyViewAllBtn = document.getElementById('hrHistoryViewAllBtn');
+  const historyFullPanel = document.getElementById('hrHistoryFullPanel');
+  const historyFullBackBtn = document.getElementById('hrHistoryFullBackBtn');
+  const historyFullCloseBtn = document.getElementById('hrHistoryFullCloseBtn');
+  const historyFullSearch = document.getElementById('hrHistoryFullSearch');
+  const historyFullSearchClear = document.getElementById('hrHistoryFullSearchClear');
+  const historyFullList = document.getElementById('hrHistoryFullList');
+  const historyClearAllBtn = document.getElementById('hrHistoryClearAllBtn');
   if (!btn || !panel) return; // this page doesn't have the assistant markup
 
   const history = [];
   let opened = false;
   let pendingAttachment = null; // { name } - held only in the browser, see setAttachment()
   let savedScrollY = 0;
+  let currentConversationId = null;
 
   // The panel covers everything below the app header while open, so the
   // page content behind/under it shouldn't scroll - not even via an edge
@@ -358,6 +376,333 @@
     });
   }
 
+  // ---------- Chat History ----------
+  // Server model: src/chatHistoryService.js. The sheet below is a
+  // hand-rolled draggable bottom sheet (no new dependency) with three
+  // snap points - collapsed, expanded, closed - reachable by dragging the
+  // handle, or by dragging the list itself once it's scrolled to the top
+  // (see the touch handlers on historySheetList). Both this sheet and the
+  // full-screen panel it hands off to only exist while the main panel is
+  // already open, so they deliberately don't touch lockBodyScroll/
+  // unlockBodyScroll themselves - the main panel's own lock already
+  // covers their entire lifetime.
+  let sheetHeight = 0;
+  let sheetDragState = null;
+
+  // Snap points are expressed as HEIGHTS (not a translateY offset) - the
+  // sheet is anchored with bottom:0 and a fixed left/right, so animating
+  // its height keeps the bottom edge (and the "View All History" footer
+  // pinned to it) flush with the real viewport bottom at every point,
+  // collapsed included; a translateY approach would drag that footer
+  // off-screen along with the rest of the box while collapsed.
+  function historySnapPoints() {
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    return {
+      expandedHeight: Math.min(vh * 0.86, 720),
+      collapsedHeight: Math.min(vh * 0.5, 480),
+      closedHeight: 0
+    };
+  }
+
+  function applySheetHeight(h) {
+    sheetHeight = h;
+    historySheet.style.height = h + 'px';
+    const { expandedHeight } = historySnapPoints();
+    const openness = Math.max(0, Math.min(1, h / expandedHeight));
+    historySheetBackdrop.style.opacity = String(openness);
+  }
+
+  function animateSheetTo(h) {
+    historySheet.classList.remove('dragging');
+    historySheetBackdrop.classList.add('animating');
+    applySheetHeight(h);
+    if (h <= 0) {
+      setTimeout(() => {
+        historySheet.hidden = true;
+        historySheetBackdrop.hidden = true;
+        historySheetBackdrop.classList.remove('animating');
+      }, 320);
+    }
+  }
+
+  function openHistorySheet() {
+    historySheetBackdrop.hidden = false;
+    historySheet.hidden = false;
+    historySheetBackdrop.classList.remove('animating');
+    applySheetHeight(0);
+    void historySheet.offsetHeight; // force reflow so the animation below actually runs
+    historySheetSearch.value = '';
+    historySheetSearchClear.hidden = true;
+    loadHistoryInto(historySheetList, '');
+    requestAnimationFrame(() => animateSheetTo(historySnapPoints().collapsedHeight));
+  }
+
+  function closeHistorySheet() {
+    if (historySheet.hidden) return;
+    animateSheetTo(0);
+  }
+
+  function sheetPointerDown(e) {
+    sheetDragState = { startY: e.clientY, startHeight: sheetHeight };
+    historySheet.classList.add('dragging');
+    historySheetBackdrop.classList.remove('animating');
+    try { historySheetHandle.setPointerCapture(e.pointerId); } catch (err) { /* not supported - drag still works */ }
+  }
+  function sheetPointerMove(e) {
+    if (!sheetDragState) return;
+    const { expandedHeight } = historySnapPoints();
+    const next = Math.max(0, Math.min(expandedHeight, sheetDragState.startHeight - (e.clientY - sheetDragState.startY)));
+    applySheetHeight(next);
+  }
+  function sheetPointerUp() {
+    if (!sheetDragState) return;
+    sheetDragState = null;
+    const { expandedHeight, collapsedHeight, closedHeight } = historySnapPoints();
+    const points = [expandedHeight, collapsedHeight, closedHeight];
+    animateSheetTo(points.reduce((a, b) => (Math.abs(sheetHeight - a) < Math.abs(sheetHeight - b) ? a : b)));
+  }
+  historySheetHandle.addEventListener('pointerdown', sheetPointerDown);
+  historySheetHandle.addEventListener('pointermove', sheetPointerMove);
+  historySheetHandle.addEventListener('pointerup', sheetPointerUp);
+  historySheetHandle.addEventListener('pointercancel', sheetPointerUp);
+
+  // Scroll-vs-drag: only engages a sheet-drag once the list is already
+  // scrolled to the top AND the person keeps pulling down past that -
+  // otherwise this never touches the list's own native scroll.
+  let listDragState = null;
+  function listTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    listDragState = { startY: e.touches[0].clientY, engaged: false };
+  }
+  function listTouchMove(e) {
+    if (!listDragState) return;
+    const y = e.touches[0].clientY;
+    if (!listDragState.engaged) {
+      if (historySheetList.scrollTop <= 0 && y - listDragState.startY > 0) {
+        listDragState.engaged = true;
+        listDragState.dragStartY = y;
+        listDragState.dragStartHeight = sheetHeight;
+        historySheet.classList.add('dragging');
+        historySheetBackdrop.classList.remove('animating');
+      } else {
+        return;
+      }
+    }
+    e.preventDefault();
+    const { expandedHeight } = historySnapPoints();
+    const next = Math.max(0, Math.min(expandedHeight, listDragState.dragStartHeight - (y - listDragState.dragStartY)));
+    applySheetHeight(next);
+  }
+  function listTouchEnd() {
+    if (!listDragState) return;
+    const wasEngaged = listDragState.engaged;
+    listDragState = null;
+    if (!wasEngaged) return;
+    const { expandedHeight, collapsedHeight, closedHeight } = historySnapPoints();
+    const points = [expandedHeight, collapsedHeight, closedHeight];
+    animateSheetTo(points.reduce((a, b) => (Math.abs(sheetHeight - a) < Math.abs(sheetHeight - b) ? a : b)));
+  }
+  historySheetList.addEventListener('touchstart', listTouchStart, { passive: true });
+  historySheetList.addEventListener('touchmove', listTouchMove, { passive: false });
+  historySheetList.addEventListener('touchend', listTouchEnd);
+  historySheetList.addEventListener('touchcancel', listTouchEnd);
+
+  function historyGroupFor(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return 'Today';
+    const yest = new Date(now);
+    yest.setDate(now.getDate() - 1);
+    if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+    return 'Earlier';
+  }
+  function formatHistoryTime(ts) {
+    const d = new Date(ts);
+    const group = historyGroupFor(ts);
+    if (group === 'Earlier') return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function buildHistoryRow(meta) {
+    const row = document.createElement('div');
+    row.className = 'wf-ai-history-row';
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.dataset.id = meta.id;
+    row.innerHTML =
+      '<span class="wf-ai-history-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>' +
+      '<span class="wf-ai-history-row-main">' +
+        '<div class="wf-ai-history-row-title">' + escapeHtml(meta.title) + '</div>' +
+        '<div class="wf-ai-history-row-preview">' + escapeHtml(meta.preview || '') + '</div>' +
+      '</span>' +
+      '<span class="wf-ai-history-row-meta">' +
+        '<span class="wf-ai-history-row-time">' + formatHistoryTime(meta.updatedAt) + '</span>' +
+        '<button type="button" class="wf-ai-history-row-delete" data-delete-id="' + escapeHtml(meta.id) + '" aria-label="Delete conversation">' +
+          '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>' +
+        '</button>' +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+      '</span>';
+    return row;
+  }
+
+  function renderHistoryList(container, items, query) {
+    container.innerHTML = '';
+    if (!items.length) {
+      container.innerHTML =
+        '<div class="wf-ai-history-empty">' +
+          '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>' +
+          '<span>' + (query ? 'No conversations found' : 'No conversations yet') + '</span>' +
+        '</div>';
+      return;
+    }
+    ['Today', 'Yesterday', 'Earlier'].forEach((label) => {
+      const rows = items.filter((it) => historyGroupFor(it.updatedAt) === label);
+      if (!rows.length) return;
+      const heading = document.createElement('div');
+      heading.className = 'wf-ai-history-group-label';
+      heading.textContent = label;
+      container.appendChild(heading);
+      rows.forEach((meta) => container.appendChild(buildHistoryRow(meta)));
+    });
+  }
+
+  async function loadHistoryInto(container, query) {
+    container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    try {
+      const url = '/api/workforce/hr-assistant/conversations' + (query && query.trim() ? '?q=' + encodeURIComponent(query.trim()) : '');
+      const resp = await fetch(url);
+      const data = await resp.json();
+      renderHistoryList(container, data.items || [], query);
+    } catch (err) {
+      renderHistoryList(container, [], query);
+    }
+  }
+
+  async function deleteConversationById(id) {
+    try {
+      await fetch('/api/workforce/hr-assistant/conversations/' + encodeURIComponent(id), { method: 'DELETE' });
+    } catch (err) { /* best-effort - the row is removed from view regardless */ }
+    if (currentConversationId === id) currentConversationId = null;
+  }
+
+  function wireHistoryList(container) {
+    container.addEventListener('click', async (e) => {
+      const delBtn = e.target.closest('.wf-ai-history-row-delete');
+      if (delBtn) {
+        e.stopPropagation();
+        if (!confirm('Delete this conversation?')) return;
+        await deleteConversationById(delBtn.dataset.deleteId);
+        const isSheet = container === historySheetList;
+        loadHistoryInto(container, isSheet ? historySheetSearch.value : historyFullSearch.value);
+        const otherVisible = isSheet ? !historyFullPanel.hidden : !historySheet.hidden;
+        if (otherVisible) {
+          const other = isSheet ? historyFullList : historySheetList;
+          loadHistoryInto(other, isSheet ? historyFullSearch.value : historySheetSearch.value);
+        }
+        return;
+      }
+      const row = e.target.closest('.wf-ai-history-row');
+      if (row) openConversation(row.dataset.id);
+    });
+    container.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const row = e.target.closest('.wf-ai-history-row');
+      if (!row) return;
+      e.preventDefault();
+      openConversation(row.dataset.id);
+    });
+  }
+  wireHistoryList(historySheetList);
+  wireHistoryList(historyFullList);
+
+  async function openConversation(id) {
+    try {
+      const resp = await fetch('/api/workforce/hr-assistant/conversations/' + encodeURIComponent(id));
+      if (!resp.ok) throw new Error('not found');
+      const convo = await resp.json();
+      currentConversationId = convo.id;
+      messagesEl.innerHTML = '';
+      history.length = 0;
+      (convo.messages || []).forEach((m) => {
+        if (m.role === 'user') {
+          addBubble('user', m.text, m.attachment || null);
+        } else {
+          addBubble('assistant', m.text);
+          if (m.card) addCard(m.card);
+          if (m.actions && m.actions.length) addActions(m.actions);
+        }
+        history.push({ role: m.role, text: m.text });
+      });
+      if (history.length > 10) history.splice(0, history.length - 10);
+      scrollToBottom();
+    } catch (err) {
+      addBubble('assistant', "Couldn't load that conversation. Please try again.");
+    } finally {
+      closeHistorySheet();
+      historyFullPanel.hidden = true;
+    }
+  }
+
+  function startNewChat() {
+    currentConversationId = null;
+    history.length = 0;
+    messagesEl.innerHTML = '';
+    const name = (document.getElementById('drawerName') && document.getElementById('drawerName').textContent.trim()) || '';
+    const greetName = name && name !== '—' ? name.split(' ')[0] : '';
+    addWelcome(greetName);
+  }
+
+  historyBtn.addEventListener('click', openHistorySheet);
+  historySheetCloseBtn.addEventListener('click', closeHistorySheet);
+  historySheetBackdrop.addEventListener('click', closeHistorySheet);
+  newChatBtn.addEventListener('click', startNewChat);
+
+  historyViewAllBtn.addEventListener('click', () => {
+    closeHistorySheet();
+    historyFullPanel.hidden = false;
+    historyFullSearch.value = '';
+    historyFullSearchClear.hidden = true;
+    loadHistoryInto(historyFullList, '');
+  });
+  historyFullBackBtn.addEventListener('click', () => {
+    historyFullPanel.hidden = true;
+    openHistorySheet();
+  });
+  historyFullCloseBtn.addEventListener('click', () => { historyFullPanel.hidden = true; });
+  historyClearAllBtn.addEventListener('click', async () => {
+    if (!confirm('Clear all chat history? This cannot be undone.')) return;
+    try {
+      await fetch('/api/workforce/hr-assistant/conversations', { method: 'DELETE' });
+    } catch (err) { /* best-effort */ }
+    currentConversationId = null;
+    loadHistoryInto(historyFullList, historyFullSearch.value);
+  });
+
+  let sheetSearchTimer = null;
+  historySheetSearch.addEventListener('input', () => {
+    historySheetSearchClear.hidden = !historySheetSearch.value;
+    clearTimeout(sheetSearchTimer);
+    sheetSearchTimer = setTimeout(() => loadHistoryInto(historySheetList, historySheetSearch.value), 250);
+  });
+  historySheetSearchClear.addEventListener('click', () => {
+    historySheetSearch.value = '';
+    historySheetSearchClear.hidden = true;
+    loadHistoryInto(historySheetList, '');
+    historySheetSearch.focus();
+  });
+  let fullSearchTimer = null;
+  historyFullSearch.addEventListener('input', () => {
+    historyFullSearchClear.hidden = !historyFullSearch.value;
+    clearTimeout(fullSearchTimer);
+    fullSearchTimer = setTimeout(() => loadHistoryInto(historyFullList, historyFullSearch.value), 250);
+  });
+  historyFullSearchClear.addEventListener('click', () => {
+    historyFullSearch.value = '';
+    historyFullSearchClear.hidden = true;
+    loadHistoryInto(historyFullList, '');
+    historyFullSearch.focus();
+  });
+
   function openPanel() {
     panel.hidden = false;
     lockBodyScroll();
@@ -433,7 +778,12 @@
       const resp = await fetch('/api/workforce/hr-assistant/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history: history.slice(-10) })
+        body: JSON.stringify({
+          message: text,
+          history: history.slice(-10),
+          conversationId: currentConversationId,
+          attachmentName: attachment ? attachment.name : null
+        })
       });
       loadingRow.remove();
       if (!resp.ok) {
@@ -441,6 +791,7 @@
         return;
       }
       const data = await resp.json();
+      if (data.conversationId) currentConversationId = data.conversationId;
       addBubble('assistant', data.reply || 'Done.');
       history.push({ role: 'assistant', text: data.reply || '' });
       if (data.card) addCard(data.card);
