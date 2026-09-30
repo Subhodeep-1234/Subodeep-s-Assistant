@@ -155,6 +155,12 @@ const SYSTEM_PROMPT =
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
   'plainly rather than guessing. ' +
+  'For a person\'s contact number, personal email, blood group, emergency contact, address, ' +
+  'Aadhar or PAN, use get_personal_details, not get_employee_detail. If that result has ' +
+  'restricted:true, that column DOES exist - it is only access that is limited - so say plainly ' +
+  'that it is restricted and not shown to this account (use its note field), never say the data ' +
+  'doesn\'t exist or that you don\'t have it. Only say a field genuinely doesn\'t exist when no ' +
+  'tool has it at all, not when a tool result is merely restricted or empty for one person. ' +
   'Report titles, card labels, table rows and employee data always stay in English exactly ' +
   'as the tools return them.';
 
@@ -392,7 +398,19 @@ const TOOL_DEFS = [
     type: 'function',
     function: {
       name: 'get_employee_detail',
-      description: 'Get a single named employee\'s profile: Employee ID, Designation, Department, Status, Date of Birth, Tenure, Total Experience, Reporting Manager. This tool never returns and you must never claim to have Aadhar, PAN, contact number, address, bank details, UAN, ESI number or email - those are excluded entirely, permanently, by design.',
+      description: 'Get a single named employee\'s work profile: Employee ID, Designation, Department, Status, Date of Birth, Tenure, Total Experience, Reporting Manager. This tool never returns personal/sensitive fields (contact number, personal email, blood group, emergency contact, address, Aadhar, PAN) - use get_personal_details for those instead, never claim this tool has them or that they don\'t exist.',
+      parameters: {
+        type: 'object',
+        properties: { name: { type: 'string', description: 'The employee\'s name or ID, as mentioned by the user.' } },
+        required: ['name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_personal_details',
+      description: 'Get a named employee\'s personal/sensitive details: contact number, personal email, blood group, emergency contact, permanent/present address, Aadhar, PAN. These columns DO exist in the data - if the tool result has restricted:true, that means access is limited to specific accounts, NOT that the data doesn\'t exist; say so plainly rather than claiming there\'s no such data. Use this whenever someone asks for any of these specific fields.',
       parameters: {
         type: 'object',
         properties: { name: { type: 'string', description: 'The employee\'s name or ID, as mentioned by the user.' } },
@@ -518,6 +536,7 @@ const TOOL_RUNNERS = {
   find_employee: (input) => tools.findEmployee(input.query),
   get_direct_reports: (input) => tools.directReports(input.name),
   get_employee_detail: (input) => tools.employeeDetail(input.name),
+  get_personal_details: (input, user) => tools.getPersonalDetails(input.name, user && user.email),
   list_employees: (input) => tools.listEmployees(input),
   group_employees: (input) => tools.groupEmployees(input, input.groupBy),
   prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),
@@ -697,7 +716,7 @@ async function getResponse({ message, history, user }) {
     let card = null;
     let actions = null;
     try {
-      toolResult = runner ? await runner(input) : { error: 'Unknown tool: ' + toolCall.function.name };
+      toolResult = runner ? await runner(input, user) : { error: 'Unknown tool: ' + toolCall.function.name };
       if (toolResult && !toolResult.error) {
         card = toolResult.title
           ? {
