@@ -566,7 +566,7 @@ function toOpenAiMessages(history, message) {
   return msgs;
 }
 
-async function callOpenAi(apiKey, messages, forceToolCall) {
+async function callOpenAi(apiKey, messages, toolChoice) {
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: {
@@ -578,13 +578,7 @@ async function callOpenAi(apiKey, messages, forceToolCall) {
       max_tokens: MAX_TOKENS,
       messages,
       tools: TOOL_DEFS,
-      // Forced on the FIRST call only - this is what closes the
-      // hallucination hole: the model physically cannot skip straight to
-      // a text answer (and invent a name/number) without going through a
-      // real tool first, not even for greetings/small talk (no_data_needed
-      // covers those). The follow-up call, after it's already seen the
-      // real tool result, is left as 'auto' so it can just answer in text.
-      tool_choice: forceToolCall ? 'required' : 'auto'
+      tool_choice: toolChoice
     })
   });
   if (!resp.ok) {
@@ -629,6 +623,16 @@ const REPLY_MARKER_RE = /^\s*\[\[(PLAIN|CARD|DRAFT)\]\]\s*/;
 // of its own to strip.
 async function callOpenAiDraft(apiKey, message, history, toolResult) {
   const msgs = [{ role: 'system', content: DRAFT_SYSTEM_PROMPT }];
+  // This model has no tools of its own (see the comment above), so
+  // today's real date is handed to it directly here - the only way it
+  // could otherwise get it is by guessing, which is exactly what a
+  // dated document (a notice, a letter effective from some date) must
+  // never do.
+  msgs.push({
+    role: 'system',
+    content: 'Today\'s real date is ' +
+      new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }) + '.'
+  });
   (Array.isArray(history) ? history : []).slice(-10)
     .forEach((h) => msgs.push({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.text }));
   if (toolResult && !toolResult.error) {
@@ -695,7 +699,11 @@ async function getResponse({ message, history, user }) {
   }
 
   const messages = toOpenAiMessages(history, message);
-  let data = await callOpenAi(apiKey, messages, true);
+  // Forced on this FIRST call - this is what closes the hallucination
+  // hole: the model physically cannot skip straight to a text answer
+  // (and invent a name/number) without going through a real tool first,
+  // not even for greetings/small talk (no_data_needed covers those).
+  let data = await callOpenAi(apiKey, messages, 'required');
   let choice = data.choices && data.choices[0];
   let assistantMessage = choice && choice.message;
   const usage1 = data.usage || null;
@@ -742,7 +750,14 @@ async function getResponse({ message, history, user }) {
         content: JSON.stringify(toolResult).slice(0, 4000)
       }
     ]);
-    data = await callOpenAi(apiKey, followUpMessages);
+    // Forced to 'none' here (was 'auto', found live to be a real bug):
+    // this call's only job is to answer in text using the tool result
+    // already fetched, but 'auto' let the model call ANOTHER tool
+    // instead (confirmed live - it tried get_current_datetime while
+    // drafting a notice) with no code path here to execute that second
+    // call, silently producing empty content and a generic fallback
+    // reply. 'none' makes a text answer the only possible outcome.
+    data = await callOpenAi(apiKey, followUpMessages, 'none');
     choice = data.choices && data.choices[0];
     assistantMessage = choice && choice.message;
     const usage2 = data.usage || null;
@@ -758,7 +773,6 @@ async function getResponse({ message, history, user }) {
     });
 
     const followUpContent = (assistantMessage && assistantMessage.content) || '';
-    console.log('[hr-assistant][debug] tool=' + toolCall.function.name + ' followUpContent=' + JSON.stringify(followUpContent).slice(0, 300) + ' followUpToolCalls=' + JSON.stringify(assistantMessage && assistantMessage.tool_calls).slice(0, 300) + ' finishReason=' + (choice && choice.finish_reason));
     const markerMatch = followUpContent.match(REPLY_MARKER_RE);
     if (markerMatch && markerMatch[1] === 'DRAFT') {
       const draftData = await callOpenAiDraft(apiKey, message, history, toolResult);
