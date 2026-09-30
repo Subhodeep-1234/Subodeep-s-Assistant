@@ -63,18 +63,29 @@ async function doerHeadcount() {
 // left isn't a meaningful answer to "who's joining this month" unless
 // asked for explicitly (see query_employees/list_employees/
 // group_employees for that widened case).
-async function joiningThisMonth() {
+// Same status-widening idea used everywhere else: includeAllStatuses
+// bypasses the Active-only default, ONLY when explicitly set true (e.g.
+// "including notice period staff" / "notice period soho"). Without it,
+// these stay Active-only no matter what.
+function statusMatches(emp, includeAllStatuses) {
+  return includeAllStatuses ? emp.status !== 'INACTIVE' : emp.status === 'ACTIVE';
+}
+function activeScopeSuffix(includeAllStatuses) {
+  return includeAllStatuses ? ' (Active + Notice Period)' : ' (Active)';
+}
+
+async function joiningThisMonth(includeAllStatuses) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const now = new Date();
   const y = now.getUTCFullYear(), m = now.getUTCMonth();
-  const joiners = employees.filter((e) => e.status === 'ACTIVE' && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === m);
+  const joiners = employees.filter((e) => statusMatches(e, includeAllStatuses) && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === m);
   return {
     title: 'Employees Joining This Month',
     rows: joiners.slice(0, CARD_ROW_LIMIT).map((e) => ({
       label: e.name,
       value: (departmentNames.get(e.departmentKey) || e.department) + ' · ' + e.doj.toISOString().slice(0, 10)
     })),
-    footer: { label: 'Total Active Joiners', value: joiners.length },
+    footer: { label: 'Total Joiners' + activeScopeSuffix(includeAllStatuses), value: joiners.length },
     actions: [{ label: 'Open Joining Report', view: 'joining' }]
   };
 }
@@ -82,20 +93,16 @@ async function joiningThisMonth() {
 // monthOffset 0 = this month, 1 = next month - "confirmation due next
 // month" is one of the spec's own example commands, so this needs to
 // look at a month other than the current one.
-async function pendingConfirmations(monthOffset = 0) {
+async function pendingConfirmations(monthOffset = 0, includeAllStatuses) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const now = new Date();
   const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
-  // analytics.pendingConfirmationsThisMonth only excludes INACTIVE (shared
-  // with the Insights dashboard, not changed here) - Notice Period staff
-  // are filtered out here instead, active-only by default like everything
-  // else.
-  const list = analytics.pendingConfirmationsThisMonth(employees, target).filter((e) => e.status === 'ACTIVE');
+  const list = analytics.pendingConfirmationsThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
   const label = monthOffset === 0 ? 'This Month' : 'Next Month';
   return {
     title: 'Confirmations Due ' + label,
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
-    footer: { label: 'Total Active Pending', value: list.length },
+    footer: { label: 'Total Pending' + activeScopeSuffix(includeAllStatuses), value: list.length },
     actions: [{ label: 'Open Tenure View', view: 'tenure' }]
   };
 }
@@ -110,16 +117,13 @@ async function joiningTrend() {
   };
 }
 
-async function retirementThisMonth() {
+async function retirementThisMonth(includeAllStatuses) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
-  // analytics.turning58ThisMonth only excludes INACTIVE (shared with the
-  // Insights dashboard, not changed here) - Notice Period is filtered out
-  // here instead, active-only by default like everything else.
-  const list = analytics.turning58ThisMonth(employees).filter((e) => e.status === 'ACTIVE');
+  const list = analytics.turning58ThisMonth(employees).filter((e) => statusMatches(e, includeAllStatuses));
   return {
     title: 'Employees Reaching Retirement Age This Month',
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
-    footer: { label: 'Total Active', value: list.length },
+    footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length },
     actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
   };
 }
@@ -131,7 +135,7 @@ async function retirementThisMonth() {
 // found live: without this, "October birthdays" was silently answered
 // with THIS month's list instead (the model kept calling this tool with
 // no month, which only ever means "now").
-async function birthdaysThisMonth(month) {
+async function birthdaysThisMonth(month, includeAllStatuses) {
   const { employees } = await employeeService.getEmployeeData();
   const now = new Date();
   const requestedMonth = Number(month);
@@ -139,12 +143,7 @@ async function birthdaysThisMonth(month) {
   // Year is irrelevant here - analytics.birthdaysThisMonth only compares
   // month, not year - so any year works as the reference date.
   const target = new Date(Date.UTC(now.getUTCFullYear(), targetMonthIndex, 1));
-  // analytics.birthdaysThisMonth only excludes INACTIVE (shared with the
-  // Insights dashboard, not changed here) - Notice Period is filtered out
-  // here instead, active-only by default like everything else. This is
-  // the exact discrepancy found live: "October birthdays" reported 126
-  // (every status, including exited staff) instead of the real 33 active.
-  const list = analytics.birthdaysThisMonth(employees, target).filter((e) => e.status === 'ACTIVE');
+  const list = analytics.birthdaysThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
   const monthLabel = target.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
   return {
     title: 'Birthdays in ' + monthLabel,
@@ -152,7 +151,7 @@ async function birthdaysThisMonth(month) {
       label: e.name,
       value: e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
     })),
-    footer: { label: 'Total Active', value: list.length },
+    footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length },
     actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
   };
 }
