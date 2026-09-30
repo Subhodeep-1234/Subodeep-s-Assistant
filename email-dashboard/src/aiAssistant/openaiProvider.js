@@ -35,6 +35,16 @@ const SYSTEM_PROMPT =
   'returns an actual filtered, sorted list of employees (Emp Code, Name, Designation, ' +
   'Department, Status, DOJ), and group_employees returns counts grouped by any field. Never ' +
   'say you lack access to employee lists or can\'t filter/list employees - use these tools. ' +
+  'For anything those and the other named tools do not already cover - a specific month\'s ' +
+  'birthdays in any year, an approximate/partial name, a joining-year breakdown, a tenure-sorted ' +
+  'list, filtering on a field none of the presets expose - use query_employees, the general ' +
+  'search tool over the full employee dataset. Never refuse or say something is unsupported ' +
+  'without first checking whether query_employees can answer it; only say a question is out of ' +
+  'reach if even that tool genuinely has no field for it. Only ever use data a tool returned for ' +
+  'THIS exact question - never reuse or extrapolate an earlier reply for a different month, ' +
+  'department or person, even if it looks similar; if you are not certain a tool result answers ' +
+  'exactly what was just asked, call the right tool again with the exact right parameters rather ' +
+  'than guessing from memory. ' +
   'You must call a tool on every turn, including this one - there is no way to reply without ' +
   'calling one. If the message is just a greeting, thanks, or anything with no real HR ' +
   'question in it, call no_data_needed. Never state a specific name, number, or date unless ' +
@@ -162,6 +172,57 @@ const TOOL_DEFS = [
         type: 'object',
         properties: { name: { type: 'string', description: 'The employee\'s name, as mentioned by the user.' } },
         required: ['name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_employees',
+      description: 'General-purpose read-only search over the FULL employee dataset - use this for anything the other tools do not already cover: a specific month\'s birthdays regardless of year, an approximate/partial name, a joining-year breakdown, a tenure-sorted list, "who is under X filtered by department", etc. Supports filtering on any field, grouping/counting by any field, sorting, and a result limit. Prefer a more specific tool when one exists (e.g. get_department_headcount for a plain department breakdown), but never refuse a question just because no preset tool matches it exactly - use this one instead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Partial name search - matches all words in any order, so a middle name in between (e.g. searching "Pawan Dhanuka" still finds "Pawan Kumar Dhanuka") is fine.' },
+          designation: { type: 'string', description: 'Substring, e.g. "engineer" matches Engineer, Jr. Engineer, Senior Engineer, etc.' },
+          department: { type: 'string', description: 'Substring, e.g. "HR" matches "HR DEPT", "civil" matches every Civil sub-department.' },
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'] },
+          location: { type: 'string', description: 'Substring on work location/site.' },
+          gender: { type: 'string', enum: ['Male', 'Female'] },
+          reportingManager: { type: 'string', description: 'Partial name of their manager (HOD-1) - matches all words in any order.' },
+          reportingDoer: { type: 'string', description: 'Partial name of their Reporting DOER - matches all words in any order.' },
+          collar: { type: 'string', enum: ['White', 'Blue', 'Group-D'] },
+          employmentType: { type: 'string', enum: ['Confirmed', 'Probation'] },
+          dateFrom: { type: 'string', description: 'Joining date range start, YYYY-MM-DD.' },
+          dateTo: { type: 'string', description: 'Joining date range end, YYYY-MM-DD.' },
+          dobMonth: { type: 'integer', description: 'Birth month 1-12, ANY year - e.g. 12 for "everyone born in December" regardless of which year.' },
+          dobYear: { type: 'integer', description: 'Exact birth year.' },
+          dojMonth: { type: 'integer', description: 'Joining month 1-12, ANY year - e.g. 10 for "everyone who ever joined in October".' },
+          dojYear: { type: 'integer', description: 'Exact joining year, e.g. 2024 for "joined in 2024".' },
+          ageMin: { type: 'integer' },
+          ageMax: { type: 'integer' },
+          tenureYearsMin: { type: 'number', description: 'Minimum years at this company.' },
+          tenureYearsMax: { type: 'number' },
+          experienceYearsMin: { type: 'number', description: 'Minimum total career experience in years.' },
+          experienceYearsMax: { type: 'number' },
+          q: { type: 'string', description: 'Broad free-text search across name/employee ID/email/department/designation/location - use the specific field filters above instead when you know which field the person means.' },
+          groupBy: {
+            type: 'string',
+            enum: ['designation', 'department', 'status', 'location', 'gender', 'collar', 'employmentType', 'reportingManager', 'reportingDoer'],
+            description: 'If set, returns COUNTS grouped by this field instead of a list of individuals - use for "X wise" or "how many per Y" questions (e.g. "joined in 2024, department wise" -> dojYear:2024, groupBy:"department").'
+          },
+          fields: {
+            type: 'array',
+            items: { type: 'string', enum: ['employeeId', 'name', 'designation', 'department', 'status', 'location', 'gender', 'dob', 'doj', 'tenure', 'totalExperience', 'reportingManager', 'reportingDoer', 'collar', 'employmentType'] },
+            description: 'Which columns to show in list mode (ignored when groupBy is set) - choose fields relevant to the question, e.g. include "dob" for a birthday question, "tenure" for a tenure question, "reportingManager" when that is what was asked about. Defaults to Emp Code/Name/Designation/Department/Status if omitted.'
+          },
+          sortBy: {
+            type: 'string',
+            enum: ['employeeId', 'name', 'designation', 'department', 'status', 'location', 'gender', 'dob', 'doj', 'tenure', 'totalExperience', 'reportingManager', 'reportingDoer', 'collar', 'employmentType', 'tenureYears', 'experienceYears']
+          },
+          sortDir: { type: 'string', enum: ['asc', 'desc'] },
+          limit: { type: 'integer', description: 'Max rows to return in list mode (default 50, max 200).' }
+        }
       }
     }
   },
@@ -330,6 +391,7 @@ const TOOL_RUNNERS = {
   get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
   get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),
   get_insurance_status: (input) => tools.insuranceStatus(input.name),
+  query_employees: (input) => tools.queryEmployees(input),
   get_data_quality_issues: () => tools.dataQualityIssues(),
   get_insights: () => tools.insightsSummary(),
   get_demographics: (input) => tools.demographics(input.kind),

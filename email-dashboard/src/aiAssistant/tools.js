@@ -410,6 +410,169 @@ async function groupEmployees(filters = {}, groupBy = 'department') {
   };
 }
 
+// ---------------------------------------------------------------------
+// General query tool - one read-only tool over the FULL employee dataset
+// for anything the preset tools above don't already cover (a specific
+// month's birthdays regardless of year, a partial name, "who reports to
+// X" filtered further by department, tenure sorted lists, etc). Purely
+// additive: nothing above this point is touched or called differently.
+//
+// Single source of truth for every field this tool can show as a column,
+// group by, or sort by, and how to read each one off a raw employee
+// record. Deliberately excludes every PII field (Aadhar, PAN, contact
+// number, address, bank details, UAN, ESI, email) - exactly like
+// get_employee_detail, they are never read into this registry at all, so
+// there is no code path here that could put them in a chat reply.
+const QUERY_FIELD_DEFS = {
+  employeeId: { label: 'Emp Code', get: (e) => e.employeeId },
+  name: { label: 'Name', get: (e) => e.name },
+  designation: { label: 'Designation', get: (e) => e.designation || '—' },
+  department: { label: 'Department', get: (e, n) => n.departmentNames.get(e.departmentKey) || e.department || '—' },
+  status: { label: 'Status', get: (e) => e.status || '—' },
+  location: { label: 'Location', get: (e, n) => n.locationNames.get(e.locationKey) || e.location || '—' },
+  gender: { label: 'Gender', get: (e) => e.gender || '—' },
+  dob: { label: 'DOB', get: (e) => (e.dob ? e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—') },
+  doj: { label: 'DOJ', get: (e) => (e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—') },
+  tenure: { label: 'Tenure', get: (e) => e.tenure || '—' },
+  totalExperience: { label: 'Total Experience', get: (e) => e.totalExperience || '—' },
+  reportingManager: { label: 'Reporting Manager', get: (e, n) => n.reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager || '—' },
+  reportingDoer: { label: 'Reporting DOER', get: (e, n) => n.doerNames.get(e.reportingDoerKey) || e.reportingDoer || '—' },
+  collar: { label: 'Category', get: (e) => employeeService.formatCollar(e.groupD) || '—' },
+  employmentType: { label: 'Employment Type', get: (e) => e.employmentType || '—' }
+};
+const QUERY_DEFAULT_FIELDS = ['employeeId', 'name', 'designation', 'department', 'status'];
+const QUERY_GROUPABLE_FIELDS = ['designation', 'department', 'status', 'location', 'gender', 'collar', 'employmentType', 'reportingManager', 'reportingDoer'];
+const QUERY_SORTABLE_FIELDS = [...Object.keys(QUERY_FIELD_DEFS), 'tenureYears', 'experienceYears'];
+const QUERY_DEFAULT_LIMIT = 50;
+const QUERY_MAX_LIMIT = 200;
+
+function querySortValue(emp, sortBy, names) {
+  if (sortBy === 'tenureYears') return employeeService.parseYearsFromDuration(emp.tenure) ?? -1;
+  if (sortBy === 'experienceYears') return employeeService.parseYearsFromDuration(emp.totalExperience) ?? -1;
+  if (sortBy === 'dob') return emp.dob ? emp.dob.getTime() : 0;
+  if (sortBy === 'doj') return emp.doj ? emp.doj.getTime() : 0;
+  const def = QUERY_FIELD_DEFS[sortBy];
+  if (!def) return '';
+  const v = def.get(emp, names);
+  return typeof v === 'string' ? v.toLowerCase() : v;
+}
+
+// A separate query-string builder from buildEmployeeQueryString above -
+// this tool exposes several filter keys (location, reportingManager,
+// reportingDoer, collar, employmentType, gender, dobMonth/Year,
+// dojMonth/Year, ageMin/Max, name) that buildEmployeeQueryString doesn't
+// carry, and existing tools' Download PDF links must keep behaving
+// exactly as they do today, byte for byte - so this tool gets its own
+// builder instead of extending that shared one.
+function buildQueryEmployeesQueryString(filters) {
+  const params = new URLSearchParams();
+  [
+    'name', 'designation', 'department', 'status', 'location', 'gender',
+    'reportingManager', 'reportingDoer', 'collar', 'employmentType',
+    'dateFrom', 'dateTo', 'dobMonth', 'dobYear', 'dojMonth', 'dojYear',
+    'ageMin', 'ageMax', 'tenureYearsMin', 'tenureYearsMax',
+    'experienceYearsMin', 'experienceYearsMax', 'q'
+  ].forEach((key) => {
+    if (filters && filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+      params.set(key, filters[key]);
+    }
+  });
+  const qs = params.toString();
+  return qs ? '?' + qs : '';
+}
+
+async function queryEmployees(params = {}) {
+  const { employees, departmentNames, locationNames, reportingManagerNames, doerNames } = await employeeService.getEmployeeData();
+  const names = { departmentNames, locationNames, reportingManagerNames, doerNames };
+
+  // Only real employeeService filter keys go to filterEmployees/PDF link -
+  // groupBy/fields/sortBy/sortDir/limit are this tool's own shaping
+  // options, not data filters.
+  const filters = Object.assign({}, params);
+  delete filters.groupBy;
+  delete filters.fields;
+  delete filters.sortBy;
+  delete filters.sortDir;
+  delete filters.limit;
+
+  const filtered = employeeService.filterEmployees(employees, filters);
+
+  // Same distinction as list_employees/group_employees: a filter value
+  // that matches nothing at all in the whole dataset is a wrong guess,
+  // not a real zero (see employeeService.findUnmatchedFilters).
+  if (!filtered.length) {
+    const unmatched = employeeService.findUnmatchedFilters(employees, filters, names);
+    return {
+      title: null,
+      rows: null,
+      columns: null,
+      tableRows: null,
+      footer: null,
+      actions: [{ label: 'View Full Report', view: 'directory' }],
+      unmatchedFilters: unmatched.length ? unmatched : null,
+      note: unmatched.length
+        ? null
+        : 'No employees match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.'
+    };
+  }
+
+  const groupBy = QUERY_GROUPABLE_FIELDS.includes(params.groupBy) ? params.groupBy : null;
+  if (groupBy) {
+    const def = QUERY_FIELD_DEFS[groupBy];
+    const counts = new Map();
+    filtered.forEach((e) => {
+      const key = def.get(e, names);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const allRows = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value]) => ({ label, value }));
+    const top = allRows.slice(0, CARD_ROW_LIMIT);
+    const rest = allRows.length - top.length;
+    return {
+      title: 'Employee Count by ' + def.label + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
+      rows: top,
+      footer: { label: 'Total Matching', value: filtered.length },
+      actions: [
+        { label: 'View Full Report', view: 'directory' },
+        { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildQueryEmployeesQueryString(filters) }
+      ]
+    };
+  }
+
+  const fields = (Array.isArray(params.fields) ? params.fields.filter((f) => QUERY_FIELD_DEFS[f]) : []);
+  const columns = fields.length ? fields : QUERY_DEFAULT_FIELDS;
+
+  const sortBy = QUERY_SORTABLE_FIELDS.includes(params.sortBy) ? params.sortBy : 'name';
+  const sortDir = params.sortDir === 'desc' ? -1 : 1;
+  const sorted = filtered.slice().sort((a, b) => {
+    const va = querySortValue(a, sortBy, names);
+    const vb = querySortValue(b, sortBy, names);
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return 1 * sortDir;
+    return 0;
+  });
+
+  const limit = Math.max(1, Math.min(Number(params.limit) || QUERY_DEFAULT_LIMIT, QUERY_MAX_LIMIT));
+  const shown = sorted.slice(0, limit);
+  const truncated = filtered.length > shown.length;
+
+  return {
+    title: 'Query Results',
+    columns: columns.map((f) => QUERY_FIELD_DEFS[f].label),
+    tableRows: shown.map((e) => columns.map((f) => QUERY_FIELD_DEFS[f].get(e, names))),
+    footer: { label: 'Total Matching', value: filtered.length },
+    note: truncated
+      ? ('Showing ' + shown.length + ' of ' + filtered.length + ' - narrow your filters, sort differently, or download the full PDF to see the rest.')
+      : null,
+    actions: [
+      { label: 'View Full Report', view: 'directory' },
+      { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildQueryEmployeesQueryString(filters) }
+    ]
+  };
+}
+// ---------------------------------------------------------------------
+
 // Simple substring match on name/employeeId - the same convention every
 // existing employee-search list in workforce.js already uses.
 async function findEmployee(query) {
@@ -584,6 +747,7 @@ module.exports = {
   directReports,
   listEmployees,
   groupEmployees,
+  queryEmployees,
   prepareLetter,
   navigateToView,
   NAVIGABLE_VIEWS

@@ -297,6 +297,19 @@ function parseYearsFromDuration(raw) {
   return Math.round((years + months / 12 + days / 365) * 100) / 100;
 }
 
+// Plain substring isn't enough for a person's name - a real middle name
+// ("Pawan Kumar Dhanuka") sits between the two words someone actually
+// typed ("Pawan Dhanuka"), so a literal contiguous substring match
+// misses it. This checks that every word in the query appears somewhere
+// in the target, in any order, which still requires a real match (it's
+// not a fuzzy/typo-tolerant match) while tolerating a middle name or
+// swapped word order.
+function containsAllWords(haystack, needle) {
+  const h = String(haystack || '').toLowerCase();
+  const words = String(needle || '').toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.every((w) => h.includes(w));
+}
+
 function matchesFilters(emp, query) {
   if (query.status && emp.status !== String(query.status).toUpperCase()) return false;
   // "Anyone but Inactive" - distinct from an exact status match above, for
@@ -307,11 +320,15 @@ function matchesFilters(emp, query) {
   if (query.designation && !(emp.designation || '').toLowerCase().includes(String(query.designation).toLowerCase())) {
     return false;
   }
+  // A dedicated, more precise substring than `q` below (which also matches
+  // designation/department/location/email/ID) - for when the caller
+  // specifically means "search by name", e.g. the general query tool.
+  if (query.name && !containsAllWords(emp.name, query.name)) return false;
   if (query.location && !emp.locationKey.includes(normalizeKey(query.location))) return false;
-  if (query.reportingManager && !emp.reportingManagerKey.includes(normalizeKey(query.reportingManager))) return false;
+  if (query.reportingManager && !containsAllWords(emp.reportingManager, query.reportingManager)) return false;
   if (query.collar && !formatCollar(emp.groupD).toLowerCase().includes(String(query.collar).toLowerCase())) return false;
   if (query.gender && (emp.gender || '').toLowerCase() !== String(query.gender).toLowerCase()) return false;
-  if (query.reportingDoer && !emp.reportingDoerKey.includes(normalizeKey(query.reportingDoer))) return false;
+  if (query.reportingDoer && !containsAllWords(emp.reportingDoer, query.reportingDoer)) return false;
   if (query.employmentType && !(emp.employmentType || '').toLowerCase().includes(String(query.employmentType).toLowerCase())) {
     return false;
   }
@@ -345,6 +362,16 @@ function matchesFilters(emp, query) {
   }
   if (query.dobYear) {
     if (!emp.dob || emp.dob.getUTCFullYear() !== Number(query.dobYear)) return false;
+  }
+  // dojMonth/dojYear - the same any-month/any-year idea as dobMonth/dobYear
+  // above, but for joining date. dateFrom/dateTo already covers an exact
+  // range (e.g. one calendar year); this covers "everyone who ever joined
+  // in October", across any year, which a range can't express in one shot.
+  if (query.dojMonth) {
+    if (!emp.doj || emp.doj.getUTCMonth() !== Number(query.dojMonth) - 1) return false;
+  }
+  if (query.dojYear) {
+    if (!emp.doj || emp.doj.getUTCFullYear() !== Number(query.dojYear)) return false;
   }
   if (query.missingContact === '1' && emp.contactNumber) return false;
   if (query.tenureYearsMin || query.tenureYearsMax) {
@@ -433,5 +460,6 @@ module.exports = {
   filterEmployees,
   findUnmatchedFilters,
   formatCollar,
+  parseYearsFromDuration,
   CACHE_TTL_MS
 };
