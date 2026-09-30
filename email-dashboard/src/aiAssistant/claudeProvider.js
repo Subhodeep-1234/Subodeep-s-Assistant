@@ -52,6 +52,11 @@ const SYSTEM_PROMPT =
   'department or person, even if it looks similar; if you are not certain a tool result answers ' +
   'exactly what was just asked, call the right tool again with the exact right parameters rather ' +
   'than guessing from memory. ' +
+  'When the person names a specific month, in any language or script ("October", "December e", ' +
+  '"10 tarikh mash" etc.), you MUST pass that exact month as get_birthdays_this_month\'s month ' +
+  'parameter (1 for January ... 12 for December) - never leave month unset when one was actually ' +
+  'named, since unset silently means the CURRENT month instead, which is a different, wrong ' +
+  'answer, not an approximation. ' +
   'Every report, list or count defaults to ACTIVE staff only - never include inactive/exited or ' +
   'notice-period employees unless the person explicitly says so (naming a status like "inactive ' +
   'staff" or "who is on notice period", or asking to "include inactive"/"including everyone"/"all ' +
