@@ -41,6 +41,13 @@ const SYSTEM_PROMPT =
   'it came from a tool result in this exchange - if a tool returns an empty or missing result, ' +
   'say plainly that there is no data for that, and do not fill the gap with a plausible-sounding ' +
   'guess. ' +
+  'If a tool result includes unmatchedFilters, one of the values you passed (e.g. a department ' +
+  'or designation) does not match anything real in the data at all - do NOT report a count of 0 ' +
+  'as if it were a real answer. Say plainly that you could not find that value, and mention a ' +
+  'few of the real values from validValues so the person can correct their request (or retry the ' +
+  'tool yourself with the closest one if it is obvious which they meant). If a tool result has no ' +
+  'unmatchedFilters but genuinely no matching rows (its note says so), that IS a real answer - say ' +
+  'plainly that nothing matches those filters, as a normal [[PLAIN]] reply. ' +
   'Keep replies short and professional. Every reply must start with exactly one marker (it will ' +
   'be removed before the person sees it): [[PLAIN]] if they asked a simple factual question - a ' +
   'single value, date, name or count - then state ONLY that value in one short line, nothing ' +

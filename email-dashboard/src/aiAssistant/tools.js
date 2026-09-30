@@ -281,8 +281,33 @@ const LIST_SORT_FIELDS = {
 // same read path the rest of the app uses - no new data access, just a
 // new shape (a real row-per-employee table) for the AI to return.
 async function listEmployees(filters = {}) {
-  const { employees, departmentNames } = await employeeService.getEmployeeData();
+  const { employees, departmentNames, locationNames, reportingManagerNames, doerNames } = await employeeService.getEmployeeData();
   const filtered = employeeService.filterEmployees(employees, filters);
+
+  // A genuine "these filters, combined, have zero matches" and "one of
+  // these filter values isn't a real stored value at all" must not look
+  // the same - the second one is a silent-wrong-answer trap (e.g.
+  // department: "HR" quietly returning 0 instead of matching "HR DEPT"),
+  // not a real fact about the data. unmatchedFilters is only populated in
+  // the second case; the model is instructed to phrase each very
+  // differently.
+  if (!filtered.length) {
+    const unmatched = employeeService.findUnmatchedFilters(employees, filters, {
+      departmentNames, locationNames, reportingManagerNames, doerNames
+    });
+    return {
+      title: null,
+      rows: null,
+      columns: null,
+      tableRows: null,
+      footer: null,
+      actions: [{ label: 'View Full Report', view: 'directory' }],
+      unmatchedFilters: unmatched.length ? unmatched : null,
+      note: unmatched.length
+        ? null
+        : 'No employees match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.'
+    };
+  }
 
   const sortKey = LIST_SORT_FIELDS[filters.sortBy] ? filters.sortBy : 'name';
   const sortDir = filters.sortDir === 'desc' ? -1 : 1;
@@ -338,10 +363,29 @@ const GROUP_BY_LABELS = {
 // employees would return - answers "how many X per Y" (e.g. "how many
 // engineers per department") without a preset report existing for it.
 async function groupEmployees(filters = {}, groupBy = 'department') {
-  const { employees, departmentNames, locationNames } = await employeeService.getEmployeeData();
+  const { employees, departmentNames, locationNames, reportingManagerNames, doerNames } = await employeeService.getEmployeeData();
   const filtered = employeeService.filterEmployees(employees, filters);
   const getGroupKey = GROUP_BY_FIELDS[groupBy] || GROUP_BY_FIELDS.department;
   const names = { departmentNames, locationNames };
+
+  // Same distinction as list_employees: a filter value that matches
+  // nothing at all in the whole dataset is a wrong guess, not a real
+  // zero - see the comment there.
+  if (!filtered.length) {
+    const unmatched = employeeService.findUnmatchedFilters(employees, filters, {
+      departmentNames, locationNames, reportingManagerNames, doerNames
+    });
+    return {
+      title: null,
+      rows: null,
+      footer: null,
+      actions: [{ label: 'View Full Report', view: 'directory' }],
+      unmatchedFilters: unmatched.length ? unmatched : null,
+      note: unmatched.length
+        ? null
+        : 'No employees match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.'
+    };
+  }
 
   const counts = new Map();
   filtered.forEach((e) => {
