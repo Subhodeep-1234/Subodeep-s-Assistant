@@ -73,6 +73,15 @@ function statusMatches(emp, includeAllStatuses) {
 function activeScopeSuffix(includeAllStatuses) {
   return includeAllStatuses ? ' (Active + Notice Period)' : ' (Active)';
 }
+// Same "(Top 8)" signal group_employees/directReports/etc. already put in
+// their titles when the row list is cut down to CARD_ROW_LIMIT - the
+// simpler preset tools below (birthdays, joining, confirmations,
+// retirement, insurance additions) return this shape too, and without
+// the marker the model had no reliable way to know its footer total
+// (the real count) and rows.length (only a preview) can differ.
+function truncationSuffix(total) {
+  return total > CARD_ROW_LIMIT ? ' (Top ' + CARD_ROW_LIMIT + ')' : '';
+}
 
 async function joiningThisMonth(includeAllStatuses) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
@@ -80,7 +89,7 @@ async function joiningThisMonth(includeAllStatuses) {
   const y = now.getUTCFullYear(), m = now.getUTCMonth();
   const joiners = employees.filter((e) => statusMatches(e, includeAllStatuses) && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === m);
   return {
-    title: 'Employees Joining This Month',
+    title: 'Employees Joining This Month' + truncationSuffix(joiners.length),
     rows: joiners.slice(0, CARD_ROW_LIMIT).map((e) => ({
       label: e.name,
       value: (departmentNames.get(e.departmentKey) || e.department) + ' · ' + e.doj.toISOString().slice(0, 10)
@@ -100,7 +109,7 @@ async function pendingConfirmations(monthOffset = 0, includeAllStatuses) {
   const list = analytics.pendingConfirmationsThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
   const label = monthOffset === 0 ? 'This Month' : 'Next Month';
   return {
-    title: 'Confirmations Due ' + label,
+    title: 'Confirmations Due ' + label + truncationSuffix(list.length),
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
     footer: { label: 'Total Pending' + activeScopeSuffix(includeAllStatuses), value: list.length },
     actions: [{ label: 'Open Tenure View', view: 'tenure' }]
@@ -121,7 +130,7 @@ async function retirementThisMonth(includeAllStatuses) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const list = analytics.turning58ThisMonth(employees).filter((e) => statusMatches(e, includeAllStatuses));
   return {
-    title: 'Employees Reaching Retirement Age This Month',
+    title: 'Employees Reaching Retirement Age This Month' + truncationSuffix(list.length),
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
     footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length },
     actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
@@ -146,7 +155,7 @@ async function birthdaysThisMonth(month, includeAllStatuses) {
   const list = analytics.birthdaysThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
   const monthLabel = target.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
   return {
-    title: 'Birthdays in ' + monthLabel,
+    title: 'Birthdays in ' + monthLabel + truncationSuffix(list.length),
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({
       label: e.name,
       value: e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
@@ -179,7 +188,7 @@ async function healthInsurancePendingAdditions() {
   const insuranceData = await insuranceService.getInsuranceData();
   const additions = insuranceData.additions || [];
   return {
-    title: 'Pending Health Insurance Additions',
+    title: 'Pending Health Insurance Additions' + truncationSuffix(additions.length),
     rows: additions.slice(0, CARD_ROW_LIMIT).map((a) => ({ label: a.name, value: a.employeeId })),
     footer: { label: 'Total Pending', value: additions.length },
     actions: [{ label: 'Open Health Insurance', view: 'healthInsurance' }]
