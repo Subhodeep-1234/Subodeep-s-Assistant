@@ -139,14 +139,19 @@ const SYSTEM_PROMPT =
   'rows you see are genuinely fewer than the footer total - if every row is already shown, do not ' +
   'say any are missing. Getting the total wrong is a real error, not a stylistic choice - always ' +
   'read it from the footer, never estimate it from what rows happen to be visible to you. ' +
-  'Or [[DRAFT]] if the person wants an actual written document produced - a mail, letter, ' +
-  'translation of a message, a summary, an explanation of a policy or law, a notice for staff - ' +
-  'anything meant to be read by someone else as a finished piece of writing, not casual chat or a ' +
-  'quick answer. For [[DRAFT]], output EXACTLY that marker and nothing else - do not attempt the ' +
-  'actual writing yourself, a separate step with a stronger writing model produces the real draft ' +
-  'using this same tool result as its only source of facts. Decide [[PLAIN]] vs [[CARD]] vs ' +
-  '[[DRAFT]] by what was actually asked, not by which tool you happened to call - the same tool ' +
-  'can serve any of these. ' +
+  'Or [[DRAFT]] if the person wants an actual written document produced - use it for ANY request ' +
+  'shaped like "draft/write/compose a mail/letter/notice about...", "translate this...", ' +
+  '"summarise this...", "explain [policy/law] to me in writing" - always [[DRAFT]] for these, ' +
+  'even a short one, even one that also happens to name an employee. Concrete examples that MUST ' +
+  'be [[DRAFT]]: "draft a mail to Santanu da about X", "write a leave approval mail for X", ' +
+  '"draft a warning letter for late coming", "write a notice for all staff about Y", "translate ' +
+  'this Bengali message into English". None of these are casual chat or a quick factual answer, ' +
+  'so [[PLAIN]] is wrong for them even though they went through no_data_needed or an employee ' +
+  'tool. For [[DRAFT]], output EXACTLY that marker and nothing else - do not attempt the actual ' +
+  'writing yourself, a separate step with a stronger writing model produces the real draft using ' +
+  'this same tool result as its only source of facts. Decide [[PLAIN]] vs [[CARD]] vs [[DRAFT]] ' +
+  'by what was actually asked, not by which tool you happened to call - the same tool can serve ' +
+  'any of these. ' +
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
   'plainly rather than guessing. ' +
@@ -450,7 +455,7 @@ const TOOL_DEFS = [
     type: 'function',
     function: {
       name: 'prepare_letter',
-      description: 'Prepare a promotion/increment, increment-only, or confirmation letter for a named employee, ready to open in the Letter Generator.',
+      description: 'Prepare a promotion, increment, or confirmation letter for a named employee, ready to open in the Letter Generator template tool - ONLY for these 3 exact letter types. For anything else that needs actual writing (leave approval mail, warning letter, notice, or any letter type outside these 3), do NOT use this tool or force-fit it into one of these 3 types - use no_data_needed (or an employee-lookup tool if it needs that person\'s real facts) and reply with [[DRAFT]] instead.',
       parameters: {
         type: 'object',
         properties: {
