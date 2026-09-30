@@ -259,11 +259,29 @@ function formatCollar(value) {
 
 // The one shared filter predicate behind /api/workforce/employees, its PDF
 // export, and the HR Assistant's list_employees/group_employees tools -
-// every one of them filters the exact same way. `designation` is a
-// substring match (not exact), since real designations vary a lot in
-// exact wording ("ENGINEER", "JR. ENGINEER", "SENIOR ENGINEER - BBS &
-// BILLING" etc.) - a question like "how many engineers" needs to catch
-// all of those, not just an exact "Engineer" title.
+// every one of them filters the exact same way.
+//
+// department/designation/location/reportingManager/reportingDoer/collar/
+// employmentType are all substring + case-insensitive matches (not exact),
+// since an AI (or a person) guessing the free-text value stored in the
+// sheet rarely gets it byte-for-byte right - "HR" needs to match "HR
+// DEPT", "Ajay" needs to match "Ajay Kumar Shroff", "engineer" needs to
+// match "JR. ENGINEER"/"SENIOR ENGINEER - BBS & BILLING" etc. An exact
+// match on any of these is a silent-wrong-answer trap: it doesn't error,
+// it just returns zero rows that look like a real "there are none"
+// answer. department/location/reportingManager/reportingDoer match against
+// the already-normalized *Key field (built from the exact same
+// normalizeKey used to build the display-name maps, so "HO-Marketing" and
+// "HO-MARKETING" - real case variants that exist side by side in this
+// sheet - are treated as the same value, not two different ones).
+//
+// gender is deliberately kept an EXACT (case-insensitive) match, not
+// substring: "male" is itself a substring of "female", so naively
+// applying the same technique here would make a search for men silently
+// include women. Its real values (Male/Female) are short and unambiguous
+// enough that an exact case-insensitive match already catches every
+// reasonable guess. status is also kept exact - its values are a small,
+// schema-enforced enum (ACTIVE/INACTIVE/NOTICE PERIOD), not free text.
 //
 // Tenure/Total Yrs. of Exp. come out of the sheet as a free-text duration
 // like "6 Year 22 Days" or "26 Year 8 Months 25 Days" - not a number - so
@@ -285,16 +303,16 @@ function matchesFilters(emp, query) {
   // filters (some Insights points) that mean to include Notice Period
   // alongside Active rather than pin down to exactly one status.
   if (query.statusNot && emp.status === String(query.statusNot).toUpperCase()) return false;
-  if (query.department && emp.departmentKey !== normalizeKey(query.department)) return false;
+  if (query.department && !emp.departmentKey.includes(normalizeKey(query.department))) return false;
   if (query.designation && !(emp.designation || '').toLowerCase().includes(String(query.designation).toLowerCase())) {
     return false;
   }
-  if (query.location && emp.locationKey !== normalizeKey(query.location)) return false;
-  if (query.reportingManager && emp.reportingManagerKey !== normalizeKey(query.reportingManager)) return false;
-  if (query.collar && formatCollar(emp.groupD).toLowerCase() !== String(query.collar).toLowerCase()) return false;
+  if (query.location && !emp.locationKey.includes(normalizeKey(query.location))) return false;
+  if (query.reportingManager && !emp.reportingManagerKey.includes(normalizeKey(query.reportingManager))) return false;
+  if (query.collar && !formatCollar(emp.groupD).toLowerCase().includes(String(query.collar).toLowerCase())) return false;
   if (query.gender && (emp.gender || '').toLowerCase() !== String(query.gender).toLowerCase()) return false;
-  if (query.reportingDoer && emp.reportingDoerKey !== normalizeKey(query.reportingDoer)) return false;
-  if (query.employmentType && emp.employmentType.toLowerCase() !== String(query.employmentType).toLowerCase()) {
+  if (query.reportingDoer && !emp.reportingDoerKey.includes(normalizeKey(query.reportingDoer))) return false;
+  if (query.employmentType && !(emp.employmentType || '').toLowerCase().includes(String(query.employmentType).toLowerCase())) {
     return false;
   }
   if (query.dateFrom) {
@@ -348,12 +366,72 @@ function filterEmployees(employees, query) {
   return employees.filter((e) => matchesFilters(e, query || {}));
 }
 
+// Every free-text field a caller might guess wrong - the same set that got
+// substring/case-insensitive tolerance above. Used only for the
+// "did this specific value mean anything at all" diagnostic below, not by
+// filterEmployees itself.
+const GUESSABLE_FILTER_FIELDS = ['department', 'designation', 'location', 'reportingManager', 'reportingDoer', 'collar', 'employmentType'];
+
+function distinctValuesFor(field, employees, names) {
+  const mapFor = { department: 'departmentNames', location: 'locationNames', reportingManager: 'reportingManagerNames', reportingDoer: 'doerNames' }[field];
+  if (mapFor && names && names[mapFor]) {
+    const keyField = field + 'Key';
+    return [...new Set(employees.map((e) => names[mapFor].get(e[keyField]) || e[field]).filter(Boolean))].sort();
+  }
+  if (field === 'collar') return ['White', 'Blue', 'Group-D'];
+  return [...new Set(employees.map((e) => e[field]).filter(Boolean))].sort();
+}
+
+// Ranks a field's real values by relevance to what was actually typed, so
+// a long list (e.g. 238 distinct designations) doesn't have to be dumped
+// in full - values containing the guess score highest, then values
+// sharing a word with it, falling back to the plain alphabetical list if
+// nothing overlaps at all.
+function rankByRelevance(guess, values, limit) {
+  const needle = String(guess || '').toLowerCase();
+  const words = needle.split(/\s+/).filter(Boolean);
+  const scored = values.map((v) => {
+    const vLower = v.toLowerCase();
+    let score = vLower.includes(needle) ? 10 : 0;
+    words.forEach((w) => { if (vLower.includes(w)) score += 1; });
+    return { v, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const ranked = scored.filter((s) => s.score > 0).map((s) => s.v);
+  return (ranked.length ? ranked : values).slice(0, limit);
+}
+
+// For each guessable field present in `query`, checks whether that value
+// alone (ignoring every other filter) matches ANY employee in the whole
+// dataset. If it matches none, the value itself is almost certainly not a
+// real stored value (a typo, a shortened guess, or a field that doesn't
+// exist) rather than a genuine "zero employees happen to match" result -
+// the caller should say so plainly instead of reporting 0 as a confident
+// count, and can show `validValues` so the person (or the model) can
+// self-correct. `names` is the {departmentNames, locationNames,
+// reportingManagerNames, doerNames} bundle getEmployeeData() already
+// returns.
+function findUnmatchedFilters(employees, query, names) {
+  const unmatched = [];
+  GUESSABLE_FILTER_FIELDS.forEach((field) => {
+    const value = query && query[field];
+    if (!value) return;
+    const anyMatch = employees.some((e) => matchesFilters(e, { [field]: value }));
+    if (!anyMatch) {
+      const validValues = distinctValuesFor(field, employees, names);
+      unmatched.push({ field, value, validValues: rankByRelevance(value, validValues, 20) });
+    }
+  });
+  return unmatched;
+}
+
 module.exports = {
   getEmployeeData,
   getConfigStatus,
   normalizeKey,
   getCompanyList,
   filterEmployees,
+  findUnmatchedFilters,
   formatCollar,
   CACHE_TTL_MS
 };
