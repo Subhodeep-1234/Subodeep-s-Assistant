@@ -83,13 +83,21 @@ function truncationSuffix(total) {
   return total > CARD_ROW_LIMIT ? ' (Top ' + CARD_ROW_LIMIT + ')' : '';
 }
 
-async function joiningThisMonth(includeAllStatuses) {
+// Accepts an optional month (1-12), same idea as birthdaysThisMonth -
+// without it, "January te ke join korlo" had no way to reach a month
+// other than the current one. Year is always the current year (joining
+// month alone, unlike a birthday, is only meaningful for a specific
+// year - "this year's January" is what a bare month name means here).
+async function joiningThisMonth(month, includeAllStatuses) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const now = new Date();
-  const y = now.getUTCFullYear(), m = now.getUTCMonth();
-  const joiners = employees.filter((e) => statusMatches(e, includeAllStatuses) && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === m);
+  const y = now.getUTCFullYear();
+  const requestedMonth = Number(month);
+  const targetMonthIndex = requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth - 1 : now.getUTCMonth();
+  const monthLabel = new Date(Date.UTC(y, targetMonthIndex, 1)).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+  const joiners = employees.filter((e) => statusMatches(e, includeAllStatuses) && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === targetMonthIndex);
   return {
-    title: 'Employees Joining This Month' + truncationSuffix(joiners.length),
+    title: 'Employees Joining in ' + monthLabel + ' ' + y + truncationSuffix(joiners.length),
     rows: joiners.slice(0, CARD_ROW_LIMIT).map((e) => ({
       label: e.name,
       value: (departmentNames.get(e.departmentKey) || e.department) + ' · ' + e.doj.toISOString().slice(0, 10)
@@ -107,9 +115,9 @@ async function pendingConfirmations(monthOffset = 0, includeAllStatuses) {
   const now = new Date();
   const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
   const list = analytics.pendingConfirmationsThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
-  const label = monthOffset === 0 ? 'This Month' : 'Next Month';
+  const monthLabel = target.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   return {
-    title: 'Confirmations Due ' + label + truncationSuffix(list.length),
+    title: 'Confirmations Due in ' + monthLabel + truncationSuffix(list.length),
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
     footer: { label: 'Total Pending' + activeScopeSuffix(includeAllStatuses), value: list.length },
     actions: [{ label: 'Open Tenure View', view: 'tenure' }]
@@ -129,8 +137,9 @@ async function joiningTrend() {
 async function retirementThisMonth(includeAllStatuses) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const list = analytics.turning58ThisMonth(employees).filter((e) => statusMatches(e, includeAllStatuses));
+  const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   return {
-    title: 'Employees Reaching Retirement Age This Month' + truncationSuffix(list.length),
+    title: 'Employees Reaching Retirement Age in ' + monthLabel + truncationSuffix(list.length),
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
     footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length },
     actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null

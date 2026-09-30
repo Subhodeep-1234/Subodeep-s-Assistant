@@ -53,10 +53,10 @@ const SYSTEM_PROMPT =
   'exactly what was just asked, call the right tool again with the exact right parameters rather ' +
   'than guessing from memory. ' +
   'When the person names a specific month, in any language or script ("October", "December e", ' +
-  '"10 tarikh mash" etc.), you MUST pass that exact month as get_birthdays_this_month\'s month ' +
-  'parameter (1 for January ... 12 for December) - never leave month unset when one was actually ' +
-  'named, since unset silently means the CURRENT month instead, which is a different, wrong ' +
-  'answer, not an approximation. ' +
+  '"10 tarikh mash" etc.), you MUST pass that exact month as get_birthdays_this_month\'s or ' +
+  'get_joining_this_month\'s month parameter (1 for January ... 12 for December) - never leave ' +
+  'month unset when one was actually named, since unset silently means the CURRENT month instead, ' +
+  'which is a different, wrong answer, not an approximation. ' +
   'Every report, list or count defaults to ACTIVE staff only - never include inactive/exited or ' +
   'notice-period employees unless the person explicitly says so (naming a status like "inactive ' +
   'staff" or "who is on notice period", or asking to "include inactive"/"including everyone"/"all ' +
@@ -132,10 +132,11 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_joining_this_month',
-    description: 'List employees who joined in the current calendar month. Active only by default.',
+    description: 'List employees who joined in a given calendar month (current year). Active only by default. Works for ANY month, not just the current one - pass month for "January te ke join korlo" etc; omit it only for "this month".',
     input_schema: {
       type: 'object',
       properties: {
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 1 for January). Omit for "this month".' },
         includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff (e.g. "notice period soho", "including notice period"). Leave unset for the default (Active only).' }
       }
     }
@@ -378,7 +379,7 @@ const TOOL_RUNNERS = {
   get_department_headcount: () => tools.departmentHeadcount(),
   get_location_headcount: () => tools.locationHeadcount(),
   get_doer_headcount: () => tools.doerHeadcount(),
-  get_joining_this_month: (input) => tools.joiningThisMonth(input.includeAllStatuses),
+  get_joining_this_month: (input) => tools.joiningThisMonth(input.month, input.includeAllStatuses),
   get_joining_trend: () => tools.joiningTrend(),
   get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0, input.includeAllStatuses),
   get_retirement_this_month: (input) => tools.retirementThisMonth(input.includeAllStatuses),
