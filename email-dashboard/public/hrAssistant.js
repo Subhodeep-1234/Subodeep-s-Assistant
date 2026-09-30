@@ -304,12 +304,29 @@
     wrap.className = 'wf-ai-actions';
     actions.forEach((a) => {
       const b = document.createElement('button');
-      b.className = 'wf-ai-action-btn';
+      // Download actions render filled with a download icon (matching the
+      // reference spec); navigate/view actions render outlined - purely a
+      // display-layer distinction, the underlying action data from the
+      // tool is unchanged either way.
+      b.className = 'wf-ai-action-btn' + (a.downloadUrl ? ' download' : ' outline');
       b.type = 'button';
-      b.textContent = a.label;
+      if (a.downloadUrl) {
+        b.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg><span>' + escapeHtml(a.label) + '</span>';
+      } else {
+        b.textContent = a.label;
+      }
       b.addEventListener('click', () => {
         if (a.downloadUrl) {
-          window.open(a.downloadUrl, '_blank');
+          // A same-origin <a download> click saves the file directly -
+          // no new tab, no PDF-viewer navigation, no dialog - instead of
+          // window.open(), which just navigated to view it inline.
+          const link = document.createElement('a');
+          link.href = a.downloadUrl;
+          link.download = '';
+          link.rel = 'noopener';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
           return;
         }
         closePanel();

@@ -41,8 +41,14 @@ const SYSTEM_PROMPT =
   'it came from a tool result in this exchange - if a tool returns an empty or missing result, ' +
   'say plainly that there is no data for that, and do not fill the gap with a plausible-sounding ' +
   'guess. ' +
-  'Keep replies short and professional (1-2 sentences) - the structured data itself is shown ' +
-  'in a separate card, so do not repeat numbers or lists in your own reply. ' +
+  'Keep replies short and professional. Every reply must start with exactly one marker (it will ' +
+  'be removed before the person sees it): [[PLAIN]] if they asked a simple factual question - a ' +
+  'single value, date, name or count - then state ONLY that value in one short line, nothing ' +
+  'else, no surrounding details even if the tool result has more; or [[CARD]] if they asked for ' +
+  'a list, table, breakdown, trend or analysis - then give a short one-line intro only, since ' +
+  'the structured data itself is shown in a separate card below your reply, so do not repeat ' +
+  'numbers or lists in your own reply text. Decide by what was actually asked, not by which ' +
+  'tool you happened to call - the same tool can serve either kind of question. ' +
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
   'plainly rather than guessing. ' +
@@ -328,6 +334,29 @@ function extractText(content) {
     .trim();
 }
 
+// The system prompt requires every reply to start with a [[PLAIN]] or
+// [[CARD]] marker (stripped before the person ever sees it) - this is how
+// the model tells us whether it answered a simple factual question (in
+// which case the tool's card/buttons are suppressed entirely, even though
+// the tool itself returned them, since the SAME tool serves both a "what
+// is X's DOB" question and a "show me everyone in X" question) or a
+// list/report request (card and buttons shown as the tool built them).
+// Falls back to showing the card if the marker is missing/unrecognised -
+// erring toward showing real data rather than silently hiding it.
+const REPLY_MARKER_RE = /^\s*\[\[(PLAIN|CARD)\]\]\s*/;
+
+function finalizeReply(rawContent, card, actions, fallbackText) {
+  const raw = rawContent || '';
+  const match = raw.match(REPLY_MARKER_RE);
+  const isPlain = Boolean(match && match[1] === 'PLAIN');
+  const cleaned = (match ? raw.slice(match[0].length) : raw).trim();
+  return {
+    reply: cleaned || fallbackText,
+    card: isPlain ? null : card,
+    actions: isPlain ? null : actions
+  };
+}
+
 async function getResponse({ message, history, user }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -384,10 +413,10 @@ async function getResponse({ message, history, user }) {
       }
     ]);
     data = await callClaude(apiKey, followUpMessages);
-    return { reply: extractText(data.content) || 'Here you go.', card, actions };
+    return finalizeReply(extractText(data.content), card, actions, 'Here you go.');
   }
 
-  return { reply: extractText(data.content) || "I'm not sure how to help with that yet.", card: null, actions: null };
+  return finalizeReply(extractText(data.content), null, null, "I'm not sure how to help with that yet.");
 }
 
 module.exports = { getResponse };
