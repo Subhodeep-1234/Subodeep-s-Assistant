@@ -45,6 +45,14 @@ const SYSTEM_PROMPT =
   'department or person, even if it looks similar; if you are not certain a tool result answers ' +
   'exactly what was just asked, call the right tool again with the exact right parameters rather ' +
   'than guessing from memory. ' +
+  'Every report, list or count defaults to ACTIVE staff only - never include inactive/exited or ' +
+  'notice-period employees unless the person explicitly says so (naming a status like "inactive ' +
+  'staff" or "who is on notice period", or asking to "include inactive"/"including everyone"/"all ' +
+  'staff ever"). Leave status and includeAllStatuses unset on list_employees/group_employees/ ' +
+  'query_employees to get that default - do not set status to \'ACTIVE\' yourself, the tools ' +
+  'already default to it. State the basis in a few words in your own reply too, e.g. "126 active ' +
+  'employees have birthdays in October" rather than just "126" - even though the card itself also ' +
+  'labels its own scope. ' +
   'You must call a tool on every turn, including this one - there is no way to reply without ' +
   'calling one. If the message is just a greeting, thanks, or anything with no real HR ' +
   'question in it, call no_data_needed. Never state a specific name, number, or date unless ' +
@@ -186,7 +194,8 @@ const TOOL_DEFS = [
           name: { type: 'string', description: 'Partial name search - matches all words in any order, so a middle name in between (e.g. searching "Pawan Dhanuka" still finds "Pawan Kumar Dhanuka") is fine.' },
           designation: { type: 'string', description: 'Substring, e.g. "engineer" matches Engineer, Jr. Engineer, Senior Engineer, etc.' },
           department: { type: 'string', description: 'Substring, e.g. "HR" matches "HR DEPT", "civil" matches every Civil sub-department.' },
-          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'] },
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'], description: 'Omit this for the default (Active only) - unless groupBy is itself "status", in which case leave this unset so all statuses show in the breakdown. Only set it when the person specifically named a status, e.g. "inactive staff" -> INACTIVE, "on notice period" -> NOTICE PERIOD.' },
+          includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when the person explicitly asked to include inactive/exited staff or "everyone"/"all staff ever" without naming one specific status - e.g. "including inactive", "all staff ever". Leave unset otherwise; the default is Active only.' },
           location: { type: 'string', description: 'Substring on work location/site.' },
           gender: { type: 'string', enum: ['Male', 'Female'] },
           reportingManager: { type: 'string', description: 'Partial name of their manager (HOD-1) - matches all words in any order.' },
@@ -300,7 +309,8 @@ const TOOL_DEFS = [
         properties: {
           designation: { type: 'string', description: 'Substring match on designation/title, e.g. "engineer" matches Engineer, Jr. Engineer, Senior Engineer, etc.' },
           department: { type: 'string', description: 'Exact department name.' },
-          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'] },
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'], description: 'Omit this for the default (Active only). Only set it when the person specifically named a status, e.g. "inactive staff" -> INACTIVE, "who is on notice period" -> NOTICE PERIOD.' },
+          includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when the person explicitly asked to include inactive/exited staff or "everyone"/"all staff ever" without naming one specific status - e.g. "including inactive", "all staff ever". Leave unset otherwise; the default is Active only.' },
           dateFrom: { type: 'string', description: 'Joining date range start, YYYY-MM-DD.' },
           dateTo: { type: 'string', description: 'Joining date range end, YYYY-MM-DD.' },
           q: { type: 'string', description: 'Free-text search across name, employee ID, email, department, designation, location.' },
@@ -326,7 +336,8 @@ const TOOL_DEFS = [
           groupBy: { type: 'string', enum: ['department', 'designation', 'status', 'location', 'gender', 'collar'] },
           designation: { type: 'string', description: 'Substring match on designation/title to filter by first, e.g. "engineer".' },
           department: { type: 'string' },
-          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'] },
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'NOTICE PERIOD'], description: 'Omit this for the default (Active only) - unless groupBy is itself "status", in which case leave this unset so all statuses show in the breakdown. Only set it when the person specifically named a status.' },
+          includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when the person explicitly asked to include inactive/exited staff or "everyone"/"all staff ever" without naming one specific status. Leave unset otherwise; the default is Active only (except when groupBy is "status" itself, which always shows every status).' },
           dateFrom: { type: 'string', description: 'Joining date range start, YYYY-MM-DD.' },
           dateTo: { type: 'string', description: 'Joining date range end, YYYY-MM-DD.' },
           q: { type: 'string', description: 'Free-text search to filter by first.' },

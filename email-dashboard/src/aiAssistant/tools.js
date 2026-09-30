@@ -58,18 +58,23 @@ async function doerHeadcount() {
   };
 }
 
+// Active-only by default, like every other headcount-style tool below -
+// an inactive/exited person joining "this month" years ago before they
+// left isn't a meaningful answer to "who's joining this month" unless
+// asked for explicitly (see query_employees/list_employees/
+// group_employees for that widened case).
 async function joiningThisMonth() {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const now = new Date();
   const y = now.getUTCFullYear(), m = now.getUTCMonth();
-  const joiners = employees.filter((e) => e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === m);
+  const joiners = employees.filter((e) => e.status === 'ACTIVE' && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === m);
   return {
     title: 'Employees Joining This Month',
     rows: joiners.slice(0, CARD_ROW_LIMIT).map((e) => ({
       label: e.name,
       value: (departmentNames.get(e.departmentKey) || e.department) + ' · ' + e.doj.toISOString().slice(0, 10)
     })),
-    footer: { label: 'Total Joiners', value: joiners.length },
+    footer: { label: 'Total Active Joiners', value: joiners.length },
     actions: [{ label: 'Open Joining Report', view: 'joining' }]
   };
 }
@@ -81,12 +86,16 @@ async function pendingConfirmations(monthOffset = 0) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const now = new Date();
   const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
-  const list = analytics.pendingConfirmationsThisMonth(employees, target);
+  // analytics.pendingConfirmationsThisMonth only excludes INACTIVE (shared
+  // with the Insights dashboard, not changed here) - Notice Period staff
+  // are filtered out here instead, active-only by default like everything
+  // else.
+  const list = analytics.pendingConfirmationsThisMonth(employees, target).filter((e) => e.status === 'ACTIVE');
   const label = monthOffset === 0 ? 'This Month' : 'Next Month';
   return {
     title: 'Confirmations Due ' + label,
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
-    footer: { label: 'Total Pending', value: list.length },
+    footer: { label: 'Total Active Pending', value: list.length },
     actions: [{ label: 'Open Tenure View', view: 'tenure' }]
   };
 }
@@ -103,25 +112,33 @@ async function joiningTrend() {
 
 async function retirementThisMonth() {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
-  const list = analytics.turning58ThisMonth(employees);
+  // analytics.turning58ThisMonth only excludes INACTIVE (shared with the
+  // Insights dashboard, not changed here) - Notice Period is filtered out
+  // here instead, active-only by default like everything else.
+  const list = analytics.turning58ThisMonth(employees).filter((e) => e.status === 'ACTIVE');
   return {
     title: 'Employees Reaching Retirement Age This Month',
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
-    footer: { label: 'Total', value: list.length },
+    footer: { label: 'Total Active', value: list.length },
     actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
   };
 }
 
 async function birthdaysThisMonth() {
   const { employees } = await employeeService.getEmployeeData();
-  const list = analytics.birthdaysThisMonth(employees);
+  // analytics.birthdaysThisMonth only excludes INACTIVE (shared with the
+  // Insights dashboard, not changed here) - Notice Period is filtered out
+  // here instead, active-only by default like everything else. This is
+  // the exact discrepancy found live: "October birthdays" reported 126
+  // (every status, including exited staff) instead of the real 33 active.
+  const list = analytics.birthdaysThisMonth(employees).filter((e) => e.status === 'ACTIVE');
   return {
     title: 'Birthdays This Month',
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({
       label: e.name,
       value: e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
     })),
-    footer: { label: 'Total', value: list.length },
+    footer: { label: 'Total Active', value: list.length },
     actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
   };
 }
@@ -280,7 +297,36 @@ const LIST_SORT_FIELDS = {
 // reads via employeeService.getEmployeeData()/filterEmployees, the exact
 // same read path the rest of the app uses - no new data access, just a
 // new shape (a real row-per-employee table) for the AI to return.
-async function listEmployees(filters = {}) {
+// Active-only is the default scope for every list/count/query in this
+// app, unless the person explicitly asks otherwise - an inactive/exited
+// employee silently showing up in an ordinary headcount or list is the
+// same class of bug as an unrecognised filter value (see
+// findUnmatchedFilters above): it doesn't error, it just quietly gives a
+// wrong-feeling-right answer. The model passes an explicit `status`
+// (any value, including 'INACTIVE'/'NOTICE PERIOD') when asked for a
+// specific status ("give me a report of inactive staff"), or
+// `includeAllStatuses: true` for "include inactive"/"including
+// everyone"/"all staff ever" - either one turns this default off; with
+// neither, status is forced to 'ACTIVE'.
+function applyActiveOnlyDefault(filters) {
+  const rest = Object.assign({}, filters);
+  const includeAllStatuses = rest.includeAllStatuses;
+  delete rest.includeAllStatuses;
+  if (rest.status || includeAllStatuses) return rest;
+  rest.status = 'ACTIVE';
+  return rest;
+}
+
+// So the card itself always states its own scope in a few words (Active /
+// a specific status / All Statuses) - not left to the model to remember
+// to mention unprompted.
+function scopeLabelSuffix(effectiveFilters) {
+  if (effectiveFilters && effectiveFilters.status) return ' (' + String(effectiveFilters.status) + ')';
+  return ' (All Statuses)';
+}
+
+async function listEmployees(rawFilters = {}) {
+  const filters = applyActiveOnlyDefault(rawFilters);
   const { employees, departmentNames, locationNames, reportingManagerNames, doerNames } = await employeeService.getEmployeeData();
   const filtered = employeeService.filterEmployees(employees, filters);
 
@@ -305,7 +351,7 @@ async function listEmployees(filters = {}) {
       unmatchedFilters: unmatched.length ? unmatched : null,
       note: unmatched.length
         ? null
-        : 'No employees match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.'
+        : ('No employees' + scopeLabelSuffix(filters) + ' match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.')
     };
   }
 
@@ -335,7 +381,7 @@ async function listEmployees(filters = {}) {
       e.status,
       e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
     ]),
-    footer: { label: 'Total Matching', value: filtered.length },
+    footer: { label: 'Total Matching' + scopeLabelSuffix(filters), value: filtered.length },
     note: truncated
       ? ('Showing ' + shown.length + ' of ' + filtered.length + ' - narrow your filters, sort differently, or download the full PDF to see the rest.')
       : null,
@@ -362,7 +408,12 @@ const GROUP_BY_LABELS = {
 // Counts, grouped by any one field, over the same filtered set list_
 // employees would return - answers "how many X per Y" (e.g. "how many
 // engineers per department") without a preset report existing for it.
-async function groupEmployees(filters = {}, groupBy = 'department') {
+async function groupEmployees(rawFilters = {}, groupBy = 'department') {
+  // Grouping BY status is the one case where forcing status:'ACTIVE' as a
+  // filter would be self-defeating - the whole point of that query is to
+  // see the status breakdown itself (e.g. "how many active vs inactive").
+  const filters = groupBy === 'status' ? Object.assign({}, rawFilters) : applyActiveOnlyDefault(rawFilters);
+  delete filters.includeAllStatuses;
   const { employees, departmentNames, locationNames, reportingManagerNames, doerNames } = await employeeService.getEmployeeData();
   const filtered = employeeService.filterEmployees(employees, filters);
   const getGroupKey = GROUP_BY_FIELDS[groupBy] || GROUP_BY_FIELDS.department;
@@ -383,7 +434,7 @@ async function groupEmployees(filters = {}, groupBy = 'department') {
       unmatchedFilters: unmatched.length ? unmatched : null,
       note: unmatched.length
         ? null
-        : 'No employees match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.'
+        : ('No employees' + scopeLabelSuffix(filters) + ' match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.')
     };
   }
 
@@ -402,7 +453,7 @@ async function groupEmployees(filters = {}, groupBy = 'department') {
   return {
     title: 'Employee Count by ' + groupLabel + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
     rows: top,
-    footer: { label: 'Total Matching', value: filtered.length },
+    footer: { label: 'Total Matching' + (groupBy === 'status' ? '' : scopeLabelSuffix(filters)), value: filtered.length },
     actions: [
       { label: 'View Full Report', view: 'directory' },
       { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildEmployeeQueryString(filters) }
@@ -488,12 +539,19 @@ async function queryEmployees(params = {}) {
   // Only real employeeService filter keys go to filterEmployees/PDF link -
   // groupBy/fields/sortBy/sortDir/limit are this tool's own shaping
   // options, not data filters.
-  const filters = Object.assign({}, params);
-  delete filters.groupBy;
-  delete filters.fields;
-  delete filters.sortBy;
-  delete filters.sortDir;
-  delete filters.limit;
+  const rawFilters = Object.assign({}, params);
+  delete rawFilters.groupBy;
+  delete rawFilters.fields;
+  delete rawFilters.sortBy;
+  delete rawFilters.sortDir;
+  delete rawFilters.limit;
+
+  // Grouping BY status is the one case where forcing status:'ACTIVE' as a
+  // filter would be self-defeating - see the same exception in
+  // group_employees.
+  const groupByForScope = QUERY_GROUPABLE_FIELDS.includes(params.groupBy) ? params.groupBy : null;
+  const filters = groupByForScope === 'status' ? rawFilters : applyActiveOnlyDefault(rawFilters);
+  delete filters.includeAllStatuses;
 
   const filtered = employeeService.filterEmployees(employees, filters);
 
@@ -512,7 +570,7 @@ async function queryEmployees(params = {}) {
       unmatchedFilters: unmatched.length ? unmatched : null,
       note: unmatched.length
         ? null
-        : 'No employees match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.'
+        : ('No employees' + scopeLabelSuffix(filters) + ' match this exact combination of filters - the filter values themselves are real, there are just genuinely zero matching records.')
     };
   }
 
@@ -532,7 +590,7 @@ async function queryEmployees(params = {}) {
     return {
       title: 'Employee Count by ' + def.label + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
       rows: top,
-      footer: { label: 'Total Matching', value: filtered.length },
+      footer: { label: 'Total Matching' + (groupBy === 'status' ? '' : scopeLabelSuffix(filters)), value: filtered.length },
       actions: [
         { label: 'View Full Report', view: 'directory' },
         { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildQueryEmployeesQueryString(filters) }
@@ -561,7 +619,7 @@ async function queryEmployees(params = {}) {
     title: 'Query Results',
     columns: columns.map((f) => QUERY_FIELD_DEFS[f].label),
     tableRows: shown.map((e) => columns.map((f) => QUERY_FIELD_DEFS[f].get(e, names))),
-    footer: { label: 'Total Matching', value: filtered.length },
+    footer: { label: 'Total Matching' + scopeLabelSuffix(filters), value: filtered.length },
     note: truncated
       ? ('Showing ' + shown.length + ' of ' + filtered.length + ' - narrow your filters, sort differently, or download the full PDF to see the rest.')
       : null,
