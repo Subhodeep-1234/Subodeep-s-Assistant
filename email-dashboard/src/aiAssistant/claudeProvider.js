@@ -92,8 +92,11 @@ const SYSTEM_PROMPT =
   'are in the card. For example: "October e 33 jon active employee er birthday" (not "8", even ' +
   'though only 8 names are visible), or "Notice period soho October e 33 jon er birthday (notice ' +
   'period e keu nei ei mase)", or "33 jon er moddhe prothom 8 jon er naam dekhano holo, baki card ' +
-  'e ache." Getting the total wrong is a real error, not a stylistic choice - always read it from ' +
-  'the footer, never estimate it from what rows happen to be visible to you. Decide [[PLAIN]] vs ' +
+  'e ache." Only claim a preview/"rest in the card" when the title actually has "(Top 8)" or the ' +
+  'rows you see are genuinely fewer than the footer total - if every row is already shown, do not ' +
+  'say any are missing. Getting the total wrong is a real error, not a stylistic choice - always ' +
+  'read it from the footer, never estimate it from what rows happen to be visible to you. Decide ' +
+  '[[PLAIN]] vs ' +
   '[[CARD]] by what was actually asked, not by which tool you happened to call - the same tool ' +
   'can serve either kind of question. ' +
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
@@ -469,13 +472,29 @@ function extractText(content) {
 // erring toward showing real data rather than silently hiding it.
 const REPLY_MARKER_RE = /^\s*\[\[(PLAIN|CARD)\]\]\s*/;
 
+// See openaiProvider.js's buildCardFallback for why this exists: the
+// model can emit only the marker and no text after it, and a static
+// fallback then shows no number at all for a count/total question.
+// Building the fallback from the tool result's own title/footer keeps
+// the real figure correct even on a total content dropout.
+function buildCardFallback(card) {
+  if (!card || !card.footer || typeof card.footer.value === 'undefined') return null;
+  const title = String(card.title || 'Result').replace(/\s*\(Top \d+\)\s*$/, '');
+  let sentence = title + ' - ' + card.footer.label + ': ' + card.footer.value + '.';
+  const shown = (card.rows || card.tableRows || []).length;
+  if (shown && card.footer.value > shown) {
+    sentence += ' First ' + shown + ' shown, rest in the card.';
+  }
+  return sentence;
+}
+
 function finalizeReply(rawContent, card, actions, fallbackText) {
   const raw = rawContent || '';
   const match = raw.match(REPLY_MARKER_RE);
   const isPlain = Boolean(match && match[1] === 'PLAIN');
   const cleaned = (match ? raw.slice(match[0].length) : raw).trim();
   return {
-    reply: cleaned || fallbackText,
+    reply: cleaned || buildCardFallback(card) || fallbackText,
     card: isPlain ? null : card,
     actions: isPlain ? null : actions
   };
