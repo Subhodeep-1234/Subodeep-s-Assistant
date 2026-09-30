@@ -714,22 +714,28 @@ async function directReports(name) {
   const q = String(name || '').trim();
   if (!q) return { title: null, rows: null, actions: null };
 
+  // Active-only by default, matching every other list/count tool - was
+  // still including Notice Period here (an oversight from before that
+  // rule existed). Widening beyond Active for this specific question can
+  // go through query_employees(reportingManager, includeAllStatuses).
   const qKey = employeeService.normalizeKey(q);
   let matches = employees.filter(
-    (e) => e.status !== 'INACTIVE' && (e.reportingManagerKey === qKey || e.reportingDoerKey === qKey)
+    (e) => e.status === 'ACTIVE' && (e.reportingManagerKey === qKey || e.reportingDoerKey === qKey)
   );
 
+  // Found live: a plain substring fallback missed a real middle name
+  // ("Pawan Dhanuka" didn't match "Pawan Kumar Dhanuka") - same fix as
+  // employeeService.containsAllWords (every word present, any order).
   let resolvedName = q;
   if (!matches.length) {
-    const qLower = q.toLowerCase();
     matches = employees.filter(
       (e) =>
-        e.status !== 'INACTIVE' &&
-        ((e.reportingManager || '').toLowerCase().includes(qLower) || (e.reportingDoer || '').toLowerCase().includes(qLower))
+        e.status === 'ACTIVE' &&
+        (employeeService.containsAllWords(e.reportingManager, q) || employeeService.containsAllWords(e.reportingDoer, q))
     );
     if (matches.length) {
       const m = matches[0];
-      resolvedName = (m.reportingManager || '').toLowerCase().includes(qLower) ? m.reportingManager : m.reportingDoer;
+      resolvedName = employeeService.containsAllWords(m.reportingManager, q) ? m.reportingManager : m.reportingDoer;
     }
   }
 

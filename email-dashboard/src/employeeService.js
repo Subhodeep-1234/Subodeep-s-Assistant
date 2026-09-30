@@ -461,5 +461,6 @@ module.exports = {
   findUnmatchedFilters,
   formatCollar,
   parseYearsFromDuration,
+  containsAllWords,
   CACHE_TTL_MS
 };
