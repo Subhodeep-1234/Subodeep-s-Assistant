@@ -125,8 +125,13 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_birthdays_this_month',
-    description: 'List employees (active and notice period) with a birthday this calendar month, sorted by day.',
-    input_schema: { type: 'object', properties: {} }
+    description: 'List active employees with a birthday in a given calendar month, sorted by day. Works for ANY month, not just the current one - pass month for "birthdays in October"/"December e kar birthday" etc; omit it only for "this month"/"birthdays this month".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 10 for October, 12 for December). Omit for "this month".' }
+      }
+    }
   },
   {
     name: 'get_workforce_movement',
@@ -143,7 +148,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_insurance_status',
-    description: 'Get a named employee\'s health insurance coverage status and how many family members are covered. Never mentions premium or sum-insured amounts - those stay out of chat.',
+    description: 'Get a named employee\'s health insurance/medical coverage status specifically - only for actual insurance/health cover questions. NOT for "who reports to X"/"who is under X" (that\'s get_direct_reports) or any other question about that person. Never mentions premium or sum-insured amounts - those stay out of chat.',
     input_schema: {
       type: 'object',
       properties: { name: { type: 'string', description: 'The employee\'s name, as mentioned by the user.' } },
@@ -229,7 +234,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_direct_reports',
-    description: 'List employees who report to a named manager or Reporting DOER (their direct team) - use for "who reports to X" or "who\'s on X\'s team".',
+    description: 'List employees who report to a named manager or Reporting DOER (their direct team) - use for "who reports to X", "who\'s on X\'s team", "who is under X", "X er under e kara ache". This is about organizational reporting structure, nothing to do with health insurance/benefits - never call get_insurance_status for this kind of question.',
     input_schema: {
       type: 'object',
       properties: { name: { type: 'string', description: 'The manager/DOER\'s name, as mentioned by the user.' } },
@@ -328,7 +333,7 @@ const TOOL_RUNNERS = {
   get_joining_trend: () => tools.joiningTrend(),
   get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0),
   get_retirement_this_month: () => tools.retirementThisMonth(),
-  get_birthdays_this_month: () => tools.birthdaysThisMonth(),
+  get_birthdays_this_month: (input) => tools.birthdaysThisMonth(input.month),
   get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
   get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),
   get_insurance_status: (input) => tools.insuranceStatus(input.name),

@@ -124,16 +124,30 @@ async function retirementThisMonth() {
   };
 }
 
-async function birthdaysThisMonth() {
+// Accepts an optional month (1-12) so "October birthdays" reaches this
+// same simple, already-reliable tool with one extra parameter, rather
+// than needing the model to jump to the more complex general
+// query_employees tool just because the month isn't the current one -
+// found live: without this, "October birthdays" was silently answered
+// with THIS month's list instead (the model kept calling this tool with
+// no month, which only ever means "now").
+async function birthdaysThisMonth(month) {
   const { employees } = await employeeService.getEmployeeData();
+  const now = new Date();
+  const requestedMonth = Number(month);
+  const targetMonthIndex = requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth - 1 : now.getUTCMonth();
+  // Year is irrelevant here - analytics.birthdaysThisMonth only compares
+  // month, not year - so any year works as the reference date.
+  const target = new Date(Date.UTC(now.getUTCFullYear(), targetMonthIndex, 1));
   // analytics.birthdaysThisMonth only excludes INACTIVE (shared with the
   // Insights dashboard, not changed here) - Notice Period is filtered out
   // here instead, active-only by default like everything else. This is
   // the exact discrepancy found live: "October birthdays" reported 126
   // (every status, including exited staff) instead of the real 33 active.
-  const list = analytics.birthdaysThisMonth(employees).filter((e) => e.status === 'ACTIVE');
+  const list = analytics.birthdaysThisMonth(employees, target).filter((e) => e.status === 'ACTIVE');
+  const monthLabel = target.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
   return {
-    title: 'Birthdays This Month',
+    title: 'Birthdays in ' + monthLabel,
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({
       label: e.name,
       value: e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
