@@ -804,6 +804,24 @@ async function navigateToView(view) {
   return { title: null, rows: null, actions: [{ label: 'Open ' + label, view }] };
 }
 
+// The model has no built-in sense of "now" - without a real value handed
+// to it, "what's today's date" either gets refused or guessed. No card
+// (title stays null); the date/time fields are just for the model's own
+// reply text.
+function currentDateTime() {
+  const now = new Date();
+  const zone = 'Asia/Kolkata';
+  return {
+    title: null,
+    rows: null,
+    actions: null,
+    date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', timeZone: zone }),
+    time: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone }),
+    dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long', timeZone: zone }),
+    timezone: 'IST (Asia/Kolkata)'
+  };
+}
+
 module.exports = {
   departmentHeadcount,
   locationHeadcount,
@@ -827,5 +845,6 @@ module.exports = {
   queryEmployees,
   prepareLetter,
   navigateToView,
-  NAVIGABLE_VIEWS
+  NAVIGABLE_VIEWS,
+  currentDateTime
 };
