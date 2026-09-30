@@ -56,10 +56,11 @@ const SYSTEM_PROMPT =
   '"10 tarikh mash" etc.), you MUST pass that exact month as get_birthdays_this_month\'s or ' +
   'get_joining_this_month\'s month parameter (1 for January ... 12 for December) - never leave ' +
   'month unset when one was actually named, since unset silently means the CURRENT month instead, ' +
-  'which is a different, wrong answer, not an approximation. For "next month" specifically (no ' +
-  'month actually named), pass monthOffset:1 on that same tool instead of computing a month ' +
-  'number yourself - you have no reliable way to know today\'s real date without a tool, so never ' +
-  'guess "current month + 1". ' +
+  'which is a different, wrong answer, not an approximation. For a RELATIVE month with no month ' +
+  'actually named - "next month"/"agami mase" is monthOffset:1, "last month"/"agey mase" is ' +
+  'monthOffset:-1, on get_birthdays_this_month/get_joining_this_month/get_retirement_this_month - ' +
+  'never compute a month number yourself for these, you have no reliable way to know today\'s ' +
+  'real date without a tool. ' +
   'Every report, list or count defaults to ACTIVE staff only - never include inactive/exited or ' +
   'notice-period employees unless the person explicitly says so (naming a status like "inactive ' +
   'staff" or "who is on notice period", or asking to "include inactive"/"including everyone"/"all ' +
@@ -135,12 +136,12 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_joining_this_month',
-    description: 'List employees who joined in a given calendar month (current year). Active only by default. Works for ANY named month - pass month for "January te ke join korlo" etc. For "next month" (no month actually named), pass monthOffset:1 instead of computing a month number yourself - you cannot reliably compute "current+1" without seeing today\'s real date first.',
+    description: 'List employees who joined in a given calendar month (current year). Active only by default. Works for ANY named month - pass month for "January te ke join korlo" etc. For relative phrasing ("next month", "last month" - no month actually named), pass monthOffset instead of computing a month number yourself - you cannot reliably compute this without seeing today\'s real date first.',
     input_schema: {
       type: 'object',
       properties: {
-        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 1 for January), ONLY when a specific month was actually named. Omit for "this month"/"next month".' },
-        monthOffset: { type: 'integer', enum: [0, 1], description: 'Use instead of month for relative phrasing: 0 = "this month" (default, can be omitted), 1 = "next month". Never combine with month.' },
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 1 for January), ONLY when a specific month was actually named. Omit for "this month"/"next month"/"last month".' },
+        monthOffset: { type: 'integer', enum: [-1, 0, 1], description: 'Use instead of month for relative phrasing: -1 = "last month", 0 = "this month" (default, can be omitted), 1 = "next month". Never combine with month.' },
         includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff (e.g. "notice period soho", "including notice period"). Leave unset for the default (Active only).' }
       }
     }
@@ -163,22 +164,23 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_retirement_this_month',
-    description: 'List employees reaching retirement age (58) this month. Active only by default.',
+    description: 'List employees reaching retirement age (58) in a given month. Active only by default. For "this month" omit monthOffset; for "next month"/"porer mase" pass monthOffset:1; for "last month" pass monthOffset:-1. Never compute the month yourself.',
     input_schema: {
       type: 'object',
       properties: {
+        monthOffset: { type: 'integer', enum: [-1, 0, 1], description: 'Relative to the current month: -1 = last month, 0 = this month (default, can be omitted), 1 = next month.' },
         includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff. Leave unset for the default (Active only).' }
       }
     }
   },
   {
     name: 'get_birthdays_this_month',
-    description: 'List employees with a birthday in a given calendar month, sorted by day. Active only by default. Works for ANY named month - pass month for "birthdays in October"/"December e kar birthday" etc. For "next month" (no month actually named), pass monthOffset:1 instead of computing a month number yourself - you cannot reliably compute "current+1" without seeing today\'s real date first.',
+    description: 'List employees with a birthday in a given calendar month, sorted by day. Active only by default. Works for ANY named month - pass month for "birthdays in October"/"December e kar birthday" etc. For relative phrasing ("next month", "last month" - no month actually named), pass monthOffset instead of computing a month number yourself - you cannot reliably compute this without seeing today\'s real date first.',
     input_schema: {
       type: 'object',
       properties: {
-        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 10 for October, 12 for December), ONLY when a specific month was actually named. Omit for "this month"/"next month".' },
-        monthOffset: { type: 'integer', enum: [0, 1], description: 'Use instead of month for relative phrasing: 0 = "this month" (default, can be omitted), 1 = "next month". Never combine with month.' },
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 10 for October, 12 for December), ONLY when a specific month was actually named. Omit for "this month"/"next month"/"last month".' },
+        monthOffset: { type: 'integer', enum: [-1, 0, 1], description: 'Use instead of month for relative phrasing: -1 = "last month", 0 = "this month" (default, can be omitted), 1 = "next month". Never combine with month.' },
         includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff (e.g. "notice period soho October birthday"). Leave unset for the default (Active only).' }
       }
     }
@@ -387,7 +389,7 @@ const TOOL_RUNNERS = {
   get_joining_this_month: (input) => tools.joiningThisMonth(input.month, input.includeAllStatuses, input.monthOffset),
   get_joining_trend: () => tools.joiningTrend(),
   get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0, input.includeAllStatuses),
-  get_retirement_this_month: (input) => tools.retirementThisMonth(input.includeAllStatuses),
+  get_retirement_this_month: (input) => tools.retirementThisMonth(input.includeAllStatuses, input.monthOffset),
   get_birthdays_this_month: (input) => tools.birthdaysThisMonth(input.month, input.includeAllStatuses, input.monthOffset),
   get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
   get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),

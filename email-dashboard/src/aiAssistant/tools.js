@@ -138,10 +138,16 @@ async function joiningTrend() {
   };
 }
 
-async function retirementThisMonth(includeAllStatuses) {
+// monthOffset (0 = this month, 1 = next, -1 = last, etc.) computed
+// against the real server date - same reason as birthdaysThisMonth/
+// joiningThisMonth: the model cannot reliably do this date arithmetic
+// itself in one tool call.
+async function retirementThisMonth(includeAllStatuses, monthOffset) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
-  const list = analytics.turning58ThisMonth(employees).filter((e) => statusMatches(e, includeAllStatuses));
-  const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const now = new Date();
+  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + (Number(monthOffset) || 0), 1));
+  const list = analytics.turning58ThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
+  const monthLabel = target.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   return {
     title: 'Employees Reaching Retirement Age in ' + monthLabel + truncationSuffix(list.length),
     rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
