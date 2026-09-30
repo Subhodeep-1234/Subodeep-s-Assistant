@@ -61,9 +61,15 @@ const SYSTEM_PROMPT =
   'employees have birthdays in October" rather than just "126" - even though the card itself also ' +
   'labels its own scope. ' +
   'You must call a tool on every turn, including this one - there is no way to reply without ' +
-  'calling one. If the message is just a greeting, thanks, or anything with no real HR ' +
-  'question in it, call no_data_needed. Never state a specific name, number, or date unless ' +
-  'it came from a tool result in this exchange - if a tool returns an empty or missing result, ' +
+  'calling one. If the message needs today\'s date, day of week, or the current time, call ' +
+  'get_current_datetime - never guess it or say you don\'t know, that tool always has the real ' +
+  'answer. For anything else that is not a request for specific employee facts or numbers - ' +
+  'greetings, thanks, small talk, general knowledge, opinions, advice, or drafting free text ' +
+  'that does not need real employee data in it - call no_data_needed, then answer completely ' +
+  'freely and naturally in your own words on your next reply, exactly like a normal AI assistant ' +
+  'would; you are not limited to HR topics for this kind of message. The one hard rule either way: ' +
+  'never state a specific employee\'s name, number, or date as if it were a real fact unless it ' +
+  'came from a tool result in this exchange - if a tool returns an empty or missing result, ' +
   'say plainly that there is no data for that, and do not fill the gap with a plausible-sounding ' +
   'guess. ' +
   'If a tool result includes unmatchedFilters, one of the values you passed (e.g. a department ' +
@@ -339,7 +345,12 @@ const TOOL_DEFS = [
   },
   {
     name: 'no_data_needed',
-    description: 'Call this when the message is a greeting, thanks, small talk, or any other message with no real HR question in it that no other tool covers. Returns nothing - just lets you reply conversationally without inventing data.',
+    description: 'Call this for anything that is not a request for specific employee facts or numbers - greetings, thanks, small talk, general knowledge, opinions, advice, or drafting free text that does not need real employee data. Returns nothing - just lets you reply conversationally and freely afterwards, without inventing employee data.',
+    input_schema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'get_current_datetime',
+    description: 'Get the real current date, day of week, and time (India Standard Time). Call this whenever a question needs today\'s date, the day of the week, or the current time - never guess it.',
     input_schema: { type: 'object', properties: {} }
   }
 ];
@@ -369,7 +380,8 @@ const TOOL_RUNNERS = {
   group_employees: (input) => tools.groupEmployees(input, input.groupBy),
   prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),
   navigate_to_view: (input) => tools.navigateToView(input.view),
-  no_data_needed: () => ({ title: null, rows: null, actions: null })
+  no_data_needed: () => ({ title: null, rows: null, actions: null }),
+  get_current_datetime: () => tools.currentDateTime()
 };
 
 // The language rule lives in SYSTEM_PROMPT's first line, but earlier turns
