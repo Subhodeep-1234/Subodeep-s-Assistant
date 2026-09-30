@@ -56,7 +56,10 @@ const SYSTEM_PROMPT =
   '"10 tarikh mash" etc.), you MUST pass that exact month as get_birthdays_this_month\'s or ' +
   'get_joining_this_month\'s month parameter (1 for January ... 12 for December) - never leave ' +
   'month unset when one was actually named, since unset silently means the CURRENT month instead, ' +
-  'which is a different, wrong answer, not an approximation. ' +
+  'which is a different, wrong answer, not an approximation. For "next month" specifically (no ' +
+  'month actually named), pass monthOffset:1 on that same tool instead of computing a month ' +
+  'number yourself - you have no reliable way to know today\'s real date without a tool, so never ' +
+  'guess "current month + 1". ' +
   'Every report, list or count defaults to ACTIVE staff only - never include inactive/exited or ' +
   'notice-period employees unless the person explicitly says so (naming a status like "inactive ' +
   'staff" or "who is on notice period", or asking to "include inactive"/"including everyone"/"all ' +
@@ -143,11 +146,12 @@ const TOOL_DEFS = [
     type: 'function',
     function: {
       name: 'get_joining_this_month',
-      description: 'List employees who joined in a given calendar month (current year). Active only by default. Works for ANY month, not just the current one - pass month for "January te ke join korlo" etc; omit it only for "this month".',
+      description: 'List employees who joined in a given calendar month (current year). Active only by default. Works for ANY named month - pass month for "January te ke join korlo" etc. For "next month" (no month actually named), pass monthOffset:1 instead of computing a month number yourself - you cannot reliably compute "current+1" without seeing today\'s real date first.',
       parameters: {
         type: 'object',
         properties: {
-          month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 1 for January). Omit for "this month".' },
+          month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 1 for January), ONLY when a specific month was actually named. Omit for "this month"/"next month".' },
+          monthOffset: { type: 'integer', enum: [0, 1], description: 'Use instead of month for relative phrasing: 0 = "this month" (default, can be omitted), 1 = "next month". Never combine with month.' },
           includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff (e.g. "notice period soho", "including notice period"). Leave unset for the default (Active only).' }
         }
       }
@@ -192,11 +196,12 @@ const TOOL_DEFS = [
     type: 'function',
     function: {
       name: 'get_birthdays_this_month',
-      description: 'List employees with a birthday in a given calendar month, sorted by day. Active only by default. Works for ANY month, not just the current one - pass month for "birthdays in October"/"December e kar birthday" etc; omit it only for "this month"/"birthdays this month".',
+      description: 'List employees with a birthday in a given calendar month, sorted by day. Active only by default. Works for ANY named month - pass month for "birthdays in October"/"December e kar birthday" etc. For "next month" (no month actually named), pass monthOffset:1 instead of computing a month number yourself - you cannot reliably compute "current+1" without seeing today\'s real date first.',
       parameters: {
         type: 'object',
         properties: {
-          month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 10 for October, 12 for December). Omit for "this month".' },
+          month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 10 for October, 12 for December), ONLY when a specific month was actually named. Omit for "this month"/"next month".' },
+          monthOffset: { type: 'integer', enum: [0, 1], description: 'Use instead of month for relative phrasing: 0 = "this month" (default, can be omitted), 1 = "next month". Never combine with month.' },
           includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff (e.g. "notice period soho October birthday"). Leave unset for the default (Active only).' }
         }
       }
@@ -452,11 +457,11 @@ const TOOL_RUNNERS = {
   get_department_headcount: () => tools.departmentHeadcount(),
   get_location_headcount: () => tools.locationHeadcount(),
   get_doer_headcount: () => tools.doerHeadcount(),
-  get_joining_this_month: (input) => tools.joiningThisMonth(input.month, input.includeAllStatuses),
+  get_joining_this_month: (input) => tools.joiningThisMonth(input.month, input.includeAllStatuses, input.monthOffset),
   get_joining_trend: () => tools.joiningTrend(),
   get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0, input.includeAllStatuses),
   get_retirement_this_month: (input) => tools.retirementThisMonth(input.includeAllStatuses),
-  get_birthdays_this_month: (input) => tools.birthdaysThisMonth(input.month, input.includeAllStatuses),
+  get_birthdays_this_month: (input) => tools.birthdaysThisMonth(input.month, input.includeAllStatuses, input.monthOffset),
   get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
   get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),
   get_insurance_status: (input) => tools.insuranceStatus(input.name),

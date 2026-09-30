@@ -83,19 +83,23 @@ function truncationSuffix(total) {
   return total > CARD_ROW_LIMIT ? ' (Top ' + CARD_ROW_LIMIT + ')' : '';
 }
 
-// Accepts an optional month (1-12), same idea as birthdaysThisMonth -
-// without it, "January te ke join korlo" had no way to reach a month
-// other than the current one. Year is always the current year (joining
-// month alone, unlike a birthday, is only meaningful for a specific
-// year - "this year's January" is what a bare month name means here).
-async function joiningThisMonth(month, includeAllStatuses) {
+// Accepts an optional month (1-12), same idea as birthdaysThisMonth - a
+// named month is always that month of the current year. monthOffset (0
+// = this month, 1 = next month) is separate and computed against the
+// real server date (see birthdaysThisMonth for why - the model can't
+// reliably do "current + 1" itself in one tool call), and can roll over
+// into next year (target's own resolved year is used, not a fixed one).
+async function joiningThisMonth(month, includeAllStatuses, monthOffset) {
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const now = new Date();
-  const y = now.getUTCFullYear();
   const requestedMonth = Number(month);
-  const targetMonthIndex = requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth - 1 : now.getUTCMonth();
-  const monthLabel = new Date(Date.UTC(y, targetMonthIndex, 1)).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
-  const joiners = employees.filter((e) => statusMatches(e, includeAllStatuses) && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === targetMonthIndex);
+  const targetMonthIndex =
+    requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth - 1 : now.getUTCMonth() + (Number(monthOffset) || 0);
+  const target = new Date(Date.UTC(now.getUTCFullYear(), targetMonthIndex, 1));
+  const y = target.getUTCFullYear();
+  const resolvedMonthIndex = target.getUTCMonth();
+  const monthLabel = target.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+  const joiners = employees.filter((e) => statusMatches(e, includeAllStatuses) && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === resolvedMonthIndex);
   return {
     title: 'Employees Joining in ' + monthLabel + ' ' + y + truncationSuffix(joiners.length),
     rows: joiners.slice(0, CARD_ROW_LIMIT).map((e) => ({
@@ -153,11 +157,18 @@ async function retirementThisMonth(includeAllStatuses) {
 // found live: without this, "October birthdays" was silently answered
 // with THIS month's list instead (the model kept calling this tool with
 // no month, which only ever means "now").
-async function birthdaysThisMonth(month, includeAllStatuses) {
+// monthOffset (0 = this month, 1 = next month, etc.) exists for "next
+// month" phrasing specifically - found live: the model can only make
+// one tool call per turn, so it can't first look up today's real date
+// and then compute "current + 1" itself; it guessed instead and got the
+// wrong month (November instead of October). Offset-from-now math done
+// here, in code, against the real server date, needs no guessing.
+async function birthdaysThisMonth(month, includeAllStatuses, monthOffset) {
   const { employees } = await employeeService.getEmployeeData();
   const now = new Date();
   const requestedMonth = Number(month);
-  const targetMonthIndex = requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth - 1 : now.getUTCMonth();
+  const targetMonthIndex =
+    requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth - 1 : now.getUTCMonth() + (Number(monthOffset) || 0);
   // Year is irrelevant here - analytics.birthdaysThisMonth only compares
   // month, not year - so any year works as the reference date.
   const target = new Date(Date.UTC(now.getUTCFullYear(), targetMonthIndex, 1));
