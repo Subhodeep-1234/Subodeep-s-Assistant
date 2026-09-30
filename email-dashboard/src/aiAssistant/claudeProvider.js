@@ -40,7 +40,14 @@ const SYSTEM_PROMPT =
   'list, filtering on a field none of the presets expose - use query_employees, the general ' +
   'search tool over the full employee dataset. Never refuse or say something is unsupported ' +
   'without first checking whether query_employees can answer it; only say a question is out of ' +
-  'reach if even that tool genuinely has no field for it. Only ever use data a tool returned for ' +
+  'reach if even that tool genuinely has no field for it. ' +
+  'A question naming TWO conditions and asking WHO (e.g. "HR dept e kara notice period e ache" - ' +
+  '"who in HR dept is on notice period") means apply BOTH as filters on query_employees/ ' +
+  'list_employees (department:"HR", status:"NOTICE PERIOD") and show the actual people - it does ' +
+  'NOT mean group_employees, and it does NOT mean dropping either condition. Only use ' +
+  'group_employees when the person asks for a breakdown/count "by" or "wise" (e.g. "department ' +
+  'wise", "X per Y"), not for a plain "who/how many is Y" question about one specific X. ' +
+  'Only ever use data a tool returned for ' +
   'THIS exact question - never reuse or extrapolate an earlier reply for a different month, ' +
   'department or person, even if it looks similar; if you are not certain a tool result answers ' +
   'exactly what was just asked, call the right tool again with the exact right parameters rather ' +
@@ -102,8 +109,13 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_joining_this_month',
-    description: 'List employees who joined in the current calendar month.',
-    input_schema: { type: 'object', properties: {} }
+    description: 'List employees who joined in the current calendar month. Active only by default.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff (e.g. "notice period soho", "including notice period"). Leave unset for the default (Active only).' }
+      }
+    }
   },
   {
     name: 'get_joining_trend',
@@ -112,24 +124,33 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_pending_confirmations',
-    description: 'List employees whose probation confirmation is due this month or next month.',
+    description: 'List employees whose probation confirmation is due this month or next month. Active only by default.',
     input_schema: {
       type: 'object',
-      properties: { monthOffset: { type: 'integer', enum: [0, 1], description: '0 = this month, 1 = next month' } }
+      properties: {
+        monthOffset: { type: 'integer', enum: [0, 1], description: '0 = this month, 1 = next month' },
+        includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff. Leave unset for the default (Active only).' }
+      }
     }
   },
   {
     name: 'get_retirement_this_month',
-    description: 'List employees reaching retirement age (58) this month.',
-    input_schema: { type: 'object', properties: {} }
-  },
-  {
-    name: 'get_birthdays_this_month',
-    description: 'List active employees with a birthday in a given calendar month, sorted by day. Works for ANY month, not just the current one - pass month for "birthdays in October"/"December e kar birthday" etc; omit it only for "this month"/"birthdays this month".',
+    description: 'List employees reaching retirement age (58) this month. Active only by default.',
     input_schema: {
       type: 'object',
       properties: {
-        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 10 for October, 12 for December). Omit for "this month".' }
+        includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff. Leave unset for the default (Active only).' }
+      }
+    }
+  },
+  {
+    name: 'get_birthdays_this_month',
+    description: 'List employees with a birthday in a given calendar month, sorted by day. Active only by default. Works for ANY month, not just the current one - pass month for "birthdays in October"/"December e kar birthday" etc; omit it only for "this month"/"birthdays this month".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'The calendar month asked about, 1-12 (e.g. 10 for October, 12 for December). Omit for "this month".' },
+        includeAllStatuses: { type: 'boolean', description: 'Set true ONLY when explicitly asked to include Notice Period/inactive staff (e.g. "notice period soho October birthday"). Leave unset for the default (Active only).' }
       }
     }
   },
@@ -329,11 +350,11 @@ const TOOL_RUNNERS = {
   get_department_headcount: () => tools.departmentHeadcount(),
   get_location_headcount: () => tools.locationHeadcount(),
   get_doer_headcount: () => tools.doerHeadcount(),
-  get_joining_this_month: () => tools.joiningThisMonth(),
+  get_joining_this_month: (input) => tools.joiningThisMonth(input.includeAllStatuses),
   get_joining_trend: () => tools.joiningTrend(),
-  get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0),
-  get_retirement_this_month: () => tools.retirementThisMonth(),
-  get_birthdays_this_month: (input) => tools.birthdaysThisMonth(input.month),
+  get_pending_confirmations: (input) => tools.pendingConfirmations(input.monthOffset || 0, input.includeAllStatuses),
+  get_retirement_this_month: (input) => tools.retirementThisMonth(input.includeAllStatuses),
+  get_birthdays_this_month: (input) => tools.birthdaysThisMonth(input.month, input.includeAllStatuses),
   get_workforce_movement: (input) => tools.workforceMovement(input.days || 90),
   get_health_insurance_pending_additions: () => tools.healthInsurancePendingAdditions(),
   get_insurance_status: (input) => tools.insuranceStatus(input.name),
