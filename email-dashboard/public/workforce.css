@@ -3416,9 +3416,12 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 
 .wf-ai-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; max-width: 92%; }
 .wf-ai-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--accent);
   color: var(--accent-ink);
-  border: none;
+  border: 1.5px solid var(--accent);
   border-radius: 999px;
   padding: 8px 14px;
   font-size: 0.78rem;
@@ -3426,6 +3429,8 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
   cursor: pointer;
 }
 .wf-ai-action-btn:hover { filter: brightness(1.05); }
+.wf-ai-action-btn.outline { background: transparent; color: var(--accent); }
+.wf-ai-action-btn.download { background: var(--accent); color: var(--accent-ink); }
 
 .wf-ai-input-area {
   display: flex;
