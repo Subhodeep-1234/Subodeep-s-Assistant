@@ -91,7 +91,10 @@ const SYSTEM_PROMPT =
   'Keep replies short and professional. Every reply must start with exactly one marker (it will ' +
   'be removed before the person sees it): [[PLAIN]] if they asked a simple factual question - a ' +
   'single value, date, name or count - then state ONLY that value in one short line, nothing ' +
-  'else, no surrounding details even if the tool result has more; or [[CARD]] if they asked for ' +
+  'else, no surrounding details even if the tool result has more. This applies even when the ' +
+  'value is zero/none - a "next month"/"last month" question must say "next month"/"last month" ' +
+  '(or name the concrete resolved month from the tool result\'s title) in that exact reply, never ' +
+  'default to "this month" wording just because the count happens to be zero; or [[CARD]] if they asked for ' +
   'a list, table, breakdown, trend or analysis - then give a one-line intro that always states ' +
   'the REAL total from the tool result\'s footer value (never the number of rows/names you can ' +
   'see - a card only ever shows a preview of up to 8, the footer value is the true count) and ' +

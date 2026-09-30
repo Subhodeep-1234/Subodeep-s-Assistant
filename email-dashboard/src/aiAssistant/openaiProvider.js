@@ -22,6 +22,34 @@ const API_URL = 'https://api.openai.com/v1/chat/completions';
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const MAX_TOKENS = 1024;
 
+// Used only for [[DRAFT]] replies (see REPLY_MARKER_RE) - actual written
+// documents (mails, letters, translations, summaries, notices) need real
+// writing quality, which the small routing model isn't good at. Kept as
+// a separate model/call so the cheap model still does all the routing
+// and data-fetching, and the pricier model is only ever invoked for the
+// (much rarer) request that's actually asking for a finished piece of
+// writing.
+const DRAFT_MODEL = process.env.OPENAI_DRAFT_MODEL || 'gpt-5.4';
+const DRAFT_MAX_TOKENS = 2048;
+
+const DRAFT_SYSTEM_PROMPT =
+  'You write professional mails, letters, translations, summaries, explanations and notices for ' +
+  'an HR manager at an Indian real estate company. Rules: ' +
+  '1) Keep the person\'s exact meaning and intent - do not add requests, claims, or a tone they ' +
+  'did not ask for. ' +
+  '2) Address the right person or audience, exactly as named or clearly implied by the request. ' +
+  '3) Professional, polite, businesslike tone throughout. ' +
+  '4) Output ONLY the finished draft itself - no preamble like "Here is your draft:", no meta ' +
+  'commentary before or after it, no questions back, no markdown headers or bullet formatting ' +
+  'unless the document itself naturally needs a list. ' +
+  '5) End with a plain, generic closing appropriate to the document (e.g. "Regards,") with NO ' +
+  'name or title filled in under it - the person signs it themselves afterwards. ' +
+  '6) Never invent a fact, number, date, or detail about a specific employee that was not given ' +
+  'to you in the real facts below or earlier in this conversation - if something needed is ' +
+  'missing, leave a clearly marked blank like "[insert date]" instead of guessing. ' +
+  '7) Match the language of the request - if asked in Bengali, write the draft in Bengali; if ' +
+  'asked to translate, translate faithfully, adding or dropping nothing.';
+
 const SYSTEM_PROMPT =
   'Match the language and script of the user\'s most recent message only, never an earlier one. ' +
   'You are the HR Assistant, an AI agent built into this company\'s internal Workforce ' +
@@ -72,11 +100,14 @@ const SYSTEM_PROMPT =
   'You must call a tool on every turn, including this one - there is no way to reply without ' +
   'calling one. If the message needs today\'s date, day of week, or the current time, call ' +
   'get_current_datetime - never guess it or say you don\'t know, that tool always has the real ' +
-  'answer. For anything else that is not a request for specific employee facts or numbers - ' +
-  'greetings, thanks, small talk, general knowledge, opinions, advice, or drafting free text ' +
-  'that does not need real employee data in it - call no_data_needed, then answer completely ' +
-  'freely and naturally in your own words on your next reply, exactly like a normal AI assistant ' +
-  'would; you are not limited to HR topics for this kind of message. The one hard rule either way: ' +
+  'answer. For anything else that does not need a specific employee\'s facts or numbers - ' +
+  'greetings, thanks, small talk, general knowledge, opinions, advice, a translation, a summary, ' +
+  'an explanation - call no_data_needed. What you do next depends on what was actually asked: a ' +
+  'quick casual reply answer completely freely and naturally in your own words, exactly like a ' +
+  'normal AI assistant would (you are not limited to HR topics); an actual document to be written ' +
+  '(mail, letter, translation, summary, notice) instead gets [[DRAFT]] (see below) - call ' +
+  'no_data_needed either way if no specific employee\'s facts are needed, the difference is only ' +
+  'in which marker you use afterwards. The one hard rule either way: ' +
   'never state a specific employee\'s name, number, or date as if it were a real fact unless it ' +
   'came from a tool result in this exchange - if a tool returns an empty or missing result, ' +
   'say plainly that there is no data for that, and do not fill the gap with a plausible-sounding ' +
@@ -91,7 +122,10 @@ const SYSTEM_PROMPT =
   'Keep replies short and professional. Every reply must start with exactly one marker (it will ' +
   'be removed before the person sees it): [[PLAIN]] if they asked a simple factual question - a ' +
   'single value, date, name or count - then state ONLY that value in one short line, nothing ' +
-  'else, no surrounding details even if the tool result has more; or [[CARD]] if they asked for ' +
+  'else, no surrounding details even if the tool result has more. This applies even when the ' +
+  'value is zero/none - a "next month"/"last month" question must say "next month"/"last month" ' +
+  '(or name the concrete resolved month from the tool result\'s title) in that exact reply, never ' +
+  'default to "this month" wording just because the count happens to be zero; or [[CARD]] if they asked for ' +
   'a list, table, breakdown, trend or analysis - then give a one-line intro that always states ' +
   'the REAL total from the tool result\'s footer value (never the number of rows/names you can ' +
   'see - a card only ever shows a preview of up to 8, the footer value is the true count) and ' +
@@ -104,10 +138,15 @@ const SYSTEM_PROMPT =
   'e ache." Only claim a preview/"rest in the card" when the title actually has "(Top 8)" or the ' +
   'rows you see are genuinely fewer than the footer total - if every row is already shown, do not ' +
   'say any are missing. Getting the total wrong is a real error, not a stylistic choice - always ' +
-  'read it from the footer, never estimate it from what rows happen to be visible to you. Decide ' +
-  '[[PLAIN]] vs ' +
-  '[[CARD]] by what was actually asked, not by which tool you happened to call - the same tool ' +
-  'can serve either kind of question. ' +
+  'read it from the footer, never estimate it from what rows happen to be visible to you. ' +
+  'Or [[DRAFT]] if the person wants an actual written document produced - a mail, letter, ' +
+  'translation of a message, a summary, an explanation of a policy or law, a notice for staff - ' +
+  'anything meant to be read by someone else as a finished piece of writing, not casual chat or a ' +
+  'quick answer. For [[DRAFT]], output EXACTLY that marker and nothing else - do not attempt the ' +
+  'actual writing yourself, a separate step with a stronger writing model produces the real draft ' +
+  'using this same tool result as its only source of facts. Decide [[PLAIN]] vs [[CARD]] vs ' +
+  '[[DRAFT]] by what was actually asked, not by which tool you happened to call - the same tool ' +
+  'can serve any of these. ' +
   'You are read-only: every tool available to you only retrieves or navigates, never creates, ' +
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
   'plainly rather than guessing. ' +
@@ -438,7 +477,7 @@ const TOOL_DEFS = [
     type: 'function',
     function: {
       name: 'no_data_needed',
-      description: 'Call this for anything that is not a request for specific employee facts or numbers - greetings, thanks, small talk, general knowledge, opinions, advice, or drafting free text that does not need real employee data. Returns nothing - just lets you reply conversationally and freely afterwards, without inventing employee data.',
+      description: 'Call this for anything that does not need a specific employee\'s facts or numbers - greetings, thanks, small talk, general knowledge, opinions, advice, a translation, a summary, an explanation, a notice. Returns nothing - the reply itself (via [[PLAIN]] for casual chat or [[DRAFT]] for an actual document) is decided afterwards.',
       parameters: { type: 'object', properties: {} }
     }
   },
@@ -557,7 +596,39 @@ function combineOpenAiUsage(u1, u2) {
 // list/report request (card and buttons shown as the tool built them).
 // Falls back to showing the card if the marker is missing/unrecognised -
 // erring toward showing real data rather than silently hiding it.
-const REPLY_MARKER_RE = /^\s*\[\[(PLAIN|CARD)\]\]\s*/;
+const REPLY_MARKER_RE = /^\s*\[\[(PLAIN|CARD|DRAFT)\]\]\s*/;
+
+// Only called for a [[DRAFT]] marker - a plain text completion (no
+// tools, no forced tool_choice) on the stronger model, grounded only in
+// this exchange's own tool result (real facts, if any were fetched) and
+// the conversation so far. Its raw output IS the reply, with no marker
+// of its own to strip.
+async function callOpenAiDraft(apiKey, message, history, toolResult) {
+  const msgs = [{ role: 'system', content: DRAFT_SYSTEM_PROMPT }];
+  (Array.isArray(history) ? history : []).slice(-10)
+    .forEach((h) => msgs.push({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.text }));
+  if (toolResult && !toolResult.error) {
+    msgs.push({
+      role: 'system',
+      content: 'Real facts available for this request, from the company\'s own records - use ' +
+        'only these for any specific employee detail, never add more: ' + JSON.stringify(toolResult).slice(0, 4000)
+    });
+  }
+  msgs.push({ role: 'user', content: message });
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({ model: DRAFT_MODEL, max_tokens: DRAFT_MAX_TOKENS, messages: msgs })
+  });
+  if (!resp.ok) {
+    const bodyText = await resp.text().catch(() => '');
+    throw new Error('OpenAI draft API error ' + resp.status + (bodyText ? ': ' + bodyText.slice(0, 200) : ''));
+  }
+  return resp.json();
+}
 
 // gpt-4o-mini sometimes emits only the [[CARD]]/[[PLAIN]] marker and no
 // text after it (confirmed live, non-deterministic - same question
@@ -661,6 +732,30 @@ async function getResponse({ message, history, user }) {
       params: input,
       usage: combineOpenAiUsage(usage1, usage2)
     });
+
+    const followUpContent = (assistantMessage && assistantMessage.content) || '';
+    const markerMatch = followUpContent.match(REPLY_MARKER_RE);
+    if (markerMatch && markerMatch[1] === 'DRAFT') {
+      const draftData = await callOpenAiDraft(apiKey, message, history, toolResult);
+      const draftChoice = draftData.choices && draftData.choices[0];
+      const draftText = ((draftChoice && draftChoice.message && draftChoice.message.content) || '').trim();
+      const draftUsage = draftData.usage || null;
+      // Logged separately from the routing calls above (different model,
+      // very different per-token cost) so cost review can tell them apart.
+      toolCallLog.recordToolCall({
+        email: user && user.email,
+        provider: 'openai:' + DRAFT_MODEL,
+        toolName: 'draft',
+        params: {},
+        usage: combineOpenAiUsage(draftUsage, null)
+      });
+      return {
+        reply: draftText || 'Sorry, something went wrong generating that draft - please try again.',
+        card: null,
+        actions: null
+      };
+    }
+
     return finalizeReply(assistantMessage && assistantMessage.content, card, actions, 'Here you go.');
   }
 
