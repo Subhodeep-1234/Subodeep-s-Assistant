@@ -649,7 +649,7 @@ async function callOpenAiDraft(apiKey, message, history, toolResult) {
       Authorization: 'Bearer ' + apiKey,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ model: DRAFT_MODEL, max_tokens: DRAFT_MAX_TOKENS, messages: msgs })
+    body: JSON.stringify({ model: DRAFT_MODEL, max_completion_tokens: DRAFT_MAX_TOKENS, messages: msgs })
   });
   if (!resp.ok) {
     const bodyText = await resp.text().catch(() => '');
@@ -775,12 +775,7 @@ async function getResponse({ message, history, user }) {
     const followUpContent = (assistantMessage && assistantMessage.content) || '';
     const markerMatch = followUpContent.match(REPLY_MARKER_RE);
     if (markerMatch && markerMatch[1] === 'DRAFT') {
-      let draftData;
-      try {
-        draftData = await callOpenAiDraft(apiKey, message, history, toolResult);
-      } catch (draftErr) {
-        return { reply: '[DEBUG draft call failed] ' + draftErr.message, card: null, actions: null };
-      }
+      const draftData = await callOpenAiDraft(apiKey, message, history, toolResult);
       const draftChoice = draftData.choices && draftData.choices[0];
       const draftText = ((draftChoice && draftChoice.message && draftChoice.message.content) || '').trim();
       const draftUsage = draftData.usage || null;
