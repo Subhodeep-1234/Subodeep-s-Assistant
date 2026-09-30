@@ -758,6 +758,7 @@ async function getResponse({ message, history, user }) {
     });
 
     const followUpContent = (assistantMessage && assistantMessage.content) || '';
+    console.log('[hr-assistant][debug] tool=' + toolCall.function.name + ' followUpContent=' + JSON.stringify(followUpContent).slice(0, 300));
     const markerMatch = followUpContent.match(REPLY_MARKER_RE);
     if (markerMatch && markerMatch[1] === 'DRAFT') {
       const draftData = await callOpenAiDraft(apiKey, message, history, toolResult);
