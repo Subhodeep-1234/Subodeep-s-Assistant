@@ -124,6 +124,11 @@ const SYSTEM_PROMPT =
   'that is a real answer (this person has no one recorded above them, e.g. the most senior role) ' +
   '- say so plainly, never invent a name. If the tool result has notFound instead, say that ' +
   'specific employee could not be found, do not say they have no manager. ' +
+  'get_direct_reports\' result can have zeroDirectReports:true with an employeeName - this means ' +
+  'that real employee simply has nobody reporting to them (e.g. an individual contributor role), ' +
+  'say exactly that; never say the person "could not be found" in this case, they were found, ' +
+  'they just have zero reports. Only a plain notFound (no zeroDirectReports) means the name itself ' +
+  'did not match any real employee. ' +
   'Keep replies short and professional. Every reply must start with exactly one marker (it will ' +
   'be removed before the person sees it): [[PLAIN]] if they asked a simple factual question - a ' +
   'single value, date, name or count - then state ONLY that value in one short line, nothing ' +

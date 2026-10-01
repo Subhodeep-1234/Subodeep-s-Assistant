@@ -815,6 +815,15 @@ async function directReports(name) {
   }
 
   if (!matches.length) {
+    // "q doesn't match any reportingManager/DOER value" and "q is a real
+    // employee who simply has zero people reporting to them" are two
+    // different situations - found live, this used to say "could not be
+    // found" for the second one too, wrongly implying the person doesn't
+    // exist at all (e.g. an individual contributor with no direct reports).
+    const realEmployee = employees.find((e) => e.status === 'ACTIVE' && employeeService.containsAllWords(e.name, q));
+    if (realEmployee) {
+      return { title: null, rows: null, actions: null, employeeName: realEmployee.name, zeroDirectReports: true };
+    }
     return { title: null, rows: null, actions: [{ label: 'Open Employee Data', view: 'directory' }], notFound: q };
   }
 
