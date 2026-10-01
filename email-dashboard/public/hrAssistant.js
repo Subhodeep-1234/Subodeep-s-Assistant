@@ -44,6 +44,13 @@
   const historyFullSearchClear = document.getElementById('hrHistoryFullSearchClear');
   const historyFullList = document.getElementById('hrHistoryFullList');
   const historyClearAllBtn = document.getElementById('hrHistoryClearAllBtn');
+  const reportViewOverlay = document.getElementById('hrReportViewOverlay');
+  const reportViewTitle = document.getElementById('hrReportViewTitle');
+  const reportViewMeta = document.getElementById('hrReportViewMeta');
+  const reportViewTable = document.getElementById('hrReportViewTable');
+  const reportViewTotal = document.getElementById('hrReportViewTotal');
+  const reportViewCloseBtn = document.getElementById('hrReportViewCloseBtn');
+  const reportViewDownloadBtn = document.getElementById('hrReportViewDownloadBtn');
   if (!btn || !panel) return; // this page doesn't have the assistant markup
 
   const history = [];
@@ -225,6 +232,170 @@
 
     wrap.appendChild(badge);
     wrap.appendChild(card);
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
+  }
+
+  // A card counts as a real "report" (gets the generic View Report/
+  // Download buttons) when it has its own total (footer) and at least
+  // one row of data - as opposed to a pure navigation reply (e.g.
+  // no_data_needed, navigate_to_view) which has neither.
+  function isReportCard(card) {
+    return Boolean(card && card.footer && (((card.rows || []).length) || ((card.tableRows || []).length)));
+  }
+
+  function generatedLabel() {
+    const now = new Date();
+    return 'Generated ' + now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ', ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // "PDF e dao", "word e chai", "excel korun" etc. - if the person's own
+  // message already named a format, Download should save that format
+  // directly instead of asking again.
+  function detectFormatFromText(text) {
+    const t = String(text || '').toLowerCase();
+    if (/\bpdf\b/.test(t)) return 'pdf';
+    if (/\bword\b|\bdocx\b/.test(t)) return 'word';
+    if (/\bexcel\b|\bxlsx?\b/.test(t)) return 'excel';
+    return null;
+  }
+
+  // The exact data View Report/Download both work from - full (untruncated)
+  // rows when the tool provided them, the same card data otherwise, so a
+  // card that genuinely has nothing more than its 8-row preview (nothing
+  // was truncated) still downloads correctly.
+  function buildExportPayload(card) {
+    const payload = {
+      title: String(card.title || 'Report').replace(/\s*\(Top \d+\)\s*$/, ''),
+      scope: card.footer ? card.footer.label : '',
+      total: card.footer ? card.footer.value : undefined,
+      totalLabel: card.footer ? card.footer.label : undefined
+    };
+    if (card.columns && card.columns.length) {
+      payload.columns = card.columns;
+      payload.tableRows = card.fullTableRows && card.fullTableRows.length ? card.fullTableRows : card.tableRows;
+    } else {
+      payload.rows = card.fullRows && card.fullRows.length ? card.fullRows : card.rows;
+    }
+    return payload;
+  }
+
+  async function downloadReport(payload, format) {
+    try {
+      const resp = await fetch('/api/workforce/hr-assistant/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ format }, payload))
+      });
+      if (!resp.ok) throw new Error('export failed');
+      const blob = await resp.blob();
+      const ext = format === 'pdf' ? 'pdf' : format === 'word' ? 'docx' : 'xlsx';
+      const safeName = payload.title.replace(/[^a-z0-9]+/gi, '_').slice(0, 60) || 'Report';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = safeName + '.' + ext;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err) {
+      addBubble('assistant', "Couldn't prepare that download. Please try again.");
+    }
+  }
+
+  function closeDownloadMenu() {
+    const existing = document.querySelector('.wf-download-format-menu');
+    if (existing) existing.remove();
+    document.removeEventListener('click', closeDownloadMenuOnOutsideClick, true);
+  }
+  function closeDownloadMenuOnOutsideClick(e) {
+    const menu = document.querySelector('.wf-download-format-menu');
+    if (menu && !menu.contains(e.target)) closeDownloadMenu();
+  }
+
+  function showDownloadMenu(anchorBtn, payload) {
+    closeDownloadMenu();
+    const menu = document.createElement('div');
+    menu.className = 'wf-download-format-menu';
+    [['pdf', 'PDF'], ['word', 'Word'], ['excel', 'Excel']].forEach(([format, label]) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.textContent = label;
+      item.addEventListener('click', () => {
+        closeDownloadMenu();
+        downloadReport(payload, format);
+      });
+      menu.appendChild(item);
+    });
+    anchorBtn.parentElement.appendChild(menu);
+    const btnRect = anchorBtn.getBoundingClientRect();
+    const parentRect = anchorBtn.parentElement.getBoundingClientRect();
+    menu.style.top = (btnRect.bottom - parentRect.top + 6) + 'px';
+    menu.style.left = (btnRect.left - parentRect.left) + 'px';
+    setTimeout(() => document.addEventListener('click', closeDownloadMenuOnOutsideClick, true), 0);
+  }
+
+  let currentReportPayload = null;
+  function closeReportView() {
+    reportViewOverlay.hidden = true;
+    closeDownloadMenu();
+  }
+  function openReportView(card) {
+    const payload = buildExportPayload(card);
+    currentReportPayload = payload;
+    reportViewTitle.textContent = payload.title;
+    reportViewMeta.textContent = generatedLabel() + (payload.scope ? ' · ' + payload.scope : '');
+    const columns = payload.columns && payload.columns.length ? payload.columns : ['Item', 'Value'];
+    const rows = payload.tableRows || (payload.rows || []).map((r) => [r.label, r.value]);
+    const thead = '<thead><tr>' + columns.map((c) => '<th>' + escapeHtml(c) + '</th>').join('') + '</tr></thead>';
+    const tbody = '<tbody>' + rows.map((r) =>
+      '<tr>' + r.map((cell) => '<td>' + escapeHtml(cell === '' || cell === null || cell === undefined ? '—' : String(cell)) + '</td>').join('') + '</tr>'
+    ).join('') + '</tbody>';
+    reportViewTable.innerHTML = thead + tbody;
+    reportViewTotal.textContent = payload.total !== undefined && payload.total !== null
+      ? (payload.totalLabel || 'Total') + ': ' + payload.total
+      : '';
+    reportViewOverlay.hidden = false;
+  }
+  if (reportViewCloseBtn) reportViewCloseBtn.addEventListener('click', closeReportView);
+  if (reportViewOverlay) {
+    reportViewOverlay.addEventListener('click', (e) => {
+      if (e.target === reportViewOverlay) closeReportView();
+    });
+  }
+  if (reportViewDownloadBtn) {
+    reportViewDownloadBtn.addEventListener('click', () => {
+      if (currentReportPayload) showDownloadMenu(reportViewDownloadBtn, currentReportPayload);
+    });
+  }
+
+  // The two generic buttons every report-shaped card gets, replacing
+  // whichever tool-specific actions it may also carry - found live: those
+  // pointed "View Report" at the full Active Employee directory instead
+  // of this exact question's own filtered data. presetFormat (from the
+  // person's own message, e.g. "PDF e dao") skips the format menu and
+  // downloads that format directly.
+  function addReportButtons(card, presetFormat) {
+    const wrap = document.createElement('div');
+    wrap.className = 'wf-ai-actions';
+    const viewBtn = document.createElement('button');
+    viewBtn.type = 'button';
+    viewBtn.className = 'wf-ai-action-btn outline';
+    viewBtn.textContent = 'View Report';
+    viewBtn.addEventListener('click', () => openReportView(card));
+    const downloadBtn = document.createElement('button');
+    downloadBtn.type = 'button';
+    downloadBtn.className = 'wf-ai-action-btn download';
+    downloadBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg><span>Download</span>';
+    downloadBtn.addEventListener('click', () => {
+      const payload = buildExportPayload(card);
+      if (presetFormat) downloadReport(payload, presetFormat);
+      else showDownloadMenu(downloadBtn, payload);
+    });
+    wrap.appendChild(viewBtn);
+    wrap.appendChild(downloadBtn);
     messagesEl.appendChild(wrap);
     scrollToBottom();
   }
@@ -746,13 +917,20 @@
       currentConversationId = convo.id;
       messagesEl.innerHTML = '';
       history.length = 0;
+      let lastUserText = '';
       (convo.messages || []).forEach((m) => {
         if (m.role === 'user') {
           addBubble('user', m.text, m.attachment || null);
+          lastUserText = m.text;
         } else {
           addBubble('assistant', m.text);
-          if (m.card) addCard(m.card);
-          if (m.actions && m.actions.length) addActions(m.actions);
+          if (m.card) {
+            addCard(m.card);
+            if (isReportCard(m.card)) addReportButtons(m.card, detectFormatFromText(lastUserText));
+            else if (m.actions && m.actions.length) addActions(m.actions);
+          } else if (m.actions && m.actions.length) {
+            addActions(m.actions);
+          }
         }
         history.push({ role: m.role, text: m.text });
       });
@@ -916,8 +1094,13 @@
       if (data.conversationId) currentConversationId = data.conversationId;
       addBubble('assistant', data.reply || 'Done.');
       history.push({ role: 'assistant', text: data.reply || '' });
-      if (data.card) addCard(data.card);
-      if (data.actions && data.actions.length) addActions(data.actions);
+      if (data.card) {
+        addCard(data.card);
+        if (isReportCard(data.card)) addReportButtons(data.card, detectFormatFromText(text));
+        else if (data.actions && data.actions.length) addActions(data.actions);
+      } else if (data.actions && data.actions.length) {
+        addActions(data.actions);
+      }
     } catch (err) {
       removeLoadingBubble(loadingRow);
       addBubble('assistant', 'Something went wrong. Please try again.');

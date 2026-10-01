@@ -7,6 +7,7 @@ const insuranceService = require('./insuranceService');
 const gmailService = require('./gmailService');
 const { buildTablePdfBuffer } = require('./pdfReport');
 const orgChartServerPdf = require('./orgChartServerPdf');
+const { buildReportPdf, buildReportExcel, buildReportWord } = require('./reportExport');
 const aiAssistant = require('./aiAssistant/provider');
 const aiRateLimiter = require('./aiAssistant/rateLimiter');
 const toolCallLog = require('./aiAssistant/toolCallLog');
@@ -1386,6 +1387,48 @@ router.delete('/hr-assistant/conversations/:id', async (req, res) => {
 router.delete('/hr-assistant/conversations', async (req, res) => {
   await chatHistoryService.clearAllConversations(req.hrUser.email);
   res.json({ ok: true });
+});
+
+// Download for a specific chat report, in whichever format was asked for.
+// Takes exactly the same {title, scope, columns, rows/tableRows, total,
+// totalLabel} the browser already has from that reply's own card data -
+// not a fresh server-side query - so the file is guaranteed to match
+// what View Report showed, not a separately recomputed report.
+router.post('/hr-assistant/export', async (req, res) => {
+  try {
+    const format = String(req.body.format || '').toLowerCase();
+    const payload = {
+      title: req.body.title,
+      scope: req.body.scope,
+      columns: req.body.columns,
+      rows: req.body.rows,
+      tableRows: req.body.tableRows,
+      total: req.body.total,
+      totalLabel: req.body.totalLabel
+    };
+    const safeName = String(payload.title || 'Report').replace(/[^a-z0-9]+/gi, '_').slice(0, 60) || 'Report';
+    if (format === 'pdf') {
+      const buf = await buildReportPdf(payload);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + safeName + '.pdf"');
+      return res.send(buf);
+    }
+    if (format === 'excel') {
+      const buf = await buildReportExcel(payload);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + safeName + '.xlsx"');
+      return res.send(buf);
+    }
+    if (format === 'word') {
+      const buf = await buildReportWord(payload);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + safeName + '.docx"');
+      return res.send(buf);
+    }
+    return res.status(400).json({ error: 'format must be pdf, word, or excel' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Audit trail of what the AI actually did - tool name + params only, never

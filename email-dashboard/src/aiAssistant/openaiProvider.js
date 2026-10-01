@@ -737,6 +737,14 @@ async function getResponse({ message, history, user }) {
               rows: toolResult.rows || null,
               columns: toolResult.columns || null,
               tableRows: toolResult.tableRows || null,
+              // Full, untruncated data for View Report/Download - never
+              // sent to the model itself (see the tool-result JSON built
+              // below, which explicitly excludes these two fields) so a
+              // 500-row report doesn't bloat every turn's token cost; the
+              // model only ever reasons about the same capped preview it
+              // always has, this is purely for the browser.
+              fullRows: toolResult.fullRows || null,
+              fullTableRows: toolResult.fullTableRows || null,
               footer: toolResult.footer || null,
               note: toolResult.note || null
             }
@@ -747,12 +755,18 @@ async function getResponse({ message, history, user }) {
       toolResult = { error: err.message };
     }
 
+    // fullRows/fullTableRows (the untruncated data behind View Report/
+    // Download) are deliberately left out of what the model itself sees -
+    // it only ever needs the same capped preview as before to write its
+    // reply; sending the full set here would just burn tokens for data it
+    // never reads.
+    const modelFacingToolResult = Object.assign({}, toolResult, { fullRows: undefined, fullTableRows: undefined });
     const followUpMessages = messages.concat([
       assistantMessage,
       {
         role: 'tool',
         tool_call_id: toolCall.id,
-        content: JSON.stringify(toolResult).slice(0, 4000)
+        content: JSON.stringify(modelFacingToolResult).slice(0, 4000)
       }
     ]);
     // Forced to 'none' here (was 'auto', found live to be a real bug):
@@ -780,7 +794,7 @@ async function getResponse({ message, history, user }) {
     const followUpContent = (assistantMessage && assistantMessage.content) || '';
     const markerMatch = followUpContent.match(REPLY_MARKER_RE);
     if (markerMatch && markerMatch[1] === 'DRAFT') {
-      const draftData = await callOpenAiDraft(apiKey, message, history, toolResult);
+      const draftData = await callOpenAiDraft(apiKey, message, history, modelFacingToolResult);
       const draftChoice = draftData.choices && draftData.choices[0];
       const draftText = ((draftChoice && draftChoice.message && draftChoice.message.content) || '').trim();
       const draftUsage = draftData.usage || null;

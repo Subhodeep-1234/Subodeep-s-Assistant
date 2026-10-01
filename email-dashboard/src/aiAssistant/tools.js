@@ -25,8 +25,8 @@ async function departmentHeadcount() {
   return {
     title: 'Department-wise Active Headcount' + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
     rows: top.map((r) => ({ label: r.name, value: r.count })),
-    footer: { label: 'Total Active Employees', value: total },
-    actions: [{ label: 'View Full Report', view: 'directory' }, { label: 'Download PDF', downloadUrl: '/api/workforce/department-breakdown/pdf' }]
+    fullRows: rows.map((r) => ({ label: r.name, value: r.count })),
+    footer: { label: 'Total Active Employees', value: total }
   };
 }
 
@@ -39,8 +39,8 @@ async function locationHeadcount() {
   return {
     title: 'Location-wise Active Headcount' + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
     rows: top.map((r) => ({ label: r.name, value: r.count })),
-    footer: { label: 'Total Active Employees', value: total },
-    actions: [{ label: 'View Full Report', view: 'directory' }]
+    fullRows: rows.map((r) => ({ label: r.name, value: r.count })),
+    footer: { label: 'Total Active Employees', value: total }
   };
 }
 
@@ -53,8 +53,8 @@ async function doerHeadcount() {
   return {
     title: 'Reporting DOER-wise Active Headcount' + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
     rows: top.map((r) => ({ label: r.name, value: r.count })),
-    footer: { label: 'Total Active Employees', value: total },
-    actions: [{ label: 'View Full Report', view: 'directory' }, { label: 'Download PDF', downloadUrl: '/api/workforce/doer-breakdown/pdf' }]
+    fullRows: rows.map((r) => ({ label: r.name, value: r.count })),
+    footer: { label: 'Total Active Employees', value: total }
   };
 }
 
@@ -100,14 +100,15 @@ async function joiningThisMonth(month, includeAllStatuses, monthOffset) {
   const resolvedMonthIndex = target.getUTCMonth();
   const monthLabel = target.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
   const joiners = employees.filter((e) => statusMatches(e, includeAllStatuses) && e.doj && e.doj.getUTCFullYear() === y && e.doj.getUTCMonth() === resolvedMonthIndex);
+  const mapJoiner = (e) => ({
+    label: e.name,
+    value: (departmentNames.get(e.departmentKey) || e.department) + ' · ' + e.doj.toISOString().slice(0, 10)
+  });
   return {
     title: 'Employees Joining in ' + monthLabel + ' ' + y + truncationSuffix(joiners.length),
-    rows: joiners.slice(0, CARD_ROW_LIMIT).map((e) => ({
-      label: e.name,
-      value: (departmentNames.get(e.departmentKey) || e.department) + ' · ' + e.doj.toISOString().slice(0, 10)
-    })),
-    footer: { label: 'Total Joiners' + activeScopeSuffix(includeAllStatuses), value: joiners.length },
-    actions: [{ label: 'Open Joining Report', view: 'joining' }]
+    rows: joiners.slice(0, CARD_ROW_LIMIT).map(mapJoiner),
+    fullRows: joiners.map(mapJoiner),
+    footer: { label: 'Total Joiners' + activeScopeSuffix(includeAllStatuses), value: joiners.length }
   };
 }
 
@@ -120,11 +121,12 @@ async function pendingConfirmations(monthOffset = 0, includeAllStatuses) {
   const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
   const list = analytics.pendingConfirmationsThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
   const monthLabel = target.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const mapRow = (e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department });
   return {
     title: 'Confirmations Due in ' + monthLabel + truncationSuffix(list.length),
-    rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
-    footer: { label: 'Total Pending' + activeScopeSuffix(includeAllStatuses), value: list.length },
-    actions: [{ label: 'Open Tenure View', view: 'tenure' }]
+    rows: list.slice(0, CARD_ROW_LIMIT).map(mapRow),
+    fullRows: list.map(mapRow),
+    footer: { label: 'Total Pending' + activeScopeSuffix(includeAllStatuses), value: list.length }
   };
 }
 
@@ -148,11 +150,12 @@ async function retirementThisMonth(includeAllStatuses, monthOffset) {
   const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + (Number(monthOffset) || 0), 1));
   const list = analytics.turning58ThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
   const monthLabel = target.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const mapRow = (e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department });
   return {
     title: 'Employees Reaching Retirement Age in ' + monthLabel + truncationSuffix(list.length),
-    rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({ label: e.name, value: departmentNames.get(e.departmentKey) || e.department })),
-    footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length },
-    actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
+    rows: list.slice(0, CARD_ROW_LIMIT).map(mapRow),
+    fullRows: list.map(mapRow),
+    footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length }
   };
 }
 
@@ -180,14 +183,15 @@ async function birthdaysThisMonth(month, includeAllStatuses, monthOffset) {
   const target = new Date(Date.UTC(now.getUTCFullYear(), targetMonthIndex, 1));
   const list = analytics.birthdaysThisMonth(employees, target).filter((e) => statusMatches(e, includeAllStatuses));
   const monthLabel = target.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+  const mapRow = (e) => ({
+    label: e.name,
+    value: e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+  });
   return {
     title: 'Birthdays in ' + monthLabel + truncationSuffix(list.length),
-    rows: list.slice(0, CARD_ROW_LIMIT).map((e) => ({
-      label: e.name,
-      value: e.dob.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-    })),
-    footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length },
-    actions: list.length ? [{ label: 'Open Employee Data', view: 'directory' }] : null
+    rows: list.slice(0, CARD_ROW_LIMIT).map(mapRow),
+    fullRows: list.map(mapRow),
+    footer: { label: 'Total' + activeScopeSuffix(includeAllStatuses), value: list.length }
   };
 }
 
@@ -216,8 +220,8 @@ async function healthInsurancePendingAdditions() {
   return {
     title: 'Pending Health Insurance Additions' + truncationSuffix(additions.length),
     rows: additions.slice(0, CARD_ROW_LIMIT).map((a) => ({ label: a.name, value: a.employeeId })),
-    footer: { label: 'Total Pending', value: additions.length },
-    actions: [{ label: 'Open Health Insurance', view: 'healthInsurance' }]
+    fullRows: additions.map((a) => ({ label: a.name, value: a.employeeId })),
+    footer: { label: 'Total Pending', value: additions.length }
   };
 }
 
@@ -418,25 +422,23 @@ async function listEmployees(rawFilters = {}) {
   const shown = sorted.slice(0, limit);
   const truncated = filtered.length > shown.length;
 
+  const mapRow = (e) => [
+    e.employeeId,
+    e.name,
+    e.designation || '—',
+    departmentNames.get(e.departmentKey) || e.department || '—',
+    e.status,
+    e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  ];
   return {
     title: 'Employee List',
     columns: ['Emp Code', 'Name', 'Designation', 'Department', 'Status', 'DOJ'],
-    tableRows: shown.map((e) => [
-      e.employeeId,
-      e.name,
-      e.designation || '—',
-      departmentNames.get(e.departmentKey) || e.department || '—',
-      e.status,
-      e.doj ? e.doj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
-    ]),
+    tableRows: shown.map(mapRow),
+    fullTableRows: sorted.map(mapRow),
     footer: { label: 'Total Matching' + scopeLabelSuffix(filters), value: filtered.length },
     note: truncated
-      ? ('Showing ' + shown.length + ' of ' + filtered.length + ' - narrow your filters, sort differently, or download the full PDF to see the rest.')
-      : null,
-    actions: [
-      { label: 'View Full Report', view: 'directory' },
-      { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildEmployeeQueryString(filters) }
-    ]
+      ? ('Showing ' + shown.length + ' of ' + filtered.length + ' in this chat reply - the full list is in View Report/Download.')
+      : null
   };
 }
 
@@ -501,11 +503,8 @@ async function groupEmployees(rawFilters = {}, groupBy = 'department') {
   return {
     title: 'Employee Count by ' + groupLabel + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
     rows: top,
-    footer: { label: 'Total Matching' + (groupBy === 'status' ? '' : scopeLabelSuffix(filters)), value: filtered.length },
-    actions: [
-      { label: 'View Full Report', view: 'directory' },
-      { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildEmployeeQueryString(filters) }
-    ]
+    fullRows: allRows,
+    footer: { label: 'Total Matching' + (groupBy === 'status' ? '' : scopeLabelSuffix(filters)), value: filtered.length }
   };
 }
 
@@ -518,10 +517,10 @@ async function groupEmployees(rawFilters = {}, groupBy = 'department') {
 //
 // Single source of truth for every field this tool can show as a column,
 // group by, or sort by, and how to read each one off a raw employee
-// record. Deliberately excludes every PII field (Aadhar, PAN, contact
-// number, address, bank details, UAN, ESI, email) - exactly like
-// get_employee_detail, they are never read into this registry at all, so
-// there is no code path here that could put them in a chat reply.
+// record. Personal fields (contact number, personal email, blood group,
+// emergency contact, address, Aadhar, PAN) are included - this app is
+// only ever given to the HR team, with no per-account restriction on
+// personal data (see get_personal_details).
 const QUERY_FIELD_DEFS = {
   employeeId: { label: 'Emp Code', get: (e) => e.employeeId },
   name: { label: 'Name', get: (e) => e.name },
@@ -537,7 +536,18 @@ const QUERY_FIELD_DEFS = {
   reportingManager: { label: 'Reporting Manager', get: (e, n) => n.reportingManagerNames.get(e.reportingManagerKey) || e.reportingManager || '—' },
   reportingDoer: { label: 'Reporting DOER', get: (e, n) => n.doerNames.get(e.reportingDoerKey) || e.reportingDoer || '—' },
   collar: { label: 'Category', get: (e) => employeeService.formatCollar(e.groupD) || '—' },
-  employmentType: { label: 'Employment Type', get: (e) => e.employmentType || '—' }
+  employmentType: { label: 'Employment Type', get: (e) => e.employmentType || '—' },
+  contactNumber: { label: 'Phone', get: (e) => e.contactNumber || '—' },
+  emailPersonal: { label: 'Personal Email', get: (e) => e.emailPersonal || '—' },
+  bloodGroup: { label: 'Blood Group', get: (e) => e.bloodGroup || '—' },
+  emergencyContact: {
+    label: 'Emergency Contact',
+    get: (e) => (e.emergencyContactName ? e.emergencyContactName + (e.emergencyContactNumber ? ' (' + e.emergencyContactNumber + ')' : '') : '—')
+  },
+  permanentAddress: { label: 'Permanent Address', get: (e) => e.permanentAddress || '—' },
+  presentAddress: { label: 'Present Address', get: (e) => e.presentAddress || '—' },
+  aadhar: { label: 'Aadhar', get: (e) => e.aadhar || '—' },
+  pan: { label: 'PAN', get: (e) => e.pan || '—' }
 };
 const QUERY_DEFAULT_FIELDS = ['employeeId', 'name', 'designation', 'department', 'status'];
 const QUERY_GROUPABLE_FIELDS = ['designation', 'department', 'status', 'location', 'gender', 'collar', 'employmentType', 'reportingManager', 'reportingDoer'];
@@ -638,11 +648,8 @@ async function queryEmployees(params = {}) {
     return {
       title: 'Employee Count by ' + def.label + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
       rows: top,
-      footer: { label: 'Total Matching' + (groupBy === 'status' ? '' : scopeLabelSuffix(filters)), value: filtered.length },
-      actions: [
-        { label: 'View Full Report', view: 'directory' },
-        { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildQueryEmployeesQueryString(filters) }
-      ]
+      fullRows: allRows,
+      footer: { label: 'Total Matching' + (groupBy === 'status' ? '' : scopeLabelSuffix(filters)), value: filtered.length }
     };
   }
 
@@ -667,14 +674,11 @@ async function queryEmployees(params = {}) {
     title: 'Query Results',
     columns: columns.map((f) => QUERY_FIELD_DEFS[f].label),
     tableRows: shown.map((e) => columns.map((f) => QUERY_FIELD_DEFS[f].get(e, names))),
+    fullTableRows: sorted.map((e) => columns.map((f) => QUERY_FIELD_DEFS[f].get(e, names))),
     footer: { label: 'Total Matching' + scopeLabelSuffix(filters), value: filtered.length },
     note: truncated
-      ? ('Showing ' + shown.length + ' of ' + filtered.length + ' - narrow your filters, sort differently, or download the full PDF to see the rest.')
-      : null,
-    actions: [
-      { label: 'View Full Report', view: 'directory' },
-      { label: 'Download PDF', downloadUrl: '/api/workforce/employees/pdf' + buildQueryEmployeesQueryString(filters) }
-    ]
+      ? ('Showing ' + shown.length + ' of ' + filtered.length + ' in this chat reply - the full list is in View Report/Download.')
+      : null
   };
 }
 // ---------------------------------------------------------------------
@@ -816,14 +820,15 @@ async function directReports(name) {
 
   const shown = matches.slice(0, CARD_ROW_LIMIT);
   const rest = matches.length - shown.length;
+  const mapRow = (e) => ({
+    label: e.name,
+    value: (e.designation || '—') + ' · ' + (departmentNames.get(e.departmentKey) || e.department || '—')
+  });
   return {
     title: 'Reporting to ' + resolvedName + (rest > 0 ? ' (Top ' + CARD_ROW_LIMIT + ')' : ''),
-    rows: shown.map((e) => ({
-      label: e.name,
-      value: (e.designation || '—') + ' · ' + (departmentNames.get(e.departmentKey) || e.department || '—')
-    })),
-    footer: { label: 'Total', value: matches.length },
-    actions: [{ label: 'View Full Report', view: 'directory' }]
+    rows: shown.map(mapRow),
+    fullRows: matches.map(mapRow),
+    footer: { label: 'Total', value: matches.length }
   };
 }
 

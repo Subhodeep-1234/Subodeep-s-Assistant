@@ -151,6 +151,38 @@
       </div>
     </div>
 
+    <!-- "View Report" - a clean, read-only view of exactly one chat
+         report's own full data (no truncation), opened by the generic
+         View Report/Download buttons every report-shaped card gets (see
+         public/hrAssistant.js). Reuses the existing .wf-modal-overlay
+         dialog convention (Send Mail compose, etc.) rather than a new
+         pattern. -->
+    <div class="wf-modal-overlay" id="hrReportViewOverlay" hidden>
+      <div class="wf-report-view" role="dialog" aria-label="Report">
+        <div class="wf-report-view-head">
+          <div>
+            <h3 id="hrReportViewTitle"></h3>
+            <div class="wf-report-view-meta" id="hrReportViewMeta"></div>
+          </div>
+          <button type="button" class="wf-icon-btn" id="hrReportViewCloseBtn" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="wf-report-view-body">
+          <div class="wf-report-view-table-scroll">
+            <table class="wf-report-view-table" id="hrReportViewTable"></table>
+          </div>
+        </div>
+        <div class="wf-report-view-foot">
+          <span id="hrReportViewTotal"></span>
+          <button type="button" class="wf-ai-action-btn download" id="hrReportViewDownloadBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
+            <span>Download</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Hidden native pickers for the "Add to chat" sheet - no accept/capture
          restriction on the plain Files picker so it works for any file type
          on both Android and iOS; Camera uses capture to jump straight to the

@@ -3432,6 +3432,90 @@ body:not(.printing-org-chart) .org-chart-cards-row + .org-chart-branch-connector
 .wf-ai-action-btn.outline { background: transparent; color: var(--accent); }
 .wf-ai-action-btn.download { background: var(--accent); color: var(--accent-ink); }
 
+/* Download format choice - a small popover anchored under the Download
+   button, only shown when the chat message didn't already name a format
+   (e.g. "PDF e dao" skips straight to the download, see hrAssistant.js). */
+.wf-ai-actions { position: relative; }
+.wf-download-format-menu {
+  position: absolute;
+  z-index: 5;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+.wf-download-format-menu button {
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.wf-download-format-menu button:hover { background: var(--panel-soft, rgba(0, 0, 0, 0.05)); }
+
+/* "View Report" - a clean read-only view of one report's full data,
+   reusing the .wf-modal-overlay backdrop convention. */
+.wf-report-view {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  width: min(720px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.wf-report-view-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.wf-report-view-head h3 { margin: 0 0 4px; font-size: 1.05rem; color: var(--ink); }
+.wf-report-view-meta { font-size: 0.78rem; color: var(--muted); }
+.wf-report-view-body { padding: 16px 20px; overflow-y: auto; }
+.wf-report-view-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.wf-report-view-table { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 0.84rem; }
+.wf-report-view-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0 12px 8px 0;
+  border-bottom: 1.5px solid var(--line);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+.wf-report-view-table td {
+  color: var(--ink);
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.wf-report-view-table tr:last-of-type td { border-bottom: none; }
+.wf-report-view-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .wf-ai-input-area {
   display: flex;
   flex-direction: column;

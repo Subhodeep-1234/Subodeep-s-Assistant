@@ -575,6 +575,11 @@ async function getResponse({ message, history, user }) {
               rows: toolResult.rows || null,
               columns: toolResult.columns || null,
               tableRows: toolResult.tableRows || null,
+              // Full, untruncated data for View Report/Download - never
+              // sent to the model (see the tool-result JSON built below,
+              // which excludes these two fields), purely for the browser.
+              fullRows: toolResult.fullRows || null,
+              fullTableRows: toolResult.fullTableRows || null,
               footer: toolResult.footer || null,
               note: toolResult.note || null
             }
@@ -585,11 +590,15 @@ async function getResponse({ message, history, user }) {
       toolResult = { error: err.message };
     }
 
+    // fullRows/fullTableRows (the untruncated data behind View Report/
+    // Download) are deliberately left out of what the model sees - same
+    // reasoning as openaiProvider.js.
+    const modelFacingToolResult = Object.assign({}, toolResult, { fullRows: undefined, fullTableRows: undefined });
     const followUpMessages = messages.concat([
       { role: 'assistant', content: data.content },
       {
         role: 'user',
-        content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: JSON.stringify(toolResult).slice(0, 4000) }]
+        content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: JSON.stringify(modelFacingToolResult).slice(0, 4000) }]
       }
     ]);
     data = await callClaude(apiKey, followUpMessages);
