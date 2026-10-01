@@ -115,18 +115,16 @@ const SYSTEM_PROMPT =
   'sends, modifies or deletes anything. If someone asks for something no tool covers, say so ' +
   'plainly rather than guessing. ' +
   'For a person\'s contact number, personal email, blood group, emergency contact, address, ' +
-  'Aadhar or PAN, use get_personal_details, not get_employee_detail. Three different situations, ' +
-  'say each one correctly, never mix them up: (1) the WHOLE result has restricted:true - say ' +
-  'plainly access is restricted for this account (use its note field), the data still exists, you ' +
-  'just cannot show it; (2) the result succeeded but ONE field\'s value is "—" - that specific ' +
+  'Aadhar or PAN, use get_personal_details, not get_employee_detail - every logged-in HR user ' +
+  'sees the same full data here, there is no per-account restriction to apply. Two situations, ' +
+  'say each one correctly: (1) the result succeeded but ONE field\'s value is "—" - that specific ' +
   'detail is simply not recorded for this person (e.g. no emergency contact on file), say so ' +
-  'plainly, this is NOT a restriction. ' +
-  '(3) Bank account details, IFSC, and qualification are a SEPARATE case, not "restricted" at ' +
-  'all: this company\'s records simply have no such columns for ANYONE, regardless of who is ' +
-  'asking - do not call get_personal_details for a bank-details-only question, there is nothing ' +
-  'it could return for that. Answer directly instead, e.g. for "X er bank details" say something ' +
-  'like "Bank details are not tracked in this company\'s employee records" - never "restricted", ' +
-  'that word is only for case (1), a real permission limit on data that does exist. ' +
+  'plainly, this is not a refusal, just a gap in that person\'s record. ' +
+  '(2) Bank account details, IFSC, and qualification are a SEPARATE case: this company\'s ' +
+  'records simply have no such columns for anyone - do not call get_personal_details for a ' +
+  'bank-details-only question, there is nothing it could return for that. Answer directly ' +
+  'instead, e.g. for "X er bank details" say something like "Bank details are not tracked in ' +
+  'this company\'s employee records". ' +
   'Report titles, card labels, table rows and employee data always stay in English exactly ' +
   'as the tools return them.';
 
@@ -320,7 +318,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_personal_details',
-    description: 'Get a named employee\'s personal/sensitive details: contact number, personal email, blood group, emergency contact, permanent/present address, Aadhar, PAN. These columns DO exist in the data - if the tool result has restricted:true, that means access is limited to specific accounts, NOT that the data doesn\'t exist; say so plainly rather than claiming there\'s no such data. Use this whenever someone asks for any of these specific fields.',
+    description: 'Get a named employee\'s personal details: contact number, personal email, blood group, emergency contact, permanent/present address, Aadhar, PAN. These columns DO exist in the data - never claim there\'s no such data. Use this whenever someone asks for any of these specific fields.',
     input_schema: {
       type: 'object',
       properties: { name: { type: 'string', description: 'The employee\'s name or ID, as mentioned by the user.' } },
@@ -426,7 +424,7 @@ const TOOL_RUNNERS = {
   find_employee: (input) => tools.findEmployee(input.query),
   get_direct_reports: (input) => tools.directReports(input.name),
   get_employee_detail: (input) => tools.employeeDetail(input.name),
-  get_personal_details: (input, user) => tools.getPersonalDetails(input.name, user && user.email),
+  get_personal_details: (input) => tools.getPersonalDetails(input.name),
   list_employees: (input) => tools.listEmployees(input),
   group_employees: (input) => tools.groupEmployees(input, input.groupBy),
   prepare_letter: (input) => tools.prepareLetter({ name: input.name, letterType: input.letterType }),

@@ -696,41 +696,14 @@ async function findEmployee(query) {
     }));
 }
 
-// Permission gate for the personal/sensitive fields below (contact
-// number, personal email, blood group, emergency contact, address,
-// Aadhar, PAN) - kept structurally separate from employeeDetail, which
-// stays PII-free for every caller regardless of this check. Default is
-// deny-all: HR_ASSISTANT_PII_ALLOWED_EMAILS (comma-separated, exact
-// email match, case-insensitive) must explicitly name an account before
-// this tool will ever return real values to it - so adding the feature
-// doesn't itself widen who can see this data, only the allow-listed
-// account(s) can.
-function hasPersonalDataAccess(email) {
-  const allowed = String(process.env.HR_ASSISTANT_PII_ALLOWED_EMAILS || '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  return allowed.includes(String(email || '').toLowerCase());
-}
-
 // Address/phone/blood group/emergency contact/Aadhar/PAN for a named
-// employee - gated by hasPersonalDataAccess above. Returns a clear
-// `restricted: true` flag (never a silent "no data") when the requester
-// isn't allow-listed, so the model can tell the person plainly that the
-// field exists but isn't shown to their account, instead of claiming it
-// doesn't exist at all.
-async function getPersonalDetails(name, requesterEmail) {
+// employee. No permission gate here - this app is only ever given to
+// the HR team (not wider company access), so every logged-in HR user
+// sees the same full data; requireHrAuth (the login itself) is the only
+// access control that applies.
+async function getPersonalDetails(name) {
   const q = String(name || '').trim();
   if (!q) return { title: null, rows: null, actions: null };
-  if (!hasPersonalDataAccess(requesterEmail)) {
-    return {
-      title: null,
-      rows: null,
-      actions: null,
-      restricted: true,
-      note: 'Personal/sensitive details (address, contact number, personal email, blood group, emergency contact, Aadhar, PAN) are restricted - not shown to this account.'
-    };
-  }
   const { employees, departmentNames } = await employeeService.getEmployeeData();
   const qLower = q.toLowerCase();
   const matches = employees.filter((e) => e.name.toLowerCase().includes(qLower) || e.employeeId.toLowerCase().includes(qLower));
