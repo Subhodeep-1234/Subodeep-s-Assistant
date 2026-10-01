@@ -119,13 +119,24 @@ const SYSTEM_PROMPT =
   'tool yourself with the closest one if it is obvious which they meant). If a tool result has no ' +
   'unmatchedFilters but genuinely no matching rows (its note says so), that IS a real answer - say ' +
   'plainly that nothing matches those filters, as a normal [[PLAIN]] reply. ' +
+  'get_reporting_manager\'s result gives employeeName and reportingManager directly (no card) - ' +
+  'state that person\'s manager/HOD by name as a [[PLAIN]] reply. If reportingManager is empty, ' +
+  'that is a real answer (this person has no one recorded above them, e.g. the most senior role) ' +
+  '- say so plainly, never invent a name. If the tool result has notFound instead, say that ' +
+  'specific employee could not be found, do not say they have no manager. ' +
   'Keep replies short and professional. Every reply must start with exactly one marker (it will ' +
   'be removed before the person sees it): [[PLAIN]] if they asked a simple factual question - a ' +
   'single value, date, name or count - then state ONLY that value in one short line, nothing ' +
-  'else, no surrounding details even if the tool result has more. This applies even when the ' +
-  'value is zero/none - a "next month"/"last month" question must say "next month"/"last month" ' +
-  '(or name the concrete resolved month from the tool result\'s title) in that exact reply, never ' +
-  'default to "this month" wording just because the count happens to be zero; or [[CARD]] if they asked for ' +
+  'else, no surrounding details even if the tool result has more. If a tool result has a footer, ' +
+  'a PLAIN count/total reply must ALSO come from the footer value, exactly like a CARD reply does ' +
+  '- NEVER count the rows/names you can see instead, those are only ever a preview (up to 8), ' +
+  'not the true count. For example "Yashaswi er under e koto jon ache"/"kitne log hain"/"how many ' +
+  'report to Yashaswi" asked about a tool result with footer {Total: 91} must answer 91, never 8 ' +
+  '(the preview length) - this applies no matter which language the question was asked in. This ' +
+  'also applies when the value is zero/none - a "next month"/"last month" question must say "next ' +
+  'month"/"last month" (or name the concrete resolved month from the tool result\'s title) in that ' +
+  'exact reply, never default to "this month" wording just because the count happens to be zero; ' +
+  'or [[CARD]] if they asked for ' +
   'a list, table, breakdown, trend or analysis - then give a one-line intro that always states ' +
   'the REAL total from the tool result\'s footer value (never the number of rows/names you can ' +
   'see - a card only ever shows a preview of up to 8, the footer value is the true count) and ' +
@@ -398,10 +409,22 @@ const TOOL_DEFS = [
     type: 'function',
     function: {
       name: 'get_direct_reports',
-      description: 'List employees who report to a named manager or Reporting DOER (their direct team) - use for "who reports to X", "who\'s on X\'s team", "who is under X", "X er under e kara ache". This is about organizational reporting structure, nothing to do with health insurance/benefits - never call get_insurance_status for this kind of question.',
+      description: 'DOWNWARD direction only - list employees who report TO a named manager (their team, below them). Use when X is the manager/senior person in the question: "who reports to X", "who\'s on X\'s team", "X er under e kara ache" (who is under X), "X ke under kitne log hain" (how many under X), "X ke under kaun kaun hai" (who all is under X), "X ka team". Do NOT use this for the opposite direction (X\'s OWN manager/HOD) - see get_reporting_manager for that. Nothing to do with health insurance/benefits - never call get_insurance_status for this kind of question.',
       parameters: {
         type: 'object',
         properties: { name: { type: 'string', description: 'The manager/DOER\'s name, as mentioned by the user.' } },
+        required: ['name']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_reporting_manager',
+      description: 'UPWARD direction only - find who a named employee reports TO (their own manager/HOD, one person above them) - the opposite of get_direct_reports. Use when X is the junior/subject of the question, asking about X\'s OWN position: "X er HOD ke" (who is X\'s HOD), "X kar under e" / "X kis ke under hai" / "X kiske under hai" (under WHOM is X), "X kisko report karta hai" (who does X report to), "who is X\'s reporting manager", "who does X report to", "X under who". Contrast: "X er under e kara ache" (who is under X) is the OPPOSITE question - that one is get_direct_reports.',
+      parameters: {
+        type: 'object',
+        properties: { name: { type: 'string', description: 'The employee whose manager/HOD is being asked about, as mentioned by the user.' } },
         required: ['name']
       }
     }
@@ -547,6 +570,7 @@ const TOOL_RUNNERS = {
   get_demographics: (input) => tools.demographics(input.kind),
   find_employee: (input) => tools.findEmployee(input.query),
   get_direct_reports: (input) => tools.directReports(input.name),
+  get_reporting_manager: (input) => tools.getReportingManager(input.name),
   get_employee_detail: (input) => tools.employeeDetail(input.name),
   get_personal_details: (input) => tools.getPersonalDetails(input.name),
   list_employees: (input) => tools.listEmployees(input),

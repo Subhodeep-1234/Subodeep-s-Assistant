@@ -832,6 +832,34 @@ async function directReports(name) {
   };
 }
 
+// The OPPOSITE direction from directReports above: "who is X's manager/
+// HOD" (one person, looking UP the chain) rather than "who reports to X"
+// (a list, looking DOWN). Found live: without a dedicated tool for this,
+// the model always called directReports for both directions and just
+// reported "not found" for this one, since the named person usually has
+// zero people reporting to THEM.
+async function getReportingManager(name) {
+  const q = String(name || '').trim();
+  if (!q) return { title: null, rows: null, actions: null };
+  const { employees } = await employeeService.getEmployeeData();
+  const qLower = q.toLowerCase();
+  let matches = employees.filter((e) => e.name.toLowerCase().includes(qLower) || e.employeeId.toLowerCase().includes(qLower));
+  if (!matches.length) {
+    matches = employees.filter((e) => employeeService.containsAllWords(e.name, q));
+  }
+  if (!matches.length) {
+    return { title: null, rows: null, actions: [{ label: 'Open Employee Data', view: 'directory' }], notFound: q };
+  }
+  const emp = matches[0];
+  return {
+    title: null,
+    rows: null,
+    actions: null,
+    employeeName: emp.name,
+    reportingManager: emp.reportingManager || null
+  };
+}
+
 // Shared by both providers (mockProvider's letter rule and
 // claudeProvider's "prepareLetter" tool both call this) so the exact same
 // employee-lookup + card shape backs a letter request regardless of
@@ -918,6 +946,7 @@ module.exports = {
   employeeDetail,
   getPersonalDetails,
   directReports,
+  getReportingManager,
   listEmployees,
   groupEmployees,
   queryEmployees,
