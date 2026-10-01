@@ -223,7 +223,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'query_employees',
-    description: 'General-purpose read-only search over the FULL employee dataset - use this for anything the other tools do not already cover: a specific month\'s birthdays regardless of year, an approximate/partial name, a joining-year breakdown, a tenure-sorted list, "who is under X filtered by department", etc. Supports filtering on any field, grouping/counting by any field, sorting, and a result limit. Prefer a more specific tool when one exists (e.g. get_department_headcount for a plain department breakdown), but never refuse a question just because no preset tool matches it exactly - use this one instead.',
+    description: 'General-purpose read-only search over the FULL employee dataset - use this for anything the other tools do not already cover: a specific month\'s birthdays regardless of year, an approximate/partial name, a joining-year breakdown, a tenure-sorted list, "who is under X filtered by department", etc. ALSO use this (not list_employees) whenever the person names specific columns they want, e.g. "Sales department er active staff list - name, designation, phone" means fields:[\'name\',\'designation\',\'contactNumber\'] - contactNumber (phone), emailPersonal, bloodGroup, emergencyContact, permanentAddress, presentAddress, aadhar and pan are all real, available fields here, never say phone/address/etc. aren\'t tracked without checking this tool\'s field list first. Supports filtering on any field, grouping/counting by any field, sorting, and a result limit. Prefer a more specific tool when one exists (e.g. get_department_headcount for a plain department breakdown), but never refuse a question just because no preset tool matches it exactly - use this one instead.',
     input_schema: {
       type: 'object',
       properties: {
@@ -258,8 +258,15 @@ const TOOL_DEFS = [
         },
         fields: {
           type: 'array',
-          items: { type: 'string', enum: ['employeeId', 'name', 'designation', 'department', 'status', 'location', 'gender', 'dob', 'doj', 'tenure', 'totalExperience', 'reportingManager', 'reportingDoer', 'collar', 'employmentType'] },
-          description: 'Which columns to show in list mode (ignored when groupBy is set) - choose fields relevant to the question, e.g. include "dob" for a birthday question, "tenure" for a tenure question, "reportingManager" when that is what was asked about. Defaults to Emp Code/Name/Designation/Department/Status if omitted.'
+          items: {
+            type: 'string',
+            enum: [
+              'employeeId', 'name', 'designation', 'department', 'status', 'location', 'gender', 'dob', 'doj',
+              'tenure', 'totalExperience', 'reportingManager', 'reportingDoer', 'collar', 'employmentType',
+              'contactNumber', 'emailPersonal', 'bloodGroup', 'emergencyContact', 'permanentAddress', 'presentAddress', 'aadhar', 'pan'
+            ]
+          },
+          description: 'Which columns to show in list mode (ignored when groupBy is set) - choose fields relevant to the question, e.g. include "dob" for a birthday question, "tenure" for a tenure question, "contactNumber" for "with their phone number". Defaults to Emp Code/Name/Designation/Department/Status if omitted.'
         },
         sortBy: {
           type: 'string',
@@ -327,7 +334,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'list_employees',
-    description: 'Get an actual filtered, sortable list of individual employees (Emp Code, Name, Designation, Department, Status, DOJ) - use this whenever someone wants to SEE the employees themselves, not just a count (e.g. "list the engineers in Civil", "show me everyone who joined last quarter", "who is in the Sales department"). You DO have access to employee lists via this tool - never say you don\'t. The full list is already shown in the results card below your reply - do not repeat it as a table in your own text, just a short one-line summary.',
+    description: 'Get a filtered, sortable list with a FIXED set of columns (Emp Code, Name, Designation, Department, Status, DOJ) - use for a plain list with no specific columns named (e.g. "list the engineers in Civil", "who is in the Sales department"). You DO have access to employee lists via this tool - never say you don\'t. If the person names which columns they want (e.g. "name, designation, phone" or "with their contact number"), use query_employees with fields instead - this tool cannot add or change its columns. The full list is already shown in the results card below your reply - do not repeat it as a table in your own text, just a short one-line summary.',
     input_schema: {
       type: 'object',
       properties: {
